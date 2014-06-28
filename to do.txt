@@ -1,0 +1,5 @@
+reduce the map.R example down to a single state that has exactly two centroids.  make sure every county within the state gets shaded properly.  expand from there.
+
+
+create survey-weighted maps of the american population 1850 until 2010 with IPUMS-USA
+	https://usa.ipums.org/usa/complex_survey_vars/strata_historical.shtml
