@@ -3,3 +3,76 @@ reduce the map.R example down to a single state that has exactly two centroids. 
 
 create survey-weighted maps of the american population 1850 until 2010 with IPUMS-USA
 	https://usa.ipums.org/usa/complex_survey_vars/strata_historical.shtml
+	
+	
+
+
+use roxygen2, testthat, and devtools to put this all into a package.  follow hillary parker's guide to making swmap into a package.
+
+
+
+http://www.iussp.org/sites/default/files/event_call_for_papers/Abstract%20prevR.pdf
+http://cybergeo.revues.org/24606
+
+
+
+survey-weighted dasymetric maps
+Thomas Lumley <tlumley@uw.edu>	Mon, Jun 2, 2014 at 5:48 PM
+To: Anthony Damico <ajdamico@gmail.com>
+One approach is to use survey methods to estimate means for the
+smallest areas you can manage, and then treat these estimated means
+and their standard errors as data for input to a smoother. Lots of
+smoothers will take precision weights, which is what the standard
+errors give you.
+
+There's a 2007 paper (attached) that does this by treating
+arcsine(sqrt(p.hat)) as Normal in a Bayesian spatial model, and Jon
+Wakefield and I have been working on a more complicated approach which
+would be overkill for your application
+(http://pioneer.netserv.chula.ac.th/~sjirapha/SAE2013/Spatial%20Smoothing%20and%20Prediction%20in%20Small%20Area%20Estimation/Thomas%20Lumley.pdf)
+
+  - thomas
+[Quoted text hidden]
+--
+Thomas Lumley
+Professor of Biostatistics
+
+
+
+
+
+
+
+
+show people how to calculate a population-weighted centroid
+
+when these are published, answer:
+http://stackoverflow.com/questions/23318243/how-to-make-beautiful-borderless-geographic-thematic-heatmaps-with-weighted-sur
+tell nathan yau about it!
+
+data on canvas
+when we publish these survey-weighted maps, i want to go over-the-top with the presentation and treat them as if they were in an art gallery.
+know how at art galleries they have a little caption next to the artwork?  well i want to do that.
+http://www.nga.gov/content/ngaweb/Collection/highlights/highlight106382.html
+
+the centroid calculated should be the *population* centroid and not the geographic centroid.  so if you're mapping new york state, the population centroid should be much closer to manhattan than the center of the state.  if you just used the center of the state, that's a mistake.
+
+
+write a post: the logic behind swmap:
+	step 1 - let's say you know the poverty rate in the two largest counties in maryland - baltimore county & montgomery county (dc suburb), so you actually know those two points but really you've got survey data for those two points as well as everywhere else combine.  first: create a smoothed map of just those two points within the state of maryland.  display that map.
+	step 2 - but you actually know three points, probably.  you know baltimore county and you know montgomery county poverty rates, but you probably also know all other counties combined.  because rural areas are often grouped together and you may not have enough survey data for every rural county but you may have those two counties and *everything else in aggregate* so you've got three points, but that third one isn't a point it's the borders.  so when you tack on the border smoothing it actually looks like this on the outside is the borders and then baltimore county and montgomery county at their centroids.
+	step 3 - but the centroid of baltimore county & montgomery county, geographically, is a lie.  it's the wrong calculation as just the centroid of the county.  you need a population centroid.  for each of the points that you do know, you need a population-centered, re-weighted centroid.  calculate the centroid based on population density rather than just the geography of the county.  weighting based on population puts the centroid of baltimore county much closer to baltimore city than it does by just using the unadjusted borders of baltimore county.  and montgomery county's population center is very close to the washington dc border.  and so you would put it closer to the border rather than in the center of the county.  [[here's how to calculate a population-weighted centroid]].
+	
+	using the weighted population centroid and the borders of all of the other points that you don't know, now you have two centroids and one border-region.  you know three poverty rates for those two points and one border region.  creating a smoothed map based on that information should look like this: [example]  that's the logic behind swmap!
+
+
+needs the capacity to calculate a population-weighted centroid.
+if it's given a bunch of geocoded points and population sizes, it should calculate the centroid off of all of them.
+
+needs a `hinterland` parameter, that is the 'border regions' paramater.  unfortunately, this requires re-calculating your own shapefile so that if a point is already part of a bordering county, you're not overwriting on the edge.  so montgomery county, maryland is on the border of maryland, and so the shapefile of maryland should have the montgomery county chunk and the baltimore county chunk should be removed.  you cannot just use the maryland shapefile map, you need to alter it to remove the known-chunks so that along the washington d.c. border you don't have the wrong poverty shade.  you have to re-calculate the shapefile from maryland to exclude the two counties containing the points that you have data for.
+
+
+
+start with a simple shapefile: rectangland.  and then add a city.  and then add a second city.  and smooth according to those two cities.  and then add the borders around those two cities, and then put one city outside the border and smooth according to the border with one city outside.
+
+the nation of rectanguland
