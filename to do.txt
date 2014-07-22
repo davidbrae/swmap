@@ -76,3 +76,42 @@ needs a `hinterland` parameter, that is the 'border regions' paramater.  unfortu
 start with a simple shapefile: rectangland.  and then add a city.  and then add a second city.  and smooth according to those two cities.  and then add the borders around those two cities, and then put one city outside the border and smooth according to the border with one city outside.
 
 the nation of rectanguland
+
+
+
+from:	 Hadley Wickham <h.wickham@gmail.com>
+to:	 Anthony Damico <ajdamico@gmail.com>
+cc:	 David Rae <davidbrae@gmail.com>
+date:	 Mon, Jul 21, 2014 at 11:44 AM
+subject:	 Re: wwhd?
+
+I'd think of the problem in two parts:
+
+1. take sparse raw data and convert to smooth model predictions
+2. visualise those predictions
+
+For 2., I obviously think you should use ggplot2 to visualise the
+predictions, so I won't speak to that ;)  (but regardless of what you
+use, I think that's the easy part)
+
+For 1., you'll need to break it down into steps:
+
+a) Fit the model. I think the approach that Josh Katz takes here
+(k-nearest neighbours gaussian smoothing,
+http://www4.ncsu.edu/~jakatz2/files/dialectposter.png) seems
+reasonable, but you could also use kriging, or something more
+sophisticated.  You might want to make this user-selectable, but I'd
+start with one model.
+
+b) Generate grid (optionally constrained to more complex shape like
+map of states). For this, either generate a grid based on the range of
+lat & lon in the input data, or allow the user to supply a map or sp
+object to specify where to take the grid. I haven't done this in the
+past, but I suspect the raster package is mostly likely to help here.
+
+c) Generate predictions from grid (capturing both mean & standard
+error/local density). This should be relatively simple - providing
+your using a model the follows the standard interface, this should
+just be a matter of predict(model, newdata, se = T)
+
+Hadley
