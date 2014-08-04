@@ -10,6 +10,9 @@ create survey-weighted maps of the american population 1850 until 2010 with IPUM
 use roxygen2, testthat, and devtools to put this all into a package.  follow hillary parker's guide to making swmap into a package.
 
 
+as examples to show the power of this method: find ten state-by-state maps published in reputable publications.  (1) reproduce the maps using hard state borders.  (2) reproduce the maps using sub-state geographies and within-state smoothing.  boom.
+
+
 
 http://www.iussp.org/sites/default/files/event_call_for_papers/Abstract%20prevR.pdf
 http://cybergeo.revues.org/24606
