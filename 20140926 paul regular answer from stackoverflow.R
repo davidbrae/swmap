@@ -34,7 +34,6 @@ head( x )
 
 # # # end of data read-in # # #
 
-
 library(rgdal)
 library(raster)
 library(gstat)
@@ -78,8 +77,8 @@ nrow(x) # centroids could not be assigned to all records for some reason
 
 # create a raster object
 r <- raster(nrow=500, ncol=500, 
-            xmn=bbox(cbsa.map)["x","min"], xmx=bbox(cbsa.map)["x","max"],
-            ymn=bbox(cbsa.map)["y","min"], ymx=bbox(cbsa.map)["y","max"],
+            xmn=bbox(m)["x","min"], xmx=bbox(m)["x","max"],
+            ymn=bbox(m)["y","min"], ymx=bbox(m)["y","max"],
             crs=proj4string(m))
 
 # run inverse distance weighted model - modified code from ?interpolate...needs more research
