@@ -1,3 +1,4 @@
+library(raster)
 library(maptools)
 library(foreign)
 library(ggplot2)
@@ -17,18 +18,16 @@ z <- unzip( tf , exdir = td )
 
 y <-  z[grep('shp$',z)] 
 
-gsub(y,filedownload,"")
-
-
-y<-strsplit(z[1],"/")
+# gsub(y,filedownload,"")
+# y<-strsplit(z[1],"/")
 
 
 
 
 
-filelocation<-"C:/Users/drae/AppData/Local/Temp/Rtmps5x6LT"
+filelocation<-tempfile()
 
-y<-readOGR(filelocation,layer="tl_2011_us_county")
+y<-readOGR(y,layer="tl_2011_us_county")
 
 y$STATEFP<-as.numeric(as.character(y$STATEFP))
 
@@ -56,8 +55,6 @@ plotme<-plotme[order(plotme$order),]
 
 plotmeUnique<-plotme[!duplicated(plotme[,1]),]
 
-#duplicates????
-zerodist(plotmeUnique.grid)
 
 plotmeUnique<-plotmeUnique[!duplicated(plotmeUnique[,3]),]
 
@@ -68,6 +65,10 @@ geom_polygon(aes(fill = VALUE,group=group))
 plotmeUnique.grid<-SpatialPixelsDataFrame(plotmeUnique[c("long","lat")],data=plotmeUnique,tolerance=.5)
 coordinates(plotme) = ~long+lat
 coordinates(plotmeUnique) = ~long+lat
+
+#duplicates????
+zerodist(plotmeUnique.grid)
+
 
 
 v_RI<-variogram(VALUE~1, data=plotmeUnique)
@@ -83,18 +84,27 @@ plot(v_RI,v.fit)
 
 gridded(plotmeUnique.grid)
 
+# for ( j in seq( 10 , 1000 , 10 ) ){
 
-plotme_mofo<-krige(VALUE~1,plotmeUnique.grid,plotme,model=vgm(4,"Sph",33))
+	print( j )
 
-save(Rtmps5x6LTplotme_mofo, file = "krige.RData")
+	print( system.time({
+	plotme_mofo<-krige(VALUE~1,plotmeUnique.grid,plotme,model=vgm(4,"Sph",33),nmax=15)
+	# plotme_mofo<-krige(VALUE~1,plotmeUnique.grid,plotme,model=vgm(4,"Sph",33))
+	}) )
+# }
+
+
+
+# save(Rtmps5x6LTplotme_mofo, file = "krige.RData")
 
 
 ################################################
-setwd("C:/Users/drae/Desktop")
+# setwd("C:/Users/drae/Desktop")
 
-load(file = "krige.RData")
+# load(file = "krige.RData")
 
-xx_spatial<-Rtmps5x6LTplotme_mofo
+xx_spatial<-plotme_mofo
 
 spplot(xx_spatial["var1.pred"], main = "ordinary kriging predictions")
 
