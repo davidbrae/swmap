@@ -1,3 +1,9 @@
+http://stackoverflow.com/questions/23318243/how-to-make-beautiful-borderless-geographic-thematic-heatmaps-with-weighted-sur/26052226#26052226
+
+
+	
+
+
 reduce the map.R example down to a single state that has exactly two centroids.  make sure every county within the state gets shaded properly.  expand from there.
 
 
