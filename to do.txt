@@ -1,7 +1,14 @@
 http://stackoverflow.com/questions/23318243/how-to-make-beautiful-borderless-geographic-thematic-heatmaps-with-weighted-sur/26052226#26052226
 
 
-	
+(1) calculate your statistic and standard error for each geographic unit
+
+(2) calculate a population-weighted centroid for each geographic unit
+	http://stackoverflow.com/questions/23613655/calculating-weighted-polygon-centroids-in-r
+
+
+(3) plot a survey-weighted map
+
 
 
 reduce the map.R example down to a single state that has exactly two centroids.  make sure every county within the state gets shaded properly.  expand from there.
