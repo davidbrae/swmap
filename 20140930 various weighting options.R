@@ -35,7 +35,7 @@ ct.data <- data.frame(lon=xy[,1], lat=xy[,2], ct.map)
 
 # # # hard-bordered county map
 colRamp <- colorRampPalette(c("lavender","steelblue4"))
-plot(ct.map, col=colRamp(8)[cut(ct.data$county.poverty.rate, 8)], border="white")
+plot(ct.map, col=colRamp(8)[cut(ct.data$county.poverty.rate, 8)])
 text(ct.data$lon, ct.data$lat, ct.data$NAME, cex=0.5)
 
 
@@ -56,7 +56,7 @@ vmodel <- fit.variogram(v, vgm(1, "Exp", 10, 1))
 model <- gstat(NULL, "county.poverty.rate", county.poverty.rate~1, ct.data, model=vmodel)
 r <- interpolate(ras, model)
 r <- mask(r, ct.map)
-plot(r, col=colRamp(8) , border="white")
+plot(r, col=colRamp(8) )
 
 
 
@@ -65,7 +65,7 @@ plot(r, col=colRamp(8) , border="white")
 tps <- Tps(cbind(ct.data$lon, ct.data$lat), ct.data$county.poverty.rate, weights=ct.data$pop) 
 r <- interpolate(ras, tps)
 r <- mask(r, ct.map)
-plot(r, col=colRamp(8) , border="white")
+plot(r, col=colRamp(8) )
 
 
 
@@ -73,7 +73,7 @@ plot(r, col=colRamp(8) , border="white")
 tps <- Tps(cbind(ct.data$lon, ct.data$lat), ct.data$county.poverty.rate)
 r <- interpolate(ras, tps)
 r <- mask(r, ct.map)
-plot(r, col=colRamp(8) , border="white")
+plot(r, col=colRamp(8) )
 
 
 
@@ -81,7 +81,7 @@ plot(r, col=colRamp(8) , border="white")
 Krig.output <- Krig( cbind(ct.data$lon,ct.data$lat) , ct.data$county.poverty.rate )  
 r <- interpolate(ras, Krig.output)
 r <- mask(r, ct.map)
-plot(r, col=colRamp(8) , border="white",axes=F,legend=F)
+plot(r, col=colRamp(8) ,axes=F,legend=F)
 
 
 
@@ -92,7 +92,7 @@ size <- 2
 Krig.output.wt <- Krig( cbind(ct.data$lon,ct.data$lat) , ct.data$county.poverty.rate ,weights=c( size , 1 , 1 , 1 , 1 , size , size , 1 ) )  
 r <- interpolate(ras, Krig.output.wt)
 r <- mask(r, ct.map)
-plot(r, col=colRamp(8) , border="white",axes=FALSE,legend=FALSE)
+plot(r, col=colRamp(8) ,axes=FALSE,legend=FALSE)
 
 
 # make populated counties this much bigger than others
@@ -102,7 +102,7 @@ size <- 5
 Krig.output.wt <- Krig( cbind(ct.data$lon,ct.data$lat) , ct.data$county.poverty.rate ,weights=c( size , 1 , 1 , 1 , 1 , size , size , 1 ) )  
 r <- interpolate(ras, Krig.output.wt)
 r <- mask(r, ct.map)
-plot(r, col=colRamp(8) , border="white",axes=FALSE,legend=FALSE)
+plot(r, col=colRamp(8) ,axes=FALSE,legend=FALSE)
 
 
 # make populated counties this much bigger than others
@@ -112,7 +112,7 @@ size <- 50
 Krig.output.wt <- Krig( cbind(ct.data$lon,ct.data$lat) , ct.data$county.poverty.rate ,weights=c( size , 1 , 1 , 1 , 1 , size , size , 1 ) )  
 r <- interpolate(ras, Krig.output.wt)
 r <- mask(r, ct.map)
-plot(r, col=colRamp(8) , border="white",axes=FALSE,legend=FALSE)
+plot(r, col=colRamp(8) ,axes=FALSE,legend=FALSE)
 
 
 
@@ -125,14 +125,14 @@ plot(r, col=colRamp(8) , border="white",axes=FALSE,legend=FALSE)
 Krig.output.wt <- Krig( cbind(ct.data$lon,ct.data$lat) , ct.data$county.poverty.rate ,weights=ct.data$pop,Covariance="Matern")  
 r <- interpolate(ras, Krig.output.wt)
 r <- mask(r, ct.map)
-plot(r, col=colRamp(8) , border="white",axes=FALSE,legend=FALSE)
+plot(r, col=colRamp(8) ,axes=FALSE,legend=FALSE)
 
 
 # # # weighted map with Krig (using Matern and heavy smoothness)
 Krig.output.wt <- Krig( cbind(ct.data$lon,ct.data$lat) , ct.data$county.poverty.rate ,weights=ct.data$pop,Covariance="Matern",smoothness=0.9)  
 r <- interpolate(ras, Krig.output.wt)
 r <- mask(r, ct.map)
-plot(r, col=colRamp(8) , border="white",axes=FALSE,legend=FALSE)
+plot(r, col=colRamp(8) ,axes=FALSE,legend=FALSE)
 
 
 
@@ -140,7 +140,7 @@ plot(r, col=colRamp(8) , border="white",axes=FALSE,legend=FALSE)
 Krig.output.wt <- Krig( cbind(ct.data$lon,ct.data$lat) , ct.data$county.poverty.rate ,weights=ct.data$pop)  
 r <- interpolate(ras, Krig.output.wt)
 r <- mask(r, ct.map)
-plot(r, col=colRamp(100) , border="white",axes=FALSE,legend=FALSE)
+plot(r, col=colRamp(100) ,axes=FALSE,legend=FALSE)
 
 
 
@@ -148,4 +148,4 @@ plot(r, col=colRamp(100) , border="white",axes=FALSE,legend=FALSE)
 Krig.output.wt <- Krig( cbind(ct.data$lon,ct.data$lat) , ct.data$county.poverty.rate ,weights=ct.data$pop,Covariance="Matern",smoothness=0.9)  
 r <- interpolate(ras, Krig.output.wt)
 r <- mask(r, ct.map)
-plot(r, col=colRamp(50) , border="white",axes=FALSE,legend=FALSE)
+plot(r, col=colRamp(50) ,axes=FALSE,legend=FALSE)
