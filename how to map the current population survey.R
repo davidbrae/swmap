@@ -445,9 +445,9 @@ y.range[ 2 ] <- y.range[ 2 ] + y.diff
 
 
 # do you want your map to print decently in a few minutes?
-# grid.length <- 100
+grid.length <- 100
 # or beautifully in a few hours?
-grid.length <- 250
+# grid.length <- 250
 
 
 # create two identical grid objects
@@ -487,8 +487,6 @@ shpct.uz <- unzip( shpct.tf , exdir = td )
 
 ct.shp <- readShapePoly( shpct.uz[ grep( 'shp$' , shpct.uz ) ] )
 
-sol <- fortify( ct.shp )
-
 # # end of step 8 # #
 # # # # # # # # # # #
 
@@ -519,21 +517,6 @@ names( krig.grd ) <- c( "intptlon" , "intptlat" , "kout" )
 gam.grd <- data.frame( coordinates( gam.r ) , values( gam.r ) )
 names( gam.grd ) <- c( "intptlon" , "intptlat" , "kout" )
 
-
-
-## compare
-op <- par(mfcol=c(3,1), mar=c(3,3,3,3))
-plot(krig.grd, main="Krige")
-#contour(r, add=TRUE)
-plot(gam.grd, main="GAM")
-#contour(gam.r, add=TRUE)
-spx <- x
-coordinates(spx) <- c("intptlon","intptlat")
-dat.r <- rasterize(spx, krig.r, field="povrate", method="mean")
-plot(dat.r, main="Data")
-par(op)
-
-
 # # end of step 9 # #
 # # # # # # # # # # #
 
@@ -544,15 +527,28 @@ library(ggplot2)
 library(scales)
 library(mapproj)
 
+
+# library(rgeos)
+
+# bbox = matrix(c(x.range[1],x.range[2],x.range[2],x.range[1],x.range[1],
+                # y.range[1],y.range[1],y.range[2],y.range[2],y.range[1]),
+              # nrow = 5, ncol =2)
+# bbox = Polygon(bbox, hole=FALSE)
+# bbox = Polygons(list(bbox), "bbox")
+# bbox = SpatialPolygons(Srl=list(bbox), pO=1:1, proj4string=ct.shp@proj4string)
+
+# outside <- gDifference( bbox , ct.shp )
+# outside <- fortify( outside )
+
+
+
 # weighted.
 plot <- ggplot(data = krig.grd, aes(x = intptlon, y = intptlat))  #start with the base-plot 
 layer1 <- geom_tile(data = krig.grd, aes(fill = kout ))  #then create a tile layer and fill with predicted values
-# sol <- fortify( ct.shp )
-# layer2 <- geom_path(data = sol, aes(long, lat), colour = "grey40", size = 1)
+layer2 <- geom_polygon(data=outside, aes(x=long,y=lat), fill='white')
 co <- coord_map( project = "albers" , lat0 = min( x$intptlat ) , lat1 = max( x$intptlat ) )
 # print this to a pdf instead, so it formats properly
-# plot + layer1 + layer2 + co + scale_fill_gradient( low = muted( 'blue' ) , high = muted( 'red' ) )
-plot + layer1 + co + scale_fill_gradient( low = muted( 'blue' ) , high = muted( 'red' ) )
+plot + layer1 + layer2 + co + scale_fill_gradient( low = muted( 'blue' ) , high = muted( 'red' ) )
 
 
 
@@ -566,12 +562,5 @@ co <- coord_map( project = "albers" , lat0 = min( x$intptlat ) , lat1 = max( x$i
 # print this to a pdf instead, so it formats properly
 # plot + layer1 + layer2 + co + scale_fill_gradient( low = muted( 'blue' ) , high = muted( 'red' ) )
 plot + layer1 + co + scale_fill_gradient( low = muted( 'blue' ) , high = muted( 'red' ) )
-
-
-
-# http://rstudio-pubs-static.s3.amazonaws.com/10873_b2b82ff8719948e69841e546591bcfff.html
-
-
-# how do you remove everything outside of the "fortify" boundary
 
 
