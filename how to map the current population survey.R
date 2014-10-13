@@ -411,7 +411,7 @@ krig.fit <-
 # the x/y points on a grid?
 
 # check this out!
-surface( fit )
+surface( krig.fit )
 # you're almost there!
 
 # and here's an alternate approach using the `gam` function
@@ -423,8 +423,6 @@ gam.fit <-
 		weights = weight , 
 		data = x
 	)
-
-
 	
 # # end of step 6 # #
 # # # # # # # # # # #
@@ -447,9 +445,9 @@ y.range[ 2 ] <- y.range[ 2 ] + y.diff
 
 
 # do you want your map to print decently in a few minutes?
-grid.length <- 100
+# grid.length <- 100
 # or beautifully in a few hours?
-# grid.length <- 250
+grid.length <- 250
 
 
 # create two identical grid objects
@@ -463,7 +461,7 @@ gam.grd <- krig.grd <-
 # along your rectangular grid,
 # what are the predicted values of
 # the poverty rate?
-krig.grd$kout <- predict( krig.fit , grd )
+krig.grd$kout <- predict( krig.fit , krig.grd )
 
 # alternate grid using gam.fit
 gam.grd$gamout <- predict( gam.fit , gam.grd )
@@ -500,38 +498,38 @@ sol <- fortify( ct.shp )
 
 library(raster)
 
-# convert grd data frame to spatial points data frame
-coordinates(grd) <- c("intptlon","intptlat")
+# convert both *.grd data frames to spatial points data frames
+coordinates( krig.grd ) <- coordinates( gam.grd ) <- c( "intptlon" , "intptlat" )
 
-## gridify grd
-gridded(grd) <- TRUE
+# gridify grd
+gridded( krig.grd ) <- gridded( gam.grd ) <- TRUE
 
-## convert to raster
-r <- raster(grd)
+# convert to raster
+krig.ras <- raster( krig.grd )
+gam.ras <- raster( gam.grd )
 
-## mask raster using polygon
-r <- mask(r, ct.shp)
+# mask both rasters using your state polygon
+krig.r <- mask( krig.ras , ct.shp )
+gam.r <- mask( gam.ras , ct.shp )
 
-## revert to data frame
-grd <- data.frame(coordinates(r),values(r))
-names(grd) <- c("intptlon","intptlat","kout")
+# revert both raster objects to data frames
+krig.grd <- data.frame( coordinates( krig.r ) , values( krig.r ) )
+names( krig.grd ) <- c( "intptlon" , "intptlat" , "kout" )
+
+gam.grd <- data.frame( coordinates( gam.r ) , values( gam.r ) )
+names( gam.grd ) <- c( "intptlon" , "intptlat" , "kout" )
 
 
-## gam raster 
-coordinates(gam.grd) <- c("intptlon","intptlat")
-gridded(gam.grd) <- TRUE
-gam.r <- raster(gam.grd)
-gam.r <- mask(gam.r, ct.shp)
 
 ## compare
 op <- par(mfcol=c(3,1), mar=c(3,3,3,3))
-plot(r, main="Krige")
+plot(krig.grd, main="Krige")
 #contour(r, add=TRUE)
-plot(gam.r, main="GAM")
+plot(gam.grd, main="GAM")
 #contour(gam.r, add=TRUE)
 spx <- x
 coordinates(spx) <- c("intptlon","intptlat")
-dat.r <- rasterize(spx, r, field="povrate", method="mean")
+dat.r <- rasterize(spx, krig.r, field="povrate", method="mean")
 plot(dat.r, main="Data")
 par(op)
 
@@ -547,15 +545,27 @@ library(scales)
 library(mapproj)
 
 # weighted.
-plot <- ggplot(data = grd, aes(x = intptlon, y = intptlat))  #start with the base-plot 
-layer1 <- geom_tile(data = grd, aes(fill = kout ))  #then create a tile layer and fill with predicted values
-sol <- fortify( ct.shp )
-layer2 <- geom_path(data = sol, aes(long, lat), colour = "grey40", size = 1)
+plot <- ggplot(data = krig.grd, aes(x = intptlon, y = intptlat))  #start with the base-plot 
+layer1 <- geom_tile(data = krig.grd, aes(fill = kout ))  #then create a tile layer and fill with predicted values
+# sol <- fortify( ct.shp )
+# layer2 <- geom_path(data = sol, aes(long, lat), colour = "grey40", size = 1)
 co <- coord_map( project = "albers" , lat0 = min( x$intptlat ) , lat1 = max( x$intptlat ) )
-
-
 # print this to a pdf instead, so it formats properly
-plot + layer1 + layer2 + co + scale_fill_gradient( low = muted( 'blue' ) , high = muted( 'red' ) )
+# plot + layer1 + layer2 + co + scale_fill_gradient( low = muted( 'blue' ) , high = muted( 'red' ) )
+plot + layer1 + co + scale_fill_gradient( low = muted( 'blue' ) , high = muted( 'red' ) )
+
+
+
+
+# weighted.
+plot <- ggplot(data = gam.grd, aes(x = intptlon, y = intptlat))  #start with the base-plot 
+layer1 <- geom_tile(data = gam.grd, aes(fill = kout ))  #then create a tile layer and fill with predicted values
+# sol <- fortify( ct.shp )
+# layer2 <- geom_path(data = sol, aes(long, lat), colour = "grey40", size = 1)
+co <- coord_map( project = "albers" , lat0 = min( x$intptlat ) , lat1 = max( x$intptlat ) )
+# print this to a pdf instead, so it formats properly
+# plot + layer1 + layer2 + co + scale_fill_gradient( low = muted( 'blue' ) , high = muted( 'red' ) )
+plot + layer1 + co + scale_fill_gradient( low = muted( 'blue' ) , high = muted( 'red' ) )
 
 
 
