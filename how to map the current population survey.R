@@ -409,6 +409,12 @@ fit <-
 # check this out!
 surface( fit )
 # you're almost there!
+
+## alternate approach using GAM
+library(mgcv)
+gam.fit <- gam(povrate~s(intptlon,intptlat), weights=weight, data=x)
+
+
 	
 # # end of step 6 # #
 # # # # # # # # # # #
@@ -445,6 +451,12 @@ grd <-
 
 grd$kout <- predict( fit , grd )
 
+## alternate grid using gam.fit
+gam.grd <- grd[,c("intptlon", "intptlat")]
+gam.grd$gamout <- predict(gam.fit, gam.grd)
+
+
+
 # # end of step 7 # #
 # # # # # # # # # # #
 
@@ -470,6 +482,52 @@ sol <- fortify( ct.shp )
 
 # # end of step 8 # #
 # # # # # # # # # # #
+
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# # step 9: remove everything outside the boundary # #
+
+library(raster)
+
+## convert grd data frame to spatial points data frame
+coordinates(grd) <- c("intptlon","intptlat")
+
+## gridify grd
+gridded(grd) <- TRUE
+
+## convert to raster
+r <- raster(grd)
+
+## mask raster using polygon
+r <- mask(r, ct.shp)
+
+## revert to data frame
+grd <- data.frame(coordinates(r),values(r))
+names(grd) <- c("intptlon","intptlat","kout")
+
+
+## gam raster 
+coordinates(gam.grd) <- c("intptlon","intptlat")
+gridded(gam.grd) <- TRUE
+gam.r <- raster(gam.grd)
+gam.r <- mask(gam.r, ct.shp)
+
+## compare
+op <- par(mfcol=c(3,1), mar=c(3,3,3,3))
+plot(r, main="Krige")
+#contour(r, add=TRUE)
+plot(gam.r, main="GAM")
+#contour(gam.r, add=TRUE)
+spx <- x
+coordinates(spx) <- c("intptlon","intptlat")
+dat.r <- rasterize(spx, r, field="povrate", method="mean")
+plot(dat.r, main="Data")
+par(op)
+
+
+# # end of step 9 # #
+# # # # # # # # # # #
+
 
 
 
