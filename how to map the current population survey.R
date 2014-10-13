@@ -289,7 +289,7 @@ stopifnot( sum( x$weight ) == sum( sas$invse ) )
 # remove records with zero population
 x <- subset( x , weight > 0 )
 
-# scale all weights to they average to one
+# scale all weights so that they average to one
 x$weight <- x$weight / mean( x$weight )
 
 # you're done preparing your data.
@@ -380,7 +380,7 @@ ct.map + coord_map( project = "albers" , lat0 = min( x$intptlat ) , lat1 = max( 
 
 
 # # # # # # # # # # # # # # # # # #
-# # step 6: tye knots and krige # #
+# # step 6: tie knots and krige # #
 
 library(fields)
 
@@ -391,28 +391,38 @@ library(fields)
 # if you've got a powerful computer,
 # you can increase this
 number.of.knots <- min( 100 , nrow( x ) )
+# number.of.knots <- min( 250 , nrow( x ) )
 
 
 xknots <- cover.design( cbind( x$intptlon , x$intptlat ) , number.of.knots )$design
 
 
-fit <-
+krig.fit <-
 	Krig(
 		cbind( x$intptlon , x$intptlat ) ,
 		x$povrate ,
 		weights = x$weight ,
-		knots = xknots ,
-		Covariance = "Matern"
+		knots = xknots # ,
+		# Covariance = "Matern"
 	)
 
+# that is: what is the (weighted) relationship between
+# your variable of interest (poverty rate) and
+# the x/y points on a grid?
 
 # check this out!
 surface( fit )
 # you're almost there!
 
-## alternate approach using GAM
+# and here's an alternate approach using the `gam` function
 library(mgcv)
-gam.fit <- gam(povrate~s(intptlon,intptlat), weights=weight, data=x)
+
+gam.fit <- 
+	gam( 
+		povrate ~ s(intptlon , intptlat ) , 
+		weights = weight , 
+		data = x
+	)
 
 
 	
@@ -439,23 +449,24 @@ y.range[ 2 ] <- y.range[ 2 ] + y.diff
 # do you want your map to print decently in a few minutes?
 grid.length <- 100
 # or beautifully in a few hours?
-grid.length <- 500
+# grid.length <- 250
 
 
-grd <- 
+# create two identical grid objects
+gam.grd <- krig.grd <- 
 	expand.grid(
 		intptlon = seq( from = x.range[1] , to = x.range[2] , length = grid.length ) , 
 		intptlat = seq( from = y.range[1] , to = y.range[2] , length = grid.length )
 	)
 
 
-grd$kout <- predict( fit , grd )
+# along your rectangular grid,
+# what are the predicted values of
+# the poverty rate?
+krig.grd$kout <- predict( krig.fit , grd )
 
-## alternate grid using gam.fit
-gam.grd <- grd[,c("intptlon", "intptlat")]
-gam.grd$gamout <- predict(gam.fit, gam.grd)
-
-
+# alternate grid using gam.fit
+gam.grd$gamout <- predict( gam.fit , gam.grd )
 
 # # end of step 7 # #
 # # # # # # # # # # #
@@ -485,11 +496,11 @@ sol <- fortify( ct.shp )
 
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-# # step 9: remove everything outside the boundary # #
+# # step 9: remove everything outside your boundary # #
 
 library(raster)
 
-## convert grd data frame to spatial points data frame
+# convert grd data frame to spatial points data frame
 coordinates(grd) <- c("intptlon","intptlat")
 
 ## gridify grd
