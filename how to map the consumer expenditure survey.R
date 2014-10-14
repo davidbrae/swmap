@@ -399,6 +399,9 @@ sf$keep <- NULL
 # continue being as sparse as possible.  remove columns you no longer need.
 sf <- sf[ , ( names( sf ) %in% c( 'state' , 'psu' , 'smsastat' , 'pop100' , 'intptlat' , 'intptlon' ) ) ]
 
+# integers are overflowing
+sf$pop100 <- as.numeric( sf$pop100 )
+
 # clear up RAM
 gc()
 
@@ -462,7 +465,7 @@ x$weight <- x$invse * ( x$pop100 / x$popsum )
 
 # note that weight of all census blocks put together
 # sums to the `invse` on the original analysis file
-stopifnot( sum( x$weight ) == sum( sas$invse ) )
+stopifnot( all.equal( sum( x$weight ) , sum( sas$invse ) ) )
 
 # scale all weights so that they average to one
 x$weight <- x$weight / mean( x$weight )
