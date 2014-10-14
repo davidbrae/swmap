@@ -458,6 +458,8 @@ x <- merge( sf , sas )
 # confirm no record loss
 stopifnot( nrow( x ) == nrow( sf ) )
 
+# clear up RAM
+rm( sf ) ; gc()
 
 # (this is the fun part)
 # calculate the weight of each census block
@@ -470,9 +472,93 @@ stopifnot( all.equal( sum( x$weight ) , sum( sas$invse ) ) )
 # scale all weights so that they average to one
 x$weight <- x$weight / mean( x$weight )
 
+
+# now that all weights have been computed,
+# remove alaska and hawaii
+x <- subset( x , !( state %in% c( 2 , 15 ) )
+# note that those states need to be included up until this point
+# otherwise their populations won't scoop up their
+# respective shares of any multi-state statistics
+
+
 # you're done preparing your data.
 # keep only the columns you need.
 x <- x[ , c( 'share' , 'weight' , 'intptlat' , 'intptlon' ) ]
 
 # # end of step 4 # #
+# # # # # # # # # # #
+
+
+# # # # # # # # # # # # # # # # # # # # # # #
+# # step 5: decide on your map parameters # #
+
+library(ggplot2)
+library(scales)
+library(mapproj)
+
+# before you ever touch surface smoothing or kriging,
+# make some decisions about how you generally want
+# your map to look:  the projection and coloring
+
+# the options below simply use hadley wickham's ggplot2
+# with the census block-level transportation shares and centroids
+
+
+# initiate the simple map
+us.map <- 
+	qplot( 
+		intptlon , 
+		intptlat , 
+		data = x , 
+		colour = share ,
+		xlab = NULL ,
+		ylab = NULL
+	)
+
+# choose your coloring and severity from the midpoint
+us.map <- 
+	us.map + 
+
+	scale_colour_gradient2( 
+	
+		# low transportation spending is good
+		low = muted( "blue" ) , 
+		# so invert the default colors
+		high = muted( "red" ) , 
+		
+		# shows the most severe difference in coloring
+		midpoint = mean( unique( x$share ) )
+		
+		# shows the population-weighted difference in coloring
+		# midpoint = weighted.mean( x$share , x$weight )
+	)
+
+	
+# remove all map crap.
+
+us.map <- 
+	us.map + 
+
+	scale_x_continuous( breaks = NULL ) +
+
+    scale_y_continuous( breaks = NULL ) +
+
+    theme(
+		legend.position = "none" ,
+		panel.grid.major = element_blank(),
+		panel.grid.minor = element_blank(),
+		panel.background = element_blank(),
+		panel.border = element_blank(),
+		axis.ticks = element_blank()
+	)
+
+
+# print the map without any projection
+us.map
+
+# print the map with an albers projection.
+us.map + coord_map( project = "albers" , lat0 = min( x$intptlat ) , lat1 = max( x$intptlat ) )
+# see ?mapproject for a zillion alternatives
+
+# # end of step 5 # #
 # # # # # # # # # # #
