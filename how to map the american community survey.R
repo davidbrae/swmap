@@ -37,7 +37,7 @@
 # # value of interest # #
 # # # # # # # # # # # # #
 
-# percent of the population with russian ancestry
+# median property value among owner-occupied homes
 
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -82,7 +82,7 @@ library(MonetDB.R)
 
 # first: specify your batfile.  again, mine looks like this:
 # uncomment this line by removing the `#` at the front..
-batfile <- "./MonetDB/acs.bat"
+batfile <- paste0( getwd() , "/MonetDB/acs.bat" )
 
 # second: run the MonetDB server
 pid <- monetdb.server.start( batfile )
@@ -98,33 +98,67 @@ db <- dbConnect( MonetDB.R() , monet.url , wait = TRUE )
 
 # # # # run your analysis commands # # # #
 
-# analyze the 2011 single-year acs
+# analyze the 2012 single-year acs
 load( './acs2012_1yr.rda' )
 
-# open the design connection
-acs.m <- open( acs.m.design , driver = MonetDB.R() , wait = TRUE )	# merged design
+# open the design connection to the household-level design, not the person-level design
+acs.h <- open( acs.h.design , driver = MonetDB.R() , wait = TRUE )
 
-# restrict the acs.m object to alaska only
-acs.m.alaska <- subset( acs.m , state == 2 )
+# restrict the acs.h object to alaska only
+acs.h.alaska <- subset( acs.h , st == 2 )
 
-# percent with russian ancestry, statewide
-svymean( ~ I( anc1p == 148 | anc2p == 148 ) , acs.m.alaska )
+# determine the unique pumas in alaska
+alaska.pumas <- dbGetQuery( db , 'select distinct puma from acs2012_1yr_h where st = 2 order by puma' )
 
-# break that result out by public use microdata area (puma)
-smallest.area.statistics <-
-	svymean( ~ I( anc1p == 148 | anc2p == 148 ) , acs.m.alaska , byvar = ~ puma )
+# there's the starting data.frame object
+class( alaska.pumas )
 
-# these are the statistics to be mapped
-print( smallest.area.statistics )
+# loop through this data.frame object with one record per alaskan puma
+for ( i in seq( nrow( alaska.pumas ) ) ){
+
+	# sqlsurvey's subsetting is funky and svyby() and byvar= do not work on svyquantile
+	puma.ss.line <-
+		paste( 
+			"this.puma <- subset( acs.h.alaska , ( valp > 0 ) & ( puma = " , 
+			alaska.pumas[ i , 'puma' ] , 
+			") )"	
+		)
+
+	# execute the current string to create the alaskan household object,
+	# subsetted to the current puma
+	eval( parse( text = puma.ss.line ) )
+		
+	# calculate the median and standard error
+	this.result <- svyquantile( ~ valp , this.puma , quantiles = 0.5 , se = TRUE )
+		
+	# store the median home value
+	alaska.pumas[ i , 'mhv' ] <- as.numeric( this.result )
+	
+	# store the standard error
+	alaska.pumas[ i , 'se' ] <- attr( this.result , 'ci' )[ 3 ]
+
+}
+
+# close the connection to the sqlrepsurvey design object
+close( acs.h.alaska )
+close( acs.h )
+
+# disconnect from the current monet database
+dbDisconnect( db )
+
+# and close it using the `pid`
+monetdb.server.stop( pid )
+
+# end of lines of code to hold on to for all other `acs` monetdb analyses #
+###########################################################################
+
+# these are the small area statistics to be mapped
+print( alaska.pumas )
 # the standard errors are a measure of precision,
 # their inverse will serve as the mapping weights
 
-# make this object easier to type..
-sas <- smallest.area.statistics
-
-# ..and also easier to read
-names( sas )[ names( sas ) == 'transexp/totalexp' ] <- 'share'
-names( sas )[ names( sas ) == 'se.transexp/totalexp' ] <- 'se'
+# make this object easier to type
+sas <- alaska.pumas
 
 # # end of step 2 # #
 # # # # # # # # # # #
