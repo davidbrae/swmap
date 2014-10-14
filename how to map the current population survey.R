@@ -450,11 +450,17 @@ grid.length <- 100
 # grid.length <- 250
 
 
-# create two identical grid objects
+# create three identical grid objects
 grd <- gam.grd <- krig.grd <- 
 	expand.grid(
 		intptlon = seq( from = x.range[1] , to = x.range[2] , length = grid.length ) , 
 		intptlat = seq( from = y.range[1] , to = y.range[2] , length = grid.length )
+	)
+
+outer.grd <- 
+	data.frame(
+		intptlon = c( x.range[1] - x.diff , x.range[2] + x.diff ) , 
+		intptlat = c( y.range[1] - y.diff , y.range[2] + y.diff )
 	)
 
 
@@ -470,8 +476,8 @@ gam.grd$gamout <- predict( gam.fit , gam.grd )
 # # # # # # # # # # #
 
 
-# # # # # # # # # # # #
-# # step 8: outline # #
+# # # # # # # # # # # # # # # # # #
+# # step 8: outline and project # #
 
 library(maptools)
 
@@ -487,6 +493,11 @@ shpct.uz <- unzip( shpct.tf , exdir = td )
 
 ct.shp <- readShapePoly( shpct.uz[ grep( 'shp$' , shpct.uz ) ] )
 
+# projection <- paste0( "+proj=albers +lat_0=" , min( x$intptlat ) , " +lat_1=" , max( x$intptlat ) )
+
+# proj4string( ct.shp ) <- projection
+# ct.shp <- spTransform( ct.shp , CRS( projection ) )
+
 # # end of step 8 # #
 # # # # # # # # # # #
 
@@ -497,13 +508,16 @@ ct.shp <- readShapePoly( shpct.uz[ grep( 'shp$' , shpct.uz ) ] )
 library(rgeos)
 
 # convert grd to SpatialPoints object
-coordinates(grd) <- c("intptlon","intptlat")
+coordinates( outer.grd ) <- c( "intptlon" , "intptlat" )
 
 # draw a rectangle around the grd
-ct.shp.diff <- gEnvelope(grd)
+ct.shp.diff <- gEnvelope( outer.grd )
+
+# proj4string( ct.shp.diff ) <- projection
+# ct.shp.diff <- spTransform( ct.shp.diff , CRS( projection ) )
 
 # get the difference between your boundary and the rectangle
-ct.shp.diff <- gDifference(ct.shp.diff, ct.shp)
+ct.shp.diff <- gDifference( ct.shp.diff , ct.shp )
 
 outside <- fortify( ct.shp.diff )
 
@@ -517,15 +531,16 @@ library(ggplot2)
 library(scales)
 library(mapproj)
 
-
-
 # weighted.
 plot <- ggplot(data = krig.grd, aes(x = intptlon, y = intptlat))  #start with the base-plot 
 layer1 <- geom_tile(data = krig.grd, aes(fill = kout ))  #then create a tile layer and fill with predicted values
 layer2 <- geom_polygon(data=outside, aes(x=long,y=lat), fill='white')
 co <- coord_map( project = "albers" , lat0 = min( x$intptlat ) , lat1 = max( x$intptlat ) )
 # print this to a pdf instead, so it formats properly
-plot + layer1 + layer2 + co + scale_fill_gradient( low = muted( 'blue' ) , high = muted( 'red' ) )
+# plot + layer1 + layer2 + co + scale_fill_gradient( low = muted( 'blue' ) , high = muted( 'red' ) )
+# plot + layer1 + layer2 + scale_fill_gradient( low = muted( 'blue' ) , high = muted( 'red' ) )
+
+plot + layer1 + layer2 + co + scale_fill_gradient( low = muted( 'blue' ) , high = muted( 'red' ) ) + coord_equal()
 
 
 
