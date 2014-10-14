@@ -162,3 +162,174 @@ sas <- alaska.pumas
 
 # # end of step 2 # #
 # # # # # # # # # # #
+
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# # step 3: download and import necessary geographic crosswalks # #
+
+library(downloader)
+library(maptools)
+
+# load the download.cache and related functions
+# to prevent re-downloading of files once they've been downloaded.
+source_url(
+	"https://raw.github.com/ajdamico/usgsd/master/Download%20Cache/download%20cache.R" ,
+	prompt = FALSE ,
+	echo = FALSE
+)
+
+
+# create a temporary file containing the census bureau's
+# 2010 census tract to 2010 puma crosswalk
+# then download the file.
+ctpxw.tf <- tempfile()
+
+download.cache(
+	"http://www.census.gov/geo/maps-data/data/docs/rel/2010_Census_Tract_to_2010_PUMA.txt" ,
+	ctpxw.tf ,
+	mode = 'wb'
+)
+
+# import this csv file into an R data.frame object
+ctpxw <- read.csv( ctpxw.tf )
+
+# match the column names of sf1 and of the `sas` output
+names( ctpxw ) <- c( 'state' , 'county' , 'tract' , 'puma' )
+
+# immediately limit this to alaskan census tracts
+ak.ctpxw <- subset( ctpxw , state == 2 )
+
+# clear up RAM
+rm( ctpxw ) ; gc()
+
+
+# create a temporary file containing the census bureau's
+# 2010 census summary file #1 for alaska
+# then download the file.
+sf1ak.tf <- tempfile()
+
+download.cache( 
+	"ftp://ftp2.census.gov/census_2010/04-Summary_File_1/Alaska/ak2010.sf1.zip" ,
+	sf1ak.tf ,
+	mode = 'wb'
+)
+
+# create a temporary directory
+td <- tempdir()
+
+# unzip the summary file #1 files
+sf1ak.uz <- unzip( sf1ak.tf , exdir = td )
+
+# file layout from http://www.census.gov/prod/cen2010/doc/sf1.pdf#page=18
+sf1ak <- read.fwf( sf1ak.uz[ grep( "akgeo2010" , sf1ak.uz ) ] , c( -8 , 3 , -16 , 2 , 3 , -22 , 6 , 1 , 4 , -253 , 9 , -9 , 11 , 12 ) )
+
+# add columns names matching the census bureau, so it's easy to read
+names( sf1ak ) <- c( "sumlev" , "state" , "county" , "tract" , "blkgrp" , "block" , "pop100" , "intptlat" , "intptlon" )
+
+# summary level 101 has census tracts and census blocks
+sf1ak.101 <- subset( sf1ak , sumlev == "101" )
+
+# merge these files together
+sf1ak.101 <- merge( sf1ak.101 , ak.ctpxw )
+# the number of records and population sums serve
+# as a check to confirm that this merge worked
+
+# one record per census block in alaska.  see?  same number.
+nrow( sf1ak.101 )
+# https://www.census.gov/geo/maps-data/data/tallies/census_block_tally.html
+
+# and guess what?  the total alaska population matches as well.
+sum( sf1ak.101$pop100 )
+# http://quickfacts.census.gov/qfd/states/02000.html
+
+# clear up RAM
+rm( sf1ak ) ; gc()
+
+
+# so now we have a data.frame object with
+# one record per census block,
+# and also with the geography (puma)
+# that matches the american community survey
+head( sf1ct.101 )
+
+# and guess what?
+# we've now got the census 2010 weighted populations (field pop100)
+# and also each census block's centroid latitude & longitude (fields intptlat + intptlon)
+
+# # end of step 3 # #
+# # # # # # # # # # #
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# create a temporary file containing the census bureau's
+# 2010 census tract shapefile for alaska
+# then download the file.
+shpak.tf <- tempfile() ; td <- tempdir()
+
+download.cache( 
+	"ftp://ftp2.census.gov/geo/tiger/TIGER2010/TRACT/2010/tl_2010_02_tract10.zip" ,
+	shpak.tf ,
+	mode = 'wb'
+)
+
+shpak.uz <- unzip( shpak.tf , exdir = td )
+
+ak.shp <- readShapePoly( shpak.uz[ grep( 'shp$' , shpak.uz ) ] )
+
+
+
+
+# from the census tract shapefile,
+# we can merge on puma-level statistics and also
+# calculate the total 2010 census population, by tract
+sum( sf1ct.101$pop100 )
+# http://quickfacts.census.gov/qfd/states/02000.html
+
+
+# so now we have a data.frame object with
+# one record per census block,
+# and also with the two geography-levels
+# that match the current population survey
+head( sf1ct.101 )
+# in connecticut,
+# necta is the cbsa and
+# nmemi indicates metropolitan status
+
+# and guess what?
+# we've now got the census 2010 weighted populations (field pop100)
+# and also each census block's centroid latitude & longitude (fields intptlat + intptlon)
+
+# # end of step 3 # #
+# # # # # # # # # # #
