@@ -519,8 +519,6 @@ ct.shp.diff <- gEnvelope( outer.grd )
 # get the difference between your boundary and the rectangle
 ct.shp.diff <- gDifference( ct.shp.diff , ct.shp )
 
-outside <- fortify( ct.shp.diff )
-
 # # end of step 9 # #
 # # # # # # # # # # #
 
@@ -530,6 +528,10 @@ outside <- fortify( ct.shp.diff )
 library(ggplot2)
 library(scales)
 library(mapproj)
+
+
+outside <- fortify( ct.shp.diff )
+
 
 # weighted.
 plot <- ggplot(data = krig.grd, aes(x = intptlon, y = intptlat))  #start with the base-plot 
