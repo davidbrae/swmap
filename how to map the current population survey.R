@@ -428,56 +428,8 @@ gam.fit <-
 # # # # # # # # # # #
 
 
-# # # # # # # # # # # # # # # # # # # #
-# # step 7: make a grid and predict # #
-
-x.range <- summary( x$intptlon )[ c( 1 , 6 ) ]
-y.range <- summary( x$intptlat )[ c( 1 , 6 ) ]
-
-# add five percent on each side
-x.diff <- abs( x.range[ 2 ] - x.range[ 1 ] ) * 0.05
-y.diff <- abs( y.range[ 2 ] - y.range[ 1 ] ) * 0.05
-
-x.range[ 1 ] <- x.range[ 1 ] - x.diff
-x.range[ 2 ] <- x.range[ 2 ] + x.diff
-y.range[ 1 ] <- y.range[ 1 ] - y.diff
-y.range[ 2 ] <- y.range[ 2 ] + y.diff
-
-
-# do you want your map to print decently in a few minutes?
-grid.length <- 100
-# or beautifully in a few hours?
-# grid.length <- 250
-
-
-# create three identical grid objects
-grd <- gam.grd <- krig.grd <- 
-	expand.grid(
-		intptlon = seq( from = x.range[1] , to = x.range[2] , length = grid.length ) , 
-		intptlat = seq( from = y.range[1] , to = y.range[2] , length = grid.length )
-	)
-
-outer.grd <- 
-	data.frame(
-		intptlon = c( x.range[1] - x.diff , x.range[2] + x.diff ) , 
-		intptlat = c( y.range[1] - y.diff , y.range[2] + y.diff )
-	)
-
-
-# along your rectangular grid,
-# what are the predicted values of
-# the poverty rate?
-krig.grd$kout <- predict( krig.fit , krig.grd )
-
-# alternate grid using gam.fit
-gam.grd$gamout <- predict( gam.fit , gam.grd )
-
-# # end of step 7 # #
-# # # # # # # # # # #
-
-
-# # # # # # # # # # # # # # # # # #
-# # step 8: outline and project # #
+# # # # # # # # # # # #
+# # step 7: outline # #
 
 library(maptools)
 
@@ -498,8 +450,57 @@ ct.shp <- readShapePoly( shpct.uz[ grep( 'shp$' , shpct.uz ) ] )
 # proj4string( ct.shp ) <- projection
 # ct.shp <- spTransform( ct.shp , CRS( projection ) )
 
-# # end of step 8 # #
+# # end of step 7 # #
 # # # # # # # # # # #
+
+
+# # # # # # # # # # # # # # # # # # # #
+# # step 7: make a grid and predict # #
+
+# x.range <- summary( x$intptlon )[ c( 1 , 6 ) ]
+# y.range <- summary( x$intptlat )[ c( 1 , 6 ) ]
+
+# add five percent on each side
+# x.diff <- abs( x.range[ 2 ] - x.range[ 1 ] ) * 0.05
+# y.diff <- abs( y.range[ 2 ] - y.range[ 1 ] ) * 0.05
+
+# x.range[ 1 ] <- x.range[ 1 ] - x.diff
+# x.range[ 2 ] <- x.range[ 2 ] + x.diff
+# y.range[ 1 ] <- y.range[ 1 ] - y.diff
+# y.range[ 2 ] <- y.range[ 2 ] + y.diff
+
+
+# do you want your map to print decently in a few minutes?
+grid.length <- 100
+# or beautifully in a few hours?
+# grid.length <- 250
+
+
+# create three identical grid objects
+grd <- gam.grd <- krig.grd <- 
+	expand.grid(
+		intptlon = seq( from = bbox( ct.shp )[1,1] , to = bbox( ct.shp )[1,2] , length = grid.length ) , 
+		intptlat = seq( from = bbox( ct.shp )[2,1] , to = bbox( ct.shp )[2,2] , length = grid.length )
+	)
+
+# outer.grd <- 
+	# data.frame(
+		# intptlon = c( x.range[1] - x.diff , x.range[2] + x.diff ) , 
+		# intptlat = c( y.range[1] - y.diff , y.range[2] + y.diff )
+	# )
+
+
+# along your rectangular grid,
+# what are the predicted values of
+# the poverty rate?
+krig.grd$kout <- predict( krig.fit , krig.grd )
+
+# alternate grid using gam.fit
+gam.grd$gamout <- predict( gam.fit , gam.grd )
+
+# # end of step 7 # #
+# # # # # # # # # # #
+
 
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -508,16 +509,36 @@ ct.shp <- readShapePoly( shpct.uz[ grep( 'shp$' , shpct.uz ) ] )
 library(rgeos)
 
 # convert grd to SpatialPoints object
-coordinates( outer.grd ) <- c( "intptlon" , "intptlat" )
+# coordinates( outer.grd ) <- c( "intptlon" , "intptlat" )
 
 # draw a rectangle around the grd
-ct.shp.diff <- gEnvelope( outer.grd )
+# ct.shp.diff <- gEnvelope( outer.grd )
+# ct.shp.out <- gEnvelope( ct.shp )
+
+
+# Create a bounding box 10% bigger than the bounding box of connecticut
+x_excess = (ct.shp@bbox['x','max'] - ct.shp@bbox['x','min'])*0.1
+y_excess = (ct.shp@bbox['y','max'] - ct.shp@bbox['y','min'])*0.1
+x_min = ct.shp@bbox['x','min'] - x_excess
+x_max = ct.shp@bbox['x','max'] + x_excess
+y_min = ct.shp@bbox['y','min'] - y_excess
+y_max = ct.shp@bbox['y','max'] + y_excess
+bbox = matrix(c(x_min,x_max,x_max,x_min,x_min,
+                y_min,y_min,y_max,y_max,y_min),
+              nrow = 5, ncol =2)
+bbox = Polygon(bbox, hole=FALSE)
+bbox = Polygons(list(bbox), "bbox")
+ct.shp.out = SpatialPolygons(Srl=list(bbox), pO=1:1, proj4string=ct.shp@proj4string)
+
+
+
 
 # proj4string( ct.shp.diff ) <- projection
 # ct.shp.diff <- spTransform( ct.shp.diff , CRS( projection ) )
 
 # get the difference between your boundary and the rectangle
-ct.shp.diff <- gDifference( ct.shp.diff , ct.shp )
+# ct.shp.diff <- gDifference( bbox , ct.shp )
+ct.shp.diff <- gDifference( ct.shp.out , ct.shp )
 
 # # end of step 9 # #
 # # # # # # # # # # #
@@ -531,12 +552,12 @@ library(mapproj)
 
 
 outside <- fortify( ct.shp.diff )
-
+# outside <- ct.shp.diff
 
 # weighted.
 plot <- ggplot(data = krig.grd, aes(x = intptlon, y = intptlat))  #start with the base-plot 
 layer1 <- geom_tile(data = krig.grd, aes(fill = kout ))  #then create a tile layer and fill with predicted values
-layer2 <- geom_polygon(data=outside, aes(x=long,y=lat), fill='white')
+layer2 <- geom_polygon(data=outside, aes(x=long,y=lat,group=group), fill='white')
 co <- coord_map( project = "albers" , lat0 = min( x$intptlat ) , lat1 = max( x$intptlat ) )
 # print this to a pdf instead, so it formats properly
 # plot + layer1 + layer2 + co + scale_fill_gradient( low = muted( 'blue' ) , high = muted( 'red' ) )
