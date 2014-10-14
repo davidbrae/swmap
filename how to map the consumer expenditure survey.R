@@ -23,7 +23,7 @@
 # # asdfree.com blog post for this survey microdata # #
 # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-# http://www.asdfree.com/search/label/consumer%20expenditure%20survey%20%28cps%29
+# http://www.asdfree.com/search/label/consumer%20expenditure%20survey%20%28ce%29
 
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
