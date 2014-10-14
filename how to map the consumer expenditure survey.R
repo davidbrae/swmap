@@ -53,125 +53,8 @@ source_url( "https://raw.github.com/ajdamico/usgsd/master/Consumer%20Expenditure
 # # # # # # # # # # #
 
 
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-# # step 2: conduct your analysis of interest at the smallest geography allowed # #
-
-library(survey)
-library(plyr)
-library(stringr)
-
-# following the analysis examples in the r code repository --
-# # https://github.com/ajdamico/usgsd/blob/master/Consumer%20Expenditure%20Survey/2011%20fmly%20intrvw%20-%20analysis%20examples.R
-# -- calculate the transportation share of total expenditure at the smallest available geographic area
-
-# load all five quarters
-load( "./2013/intrvw/fmli131x.rda" )
-load( "./2013/intrvw/fmli132.rda" )
-load( "./2013/intrvw/fmli133.rda" )
-load( "./2013/intrvw/fmli134.rda" )
-load( "./2013/intrvw/fmli141.rda" )
-
-# stack all five quarters
-fmly <- rbind.fill( fmli131x , fmli132 , fmli133 , fmli134 , fmli141 )
-
-# create a character vector containing 45 variable names (wtrep01, wtrep02, ... wtrep44 and finlwt21)
-wtrep <- c( paste0( "wtrep" , str_pad( 1:44 , 2 , pad = "0" ) ) , "finlwt21" )
-
-# immediately loop through each weight column (stored in the wtrep vector)
-# and overwrite all missing values (NA) with zeroes
-for ( i in wtrep ) fmly[ is.na( fmly[ , i ] ) , i ] <- 0
-
-# create a new variable in the fmly data table called 'totalexp'
-# that contains the sum of the total expenditure from the current and previous quarters
-fmly$totalexp <- rowSums( fmly[ , c( "totexppq" , "totexpcq" ) ] , na.rm = TRUE )
-
-# immediately convert missing values (NA) to zeroes
-fmly[ is.na( fmly$totalexp ) , "totalexp" ] <- 0
-
-# same for transportation
-fmly$transexp <- rowSums( fmly[ , c( "transpq" , "transcq" ) ] , na.rm = TRUE )
-fmly[ is.na( fmly$transexp ) , "transexp" ] <- 0
-
-
-# turn on replicate-weighted mean squared errors
-options( survey.replicates.mse = TRUE )
-# this matches the official census bureau published methods
-
-# construct a replicate-weighted survey design object
-fmly.design <-
-	svrepdesign(
-		repweights = "wtrep[0-9]+" ,
-		weights = ~finlwt21 ,
-		data = fmly
-	)
-
-	
-# the family tables are no longer necessary
-rm( fmly , fmli131x , fmli132 , fmli133 , fmli134 , fmli141 ) ; gc()
-# remove them and clear up RAM
-
-
-# calculate the 2013 nationwide ratio of transportation spending as a share of total spending
-svyratio( ~ transexp , ~ totalexp , fmly.design )
-
-# note: this is almost the same number as the bls-published 2011 share:
-# http://www.bls.gov/cex/2011/share/cusize.pdf
-
-# # examine which geographies are available # #
-
-# the consumer expenditure survey identifies records
-# from twenty-one different sampled metroplitan statistical areas (msa)
-svytable( ~ psu , fmly.design )
-
-# the consumer expenditure survey identifies
-# the state of residence of 85% of respondents
-svymean( ~ as.numeric( state != '' ) , fmly.design )
-
-# the consumer expenditure survey identifies
-# metro/non-metro status
-svytable( ~ smsastat , fmly.design )
-
-# the smallest geography reasonably extracted
-# from this survey microdata set will be
-# state + psu + metro status all combined
-full.table <- data.frame( svytable( ~ state + psu + smsastat , fmly.design ) )
-# this crosstabulation includes too many zeroes,
-# so store the result in a data.frame object
-# and only print the non-zero records
-subset( full.table , Freq > 0 )
-
-# simply use both of those geographies in the by= argument
-# of the `svyby` command, and re-calculate the
-# transportation expenditure shares
-smallest.area.statistics <-
-	svyby( 
-		~ transexp , 
-		denominator = ~ totalexp ,
-		by = ~ state + psu + smsastat ,
-		fmly.design , 
-		svyratio
-	)
-# this is the same command as the nationwide calculation above,
-# except these results have been broken into smaller areas.	
-
-# these are the statistics to be mapped
-print( smallest.area.statistics )
-# the standard errors are a measure of precision,
-# their inverse will serve as the mapping weights
-
-# make this object easier to type..
-sas <- smallest.area.statistics
-
-# ..and also easier to read
-names( sas )[ names( sas ) == 'transexp/totalexp' ] <- 'share'
-names( sas )[ names( sas ) == 'se.transexp/totalexp' ] <- 'se'
-
-# # end of step 2 # #
-# # # # # # # # # # #
-
-
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-# # step 3: download and import necessary geographic crosswalks # #
+# # step 2: download and import necessary geographic crosswalks # #
 
 library(downloader)
 
@@ -253,12 +136,6 @@ for ( state.number in 1:51 ){
 
 }
 
-# remove columns you actually don't need
-sf <- sf[ , !( names( sf ) %in% c( 'region' , 'tract' , 'blkgrp' , 'cbsasc' ) ) ]
-
-# clear up RAM
-gc()
-
 # one record per census block in every state.  see?  same number.
 table( sf$state )
 # https://www.census.gov/geo/maps-data/data/tallies/census_block_tally.html
@@ -266,6 +143,15 @@ table( sf$state )
 # and guess what?  the population by state matches as well.
 tapply( sf$pop100 , sf$state , sum )
 # http://en.wikipedia.org/wiki/2010_United_States_Census#State_rankings
+
+# remove columns you actually don't need
+sf <- sf[ , !( names( sf ) %in% c( 'sumlev' , 'block' , 'region' , 'tract' , 'blkgrp' , 'cbsasc' ) ) ]
+
+# remove records with zero population
+sf <- subset( sf , pop100 > 0 )
+
+# clear up RAM
+gc()
 
 
 # so now we have a data.frame object with
@@ -278,13 +164,6 @@ head( sf )
 # we've now got the census 2010 weighted populations (field pop100)
 # and also each census block's centroid latitude & longitude (fields intptlat + intptlon)
 
-# # end of step 3 # #
-# # # # # # # # # # #
-
-
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-# # step 4: merge the results of your survey analysis with the small-area geography # #
-
 # add the consumer expenditure survey results'
 # geographic identifiers to the census block data.frame
 
@@ -294,7 +173,7 @@ head( sf )
 # http://www.bls.gov/cex/2013/csxintvwdata.pdf#page=9
 # do not perfectly map to combined statistical areas or
 # core-based statistical areas, so
-# (1) match the geographies that can be matched
+# (1) match the geographies that might be matchable
 # (2) combine los angeles in both data.frame objects
 # (3) make all other records 9999
 sf <-
@@ -348,10 +227,44 @@ sf <-
 				9999 ) ) ) ) ) ) ) ) ) ) ) ) ) ) ) ) ) ) ) ) )
 		
 	)
-	
-sas <-
+
+# # align metro status variables # #
+sf <- transform( sf , smsastat = ifelse( cbsa %in% 99999 , 2 , 1 ) )
+
+# which geographies are available amongst all census blocks
+sf.available.geographies <- unique( sf[ , c( 'state' , 'psu' , 'smsastat' ) ] )
+# note: this really should be the universe, but it's not because
+# the consumer expenditure survey's psus don't appear to perfectly map to census areas
+
+# # end of step 2 # #
+# # # # # # # # # # #
+
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# # step 3: prepare your analysis of interest at the smallest geography allowed # #
+
+library(survey)
+library(plyr)
+library(stringr)
+
+# following the analysis examples in the r code repository --
+# # https://github.com/ajdamico/usgsd/blob/master/Consumer%20Expenditure%20Survey/2011%20fmly%20intrvw%20-%20analysis%20examples.R
+# -- calculate the transportation share of total expenditure at the smallest available geographic area
+
+# load all five quarters
+load( "./2013/intrvw/fmli131x.rda" )
+load( "./2013/intrvw/fmli132.rda" )
+load( "./2013/intrvw/fmli133.rda" )
+load( "./2013/intrvw/fmli134.rda" )
+load( "./2013/intrvw/fmli141.rda" )
+
+# stack all five quarters
+fmly <- rbind.fill( fmli131x , fmli132 , fmli133 , fmli134 , fmli141 )
+
+# before anything else, the los angeles suburban split isn't possible on the census side
+fmly <-
 	transform(
-		sas ,
+		fmly ,
 		psu =
 			# align with los angeles area in the `sf` object
 			ifelse( psu %in% 1419:1420 , 1000 ,
@@ -359,21 +272,135 @@ sas <-
 				as.numeric( psu ) ) )
 	)
 
+# coerce states to match `sf` as well
+fmly$state <- as.numeric( fmly$state )
 
-# # align metro status variables # #
-sf <- transform( sf , smsastat = ifelse( cbsa %in% 99999 , 2 , 1 ) )
+# set blanks to 99s
+fmly[ is.na( fmly$state ) , 'state' ] <- 99
+
+# extract available geographies
+fmly.available.geographies <- unique( fmly[ , c( 'state' , 'psu' , 'smsastat' ) ] )
+
+# merge this with the sf file's available geographies
+ag <- merge( sf.available.geographies , fmly.available.geographies )
+
+# create a flag with geographies to keep
+ag$keep <- 1
+
+# merge the available geographies back on
+fmly <- merge( fmly , ag , all = TRUE )
+
+# anyone with a missing flag needs their geography blanked out
+fmly[ is.na( fmly$keep ) , 'state' ] <- 99
+fmly[ is.na( fmly$keep ) , 'psu' ] <- 9999
+
+# remove the flag
+fmly$keep <- NULL
+
+# create a character vector containing 45 variable names (wtrep01, wtrep02, ... wtrep44 and finlwt21)
+wtrep <- c( paste0( "wtrep" , str_pad( 1:44 , 2 , pad = "0" ) ) , "finlwt21" )
+
+# immediately loop through each weight column (stored in the wtrep vector)
+# and overwrite all missing values (NA) with zeroes
+for ( i in wtrep ) fmly[ is.na( fmly[ , i ] ) , i ] <- 0
+
+# create a new variable in the fmly data table called 'totalexp'
+# that contains the sum of the total expenditure from the current and previous quarters
+fmly$totalexp <- rowSums( fmly[ , c( "totexppq" , "totexpcq" ) ] , na.rm = TRUE )
+
+# immediately convert missing values (NA) to zeroes
+fmly[ is.na( fmly$totalexp ) , "totalexp" ] <- 0
+
+# same for transportation
+fmly$transexp <- rowSums( fmly[ , c( "transpq" , "transcq" ) ] , na.rm = TRUE )
+fmly[ is.na( fmly$transexp ) , "transexp" ] <- 0
 
 
-# # align state fips variables # #
+# turn on replicate-weighted mean squared errors
+options( survey.replicates.mse = TRUE )
+# this matches the official census bureau published methods
 
-# if the state fips code is in the `sas` result as well, keep it.  otherwise make it 99
-sf <- transform( sf , fipsst = ifelse( state %in% unique( as.numeric( sas$state ) ) , state , 99 ) )
+# construct a replicate-weighted survey design object
+fmly.design <-
+	svrepdesign(
+		repweights = "wtrep[0-9]+" ,
+		weights = ~finlwt21 ,
+		data = fmly
+	)
 
-# if the `sas`` result is missing its state, make it 99.  otherwise convert it to numeric.
-sas <- transform( sas , fipsst = ifelse( state == '' , 99 , as.numeric( state ) ) )
+	
+# the family tables are no longer necessary
+rm( fmly , fmli131x , fmli132 , fmli133 , fmli134 , fmli141 ) ; gc()
+# remove them and clear up RAM
 
-# also remove the `state` variable so it doesn't interfere with the upcoming merge
-sas$state <- NULL
+
+# calculate the 2013 nationwide ratio of transportation spending as a share of total spending
+svyratio( ~ transexp , ~ totalexp , fmly.design )
+
+# note: this is almost the same number as the bls-published 2011 share:
+# http://www.bls.gov/cex/2011/share/cusize.pdf
+
+# the smallest geography reasonably extracted
+# from this survey microdata set will be
+# state + psu + metro status all combined
+full.table <- data.frame( svytable( ~ state + psu + smsastat , fmly.design ) )
+# this crosstabulation includes too many zeroes,
+# so store the result in a data.frame object
+# and only print the non-zero records
+subset( full.table , Freq > 0 )
+
+# simply use both of those geographies in the by= argument
+# of the `svyby` command, and re-calculate the
+# transportation expenditure shares
+smallest.area.statistics <-
+	svyby( 
+		~ transexp , 
+		denominator = ~ totalexp ,
+		by = ~ state + psu + smsastat ,
+		fmly.design , 
+		svyratio
+	)
+# this is the same command as the nationwide calculation above,
+# except these results have been broken into smaller areas.	
+
+# these are the statistics to be mapped
+print( smallest.area.statistics )
+# the standard errors are a measure of precision,
+# their inverse will serve as the mapping weights
+
+# make this object easier to type..
+sas <- smallest.area.statistics
+
+# ..and also easier to read
+names( sas )[ names( sas ) == 'transexp/totalexp' ] <- 'share'
+names( sas )[ names( sas ) == 'se.transexp/totalexp' ] <- 'se'
+
+# remove objects you no longer need..
+rm( fmly.design ) ; gc()
+# ..and clear up RAM
+
+# # end of step 3 # #
+# # # # # # # # # # #
+
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# # step 4: merge the results of your survey analysis with the small-area geography # #
+
+# merge the available geographies on to the census block file too
+sf <- merge( sf , ag , all = TRUE )
+
+# anyone with a missing flag needs their geography blanked out
+sf[ is.na( sf$keep ) , 'state' ] <- 99
+sf[ is.na( sf$keep ) , 'psu' ] <- 9999
+
+# remove the flag
+sf$keep <- NULL
+
+# continue being as sparse as possible.  remove columns you no longer need.
+sf <- sf[ , ( names( sf ) %in% c( 'state' , 'psu' , 'smsastat' , 'pop100' , 'intptlat' , 'intptlon' ) ) ]
+
+# clear up RAM
+gc()
 
 # confirm that we've created all possible geographies correctly.
 
@@ -381,7 +408,7 @@ sas$state <- NULL
 sas.row <- nrow( sas )
 
 # ..should equal the number of unique-match-merged records..
-mrow <- nrow( merge( unique( sf[ , c( 'fipsst' , 'psu' , 'smsastat' ) ] ) , sas ) )
+mrow <- nrow( merge( unique( sf[ , c( 'state' , 'psu' , 'smsastat' ) ] ) , sas ) )
 
 # ..and it does/they do.
 stopifnot( sas.row == mrow )
@@ -410,7 +437,7 @@ sas$invse <- 1 / sas$se
 
 
 # aggregate the 2010 census block populations to the geographies that you have.
-popsum <- aggregate( sf$pop100 , by = ( sf[ , c( 'fipsst' , 'psu' , 'smsastat' ) ] ) , sum )
+popsum <- aggregate( sf$pop100 , by = ( sf[ , c( 'state' , 'psu' , 'smsastat' ) ] ) , sum )
 
 # make the column name meaningful
 names( popsum )[ names( popsum ) == 'x' ] <- 'popsum'
@@ -436,9 +463,6 @@ x$weight <- x$invse * ( x$pop100 / x$popsum )
 # note that weight of all census blocks put together
 # sums to the `invse` on the original analysis file
 stopifnot( sum( x$weight ) == sum( sas$invse ) )
-
-# remove records with zero population
-x <- subset( x , weight > 0 )
 
 # scale all weights so that they average to one
 x$weight <- x$weight / mean( x$weight )
