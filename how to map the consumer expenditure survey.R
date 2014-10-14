@@ -253,7 +253,11 @@ for ( state.number in 1:51 ){
 
 }
 
+# remove columns you actually don't need
+sf <- sf[ , !( names( sf ) %in% c( 'region' , 'tract' , 'blkgrp' , 'cbsasc' ) ) ]
 
+# clear up RAM
+gc()
 
 # one record per census block in every state.  see?  same number.
 table( sf$state )
