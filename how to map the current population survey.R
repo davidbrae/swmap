@@ -451,7 +451,7 @@ grid.length <- 100
 
 
 # create two identical grid objects
-gam.grd <- krig.grd <- 
+grd <- gam.grd <- krig.grd <- 
 	expand.grid(
 		intptlon = seq( from = x.range[1] , to = x.range[2] , length = grid.length ) , 
 		intptlat = seq( from = y.range[1] , to = y.range[2] , length = grid.length )
@@ -491,31 +491,21 @@ ct.shp <- readShapePoly( shpct.uz[ grep( 'shp$' , shpct.uz ) ] )
 # # # # # # # # # # #
 
 
-# # # # # # # # # # # # # # # # # # # # # # # # # # # #
-# # step 9: remove everything outside your boundary # #
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# # step 9: create a polygon to cover everything outside your boundary # #
 
-library(raster)
+library(rgeos)
 
-# convert both *.grd data frames to spatial points data frames
-coordinates( krig.grd ) <- coordinates( gam.grd ) <- c( "intptlon" , "intptlat" )
+# convert grd to SpatialPoints object
+coordinates(grd) <- c("intptlon","intptlat")
 
-# gridify grd
-gridded( krig.grd ) <- gridded( gam.grd ) <- TRUE
+# draw a rectangle around the grd
+ct.shp.diff <- gEnvelope(grd)
 
-# convert to raster
-krig.ras <- raster( krig.grd )
-gam.ras <- raster( gam.grd )
+# get the difference between your boundary and the rectangle
+ct.shp.diff <- gDifference(ct.shp.diff, ct.shp)
 
-# mask both rasters using your state polygon
-krig.r <- mask( krig.ras , ct.shp )
-gam.r <- mask( gam.ras , ct.shp )
-
-# revert both raster objects to data frames
-krig.grd <- data.frame( coordinates( krig.r ) , values( krig.r ) )
-names( krig.grd ) <- c( "intptlon" , "intptlat" , "kout" )
-
-gam.grd <- data.frame( coordinates( gam.r ) , values( gam.r ) )
-names( gam.grd ) <- c( "intptlon" , "intptlat" , "kout" )
+outside <- fortify( ct.shp.diff )
 
 # # end of step 9 # #
 # # # # # # # # # # #
@@ -526,19 +516,6 @@ names( gam.grd ) <- c( "intptlon" , "intptlat" , "kout" )
 library(ggplot2)
 library(scales)
 library(mapproj)
-
-
-# library(rgeos)
-
-# bbox = matrix(c(x.range[1],x.range[2],x.range[2],x.range[1],x.range[1],
-                # y.range[1],y.range[1],y.range[2],y.range[2],y.range[1]),
-              # nrow = 5, ncol =2)
-# bbox = Polygon(bbox, hole=FALSE)
-# bbox = Polygons(list(bbox), "bbox")
-# bbox = SpatialPolygons(Srl=list(bbox), pO=1:1, proj4string=ct.shp@proj4string)
-
-# outside <- gDifference( bbox , ct.shp )
-# outside <- fortify( outside )
 
 
 
@@ -563,4 +540,25 @@ co <- coord_map( project = "albers" , lat0 = min( x$intptlat ) , lat1 = max( x$i
 # plot + layer1 + layer2 + co + scale_fill_gradient( low = muted( 'blue' ) , high = muted( 'red' ) )
 plot + layer1 + co + scale_fill_gradient( low = muted( 'blue' ) , high = muted( 'red' ) )
 
+
+
+# raster plots
+
+coordinates(krig.grd) <- coordinates(gam.grd) <- c("intptlon", "intptlat")
+gridded(krig.grd) <- gridded(gam.grd) <- TRUE
+krig.r <- raster(krig.grd)
+gam.r <- raster(gam.grd)
+
+colRamp <- colorRampPalette(c(muted("blue"),muted("red")))
+plot(krig.r, axes=FALSE, col=colRamp(100), main="Krig")
+plot(ct.shp.diff, add=TRUE, col="white", border="white", lwd=5)
+degAxis(1)
+degAxis(2)
+box()
+
+plot(gam.r, axes=FALSE, col=colRamp(100), main="GAM")
+plot(ct.shp.diff, add=TRUE, col="white", border="white", lwd=5)
+degAxis(1)
+degAxis(2)
+box()
 
