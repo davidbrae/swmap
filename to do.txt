@@ -1,26 +1,8 @@
-http://stackoverflow.com/questions/23318243/how-to-make-beautiful-borderless-geographic-thematic-heatmaps-with-weighted-sur/26052226#26052226
-
-
-(1) calculate your statistic and standard error for each geographic unit
-
-(2) calculate a population-weighted centroid for each geographic unit
-	http://stackoverflow.com/questions/23613655/calculating-weighted-polygon-centroids-in-r
-
-
-(3) plot a survey-weighted map
-
-
-
-reduce the map.R example down to a single state that has exactly two centroids.  make sure every county within the state gets shaded properly.  expand from there.
-
 
 create survey-weighted maps of the american population 1850 until 2010 with IPUMS-USA
 	https://usa.ipums.org/usa/complex_survey_vars/strata_historical.shtml
 	
 	
-
-
-use roxygen2, testthat, and devtools to put this all into a package.  follow hillary parker's guide to making swmap into a package.
 
 
 as examples to show the power of this method: find ten state-by-state maps published in reputable publications.  (1) reproduce the maps using hard state borders.  (2) reproduce the maps using sub-state geographies and within-state smoothing.  boom.
@@ -59,11 +41,6 @@ Professor of Biostatistics
 
 
 
-
-show people how to calculate a population-weighted centroid
-
-when these are published, answer:
-http://stackoverflow.com/questions/23318243/how-to-make-beautiful-borderless-geographic-thematic-heatmaps-with-weighted-sur
 tell nathan yau about it!
 
 data on canvas
@@ -80,18 +57,6 @@ write a post: the logic behind swmap:
 	step 3 - but the centroid of baltimore county & montgomery county, geographically, is a lie.  it's the wrong calculation as just the centroid of the county.  you need a population centroid.  for each of the points that you do know, you need a population-centered, re-weighted centroid.  calculate the centroid based on population density rather than just the geography of the county.  weighting based on population puts the centroid of baltimore county much closer to baltimore city than it does by just using the unadjusted borders of baltimore county.  and montgomery county's population center is very close to the washington dc border.  and so you would put it closer to the border rather than in the center of the county.  [[here's how to calculate a population-weighted centroid]].
 	
 	using the weighted population centroid and the borders of all of the other points that you don't know, now you have two centroids and one border-region.  you know three poverty rates for those two points and one border region.  creating a smoothed map based on that information should look like this: [example]  that's the logic behind swmap!
-
-
-needs the capacity to calculate a population-weighted centroid.
-if it's given a bunch of geocoded points and population sizes, it should calculate the centroid off of all of them.
-
-needs a `hinterland` parameter, that is the 'border regions' paramater.  unfortunately, this requires re-calculating your own shapefile so that if a point is already part of a bordering county, you're not overwriting on the edge.  so montgomery county, maryland is on the border of maryland, and so the shapefile of maryland should have the montgomery county chunk and the baltimore county chunk should be removed.  you cannot just use the maryland shapefile map, you need to alter it to remove the known-chunks so that along the washington d.c. border you don't have the wrong poverty shade.  you have to re-calculate the shapefile from maryland to exclude the two counties containing the points that you have data for.
-
-
-
-start with a simple shapefile: rectangland.  and then add a city.  and then add a second city.  and smooth according to those two cities.  and then add the borders around those two cities, and then put one city outside the border and smooth according to the border with one city outside.
-
-the nation of rectanguland
 
 
 
