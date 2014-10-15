@@ -780,3 +780,5 @@ degAxis(1)
 degAxis(2)
 box()
 
+
+stop( 'test this out on your personal 8gb laptop?' )
