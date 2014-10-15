@@ -466,7 +466,7 @@ nyc.shp <- subset( ny.shp , as.numeric( as.character( COUNTYFP10 ) ) %in% c( 5 ,
 x.range <- summary( x$intptlon )[ c( 1 , 6 ) ]
 y.range <- summary( x$intptlat )[ c( 1 , 6 ) ]
 
-add five percent on each side
+# add five percent on each side
 x.diff <- abs( x.range[ 2 ] - x.range[ 1 ] ) * 0.05
 y.diff <- abs( y.range[ 2 ] - y.range[ 1 ] ) * 0.05
 
@@ -477,10 +477,8 @@ y.range[ 2 ] <- y.range[ 2 ] + y.diff
 
 
 
-# do you want your map to print decently in a few minutes?
-grid.length <- 100
-# or beautifully in a few hours?
-# grid.length <- 250
+# this is a small map, so using a very fine grid does not take much time
+grid.length <- 500
 
 
 # create three identical grid objects
@@ -570,7 +568,7 @@ co <- coord_map( project = "albers" , lat0 = min( x$intptlat ) , lat1 = max( x$i
 # plot + layer1 + layer2 + co + scale_fill_gradient( low = muted( 'blue' ) , high = muted( 'red' ) )
 # plot + layer1 + layer2 + scale_fill_gradient( low = muted( 'blue' ) , high = muted( 'red' ) )
 
-plot + layer1 + layer2 + scale_fill_gradient( low = muted( 'blue' ) , high = muted( 'red' ) ) + coord_equal()
+plot + layer1 + layer2 + scale_fill_gradient( low = 'white' , high = muted( 'red' ) )
 # plot + layer1 + layer2 + co + scale_fill_gradient( low = muted( 'blue' ) , high = muted( 'red' ) ) + coord_equal()
 
 
