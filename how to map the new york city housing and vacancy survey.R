@@ -304,3 +304,306 @@ x <- x[ , c( 'pproom' , 'weight' , 'intptlat' , 'intptlon' ) ]
 # # end of step 4 # #
 # # # # # # # # # # #
 
+
+# # # # # # # # # # # # # # # # # # # # # # #
+# # step 5: decide on your map parameters # #
+
+library(ggplot2)
+library(scales)
+library(mapproj)
+
+# before you ever touch surface smoothing or kriging,
+# make some decisions about how you generally want
+# your map to look:  the projection and coloring
+
+# the options below simply use hadley wickham's ggplot2
+# with the census block-level poverty rates and centroids
+
+
+# initiate the simple map
+nyc.map <- 
+	qplot( 
+		intptlon , 
+		intptlat , 
+		data = x , 
+		colour = pproom ,
+		xlab = NULL ,
+		ylab = NULL
+	)
+
+# choose your coloring and severity from the midpoint
+nyc.map <- 
+	nyc.map + 
+
+	scale_colour_gradient2( 
+	
+		# low person per room rates are good
+		low = muted( "blue" ) , 
+		# so invert the default colors
+		high = muted( "red" ) , 
+		
+		# shows the most severe difference in coloring
+		midpoint = mean( unique( x$pproom ) )
+		
+		# shows the population-weighted difference in coloring
+		# midpoint = weighted.mean( x$pproom , x$weight )
+	)
+
+	
+# remove all map crap.
+
+nyc.map <- 
+	nyc.map + 
+
+	scale_x_continuous( breaks = NULL ) +
+
+    scale_y_continuous( breaks = NULL ) +
+
+    theme(
+		legend.position = "none" ,
+		panel.grid.major = element_blank(),
+		panel.grid.minor = element_blank(),
+		panel.background = element_blank(),
+		panel.border = element_blank(),
+		axis.ticks = element_blank()
+	)
+
+
+# print the map without any projection
+nyc.map
+
+# print the map with an albers projection.
+nyc.map + coord_map( project = "albers" , lat0 = min( x$intptlat ) , lat1 = max( x$intptlat ) )
+# see ?mapproject for a zillion alternatives
+
+# # end of step 5 # #
+# # # # # # # # # # #
+
+
+
+# # # # # # # # # # # # # # # # # #
+# # step 6: tie knots and krige # #
+
+library(fields)
+
+# how many knots should you make?
+
+# cannot be more than `nrow( x )`
+# but one hundred is okay.
+# if you've got a powerful computer,
+# you can increase this
+number.of.knots <- min( 100 , nrow( x ) )
+# number.of.knots <- min( 250 , nrow( x ) )
+
+
+xknots <- cover.design( cbind( x$intptlon , x$intptlat ) , number.of.knots )$design
+
+
+krig.fit <-
+	Krig(
+		cbind( x$intptlon , x$intptlat ) ,
+		x$pproom ,
+		weights = x$weight ,
+		knots = xknots # ,
+		# Covariance = "Matern"
+	)
+
+# that is: what is the (weighted) relationship between
+# your variable of interest (persons per room) and
+# the x/y points on a grid?
+
+# check this out!
+surface( krig.fit )
+# you're almost there!
+
+# and here's an alternate approach using the `gam` function
+library(mgcv)
+
+gam.fit <- 
+	gam( 
+		pproom ~ s(intptlon , intptlat ) , 
+		weights = weight , 
+		data = x
+	)
+	
+# # end of step 6 # #
+# # # # # # # # # # #
+
+
+# # # # # # # # # # # #
+# # step 7: outline # #
+
+library(maptools)
+
+shpny.tf <- tempfile() ; td <- tempdir()
+
+download.cache( 
+	"http://www2.census.gov/geo/tiger/TIGER2010/COUNTY/2010/tl_2010_36_county10.zip" ,
+	shpny.tf ,
+	mode = 'wb'
+)
+
+shpny.uz <- unzip( shpny.tf , exdir = td )
+
+ny.shp <- readShapePoly( shpny.uz[ grep( 'shp$' , shpny.uz ) ] )
+
+# limit the shapefile to only the five boroughs
+nyc.shp <- subset( ny.shp , as.numeric( as.character( COUNTYFP10 ) ) %in% c( 5 , 47 , 61 , 81 , 85 ) )
+
+# projection <- paste0( "+proj=albers +lat_0=" , min( x$intptlat ) , " +lat_1=" , max( x$intptlat ) )
+
+# proj4string( ct.shp ) <- projection
+# ct.shp <- spTransform( ct.shp , CRS( projection ) )
+
+# # end of step 7 # #
+# # # # # # # # # # #
+
+
+# # # # # # # # # # # # # # # # # # # #
+# # step 8: make a grid and predict # #
+
+
+x.range <- summary( x$intptlon )[ c( 1 , 6 ) ]
+y.range <- summary( x$intptlat )[ c( 1 , 6 ) ]
+
+add five percent on each side
+x.diff <- abs( x.range[ 2 ] - x.range[ 1 ] ) * 0.05
+y.diff <- abs( y.range[ 2 ] - y.range[ 1 ] ) * 0.05
+
+x.range[ 1 ] <- x.range[ 1 ] - x.diff
+x.range[ 2 ] <- x.range[ 2 ] + x.diff
+y.range[ 1 ] <- y.range[ 1 ] - y.diff
+y.range[ 2 ] <- y.range[ 2 ] + y.diff
+
+
+
+# do you want your map to print decently in a few minutes?
+grid.length <- 100
+# or beautifully in a few hours?
+# grid.length <- 250
+
+
+# create three identical grid objects
+grd <- gam.grd <- krig.grd <- 
+	expand.grid(
+		intptlon = seq( from = bbox( nyc.shp )[1,1] , to = bbox( nyc.shp )[1,2] , length = grid.length ) , 
+		intptlat = seq( from = bbox( nyc.shp )[2,1] , to = bbox( nyc.shp )[2,2] , length = grid.length )
+	)
+
+outer.grd <- 
+	data.frame(
+		intptlon = c( x.range[1] - x.diff , x.range[2] + x.diff ) , 
+		intptlat = c( y.range[1] - y.diff , y.range[2] + y.diff )
+	)
+
+
+# along your rectangular grid,
+# what are the predicted values of
+# the poverty rate?
+krig.grd$kout <- predict( krig.fit , krig.grd )
+
+# alternate grid using gam.fit
+gam.grd$gamout <- predict( gam.fit , gam.grd )
+
+# # end of step 8 # #
+# # # # # # # # # # #
+
+
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# # step 9: create a polygon to cover everything outside the boundary # #
+
+library(rgeos)
+
+# convert grd to SpatialPoints object
+coordinates( outer.grd ) <- c( "intptlon" , "intptlat" )
+
+# draw a rectangle around the grd
+nyc.shp.diff <- gEnvelope( outer.grd )
+nyc.shp.out <- gEnvelope( nyc.shp )
+
+
+# Create a bounding box 10% bigger than the bounding box of connecticut
+# x_excess = (nyc.shp@bbox['x','max'] - nyc.shp@bbox['x','min'])*0.1
+# y_excess = (nyc.shp@bbox['y','max'] - nyc.shp@bbox['y','min'])*0.1
+# x_min = nyc.shp@bbox['x','min'] - x_excess
+# x_max = nyc.shp@bbox['x','max'] + x_excess
+# y_min = nyc.shp@bbox['y','min'] - y_excess
+# y_max = nyc.shp@bbox['y','max'] + y_excess
+# bbox = matrix(c(x_min,x_max,x_max,x_min,x_min,
+                # y_min,y_min,y_max,y_max,y_min),
+              # nrow = 5, ncol =2)
+# bbox = Polygon(bbox, hole=FALSE)
+# bbox = Polygons(list(bbox), "bbox")
+# nyc.shp.out = SpatialPolygons(Srl=list(bbox), pO=1:1, proj4string=nyc.shp@proj4string)
+
+
+
+
+# proj4string( nyc.shp.diff ) <- projection
+# nyc.shp.diff <- spTransform( nyc.shp.diff , CRS( projection ) )
+
+# get the difference between your boundary and the rectangle
+# nyc.shp.diff <- gDifference( bbox , nyc.shp )
+nyc.shp.diff <- gDifference( nyc.shp.out , nyc.shp )
+
+# # end of step 9 # #
+# # # # # # # # # # #
+
+
+
+
+library(ggplot2)
+library(scales)
+library(mapproj)
+
+
+outside <- fortify( nyc.shp.diff )
+# outside <- nyc.shp.diff
+
+# weighted.
+plot <- ggplot(data = krig.grd, aes(x = intptlon, y = intptlat))  #start with the base-plot 
+layer1 <- geom_tile(data = krig.grd, aes(fill = kout ))  #then create a tile layer and fill with predicted values
+layer2 <- geom_polygon(data=outside, aes(x=long,y=lat,group=group), fill='white')
+co <- coord_map( project = "albers" , lat0 = min( x$intptlat ) , lat1 = max( x$intptlat ) )
+# print this to a pdf instead, so it formats properly
+# plot + layer1 + layer2 + co + scale_fill_gradient( low = muted( 'blue' ) , high = muted( 'red' ) )
+# plot + layer1 + layer2 + scale_fill_gradient( low = muted( 'blue' ) , high = muted( 'red' ) )
+
+plot + layer1 + layer2 + scale_fill_gradient( low = muted( 'blue' ) , high = muted( 'red' ) ) + coord_equal()
+# plot + layer1 + layer2 + co + scale_fill_gradient( low = muted( 'blue' ) , high = muted( 'red' ) ) + coord_equal()
+
+
+
+
+# weighted.
+plot <- ggplot(data = gam.grd, aes(x = intptlon, y = intptlat))  #start with the base-plot 
+layer1 <- geom_tile(data = gam.grd, aes(fill = kout ))  #then create a tile layer and fill with predicted values
+# sol <- fortify( ct.shp )
+# layer2 <- geom_path(data = sol, aes(long, lat), colour = "grey40", size = 1)
+co <- coord_map( project = "albers" , lat0 = min( x$intptlat ) , lat1 = max( x$intptlat ) )
+# print this to a pdf instead, so it formats properly
+# plot + layer1 + layer2 + co + scale_fill_gradient( low = muted( 'blue' ) , high = muted( 'red' ) )
+plot + layer1 + co + scale_fill_gradient( low = muted( 'blue' ) , high = muted( 'red' ) )
+
+
+
+# raster plots
+
+coordinates(krig.grd) <- coordinates(gam.grd) <- c("intptlon", "intptlat")
+gridded(krig.grd) <- gridded(gam.grd) <- TRUE
+krig.r <- raster(krig.grd)
+gam.r <- raster(gam.grd)
+
+colRamp <- colorRampPalette(c(muted("blue"),muted("red")))
+plot(krig.r, axes=FALSE, col=colRamp(100), main="Krig")
+plot(ct.shp.diff, add=TRUE, col="white", border="white", lwd=5)
+degAxis(1)
+degAxis(2)
+box()
+
+plot(gam.r, axes=FALSE, col=colRamp(100), main="GAM")
+plot(ct.shp.diff, add=TRUE, col="white", border="white", lwd=5)
+degAxis(1)
+degAxis(2)
+box()
