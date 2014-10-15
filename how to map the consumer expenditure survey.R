@@ -567,3 +567,216 @@ us.map + coord_map( project = "albers" , lat0 = min( x$intptlat ) , lat1 = max( 
 
 # # end of step 5 # #
 # # # # # # # # # # #
+
+
+# # # # # # # # # # # # # # # # # #
+# # step 6: tie knots and krige # #
+
+library(fields)
+
+# how many knots should you make?
+
+# cannot be more than `nrow( x )`
+# but one hundred is okay.
+# if you've got a powerful computer,
+# you can increase this
+number.of.knots <- min( 100 , nrow( x ) )
+# number.of.knots <- min( 250 , nrow( x ) )
+
+
+xknots <- cover.design( cbind( x$intptlon , x$intptlat ) , number.of.knots )$design
+
+
+krig.fit <-
+	Krig(
+		cbind( x$intptlon , x$intptlat ) ,
+		x$share ,
+		weights = x$weight ,
+		knots = xknots # ,
+		# Covariance = "Matern"
+	)
+
+# that is: what is the (weighted) relationship between
+# your variable of interest (poverty rate) and
+# the x/y points on a grid?
+
+# check this out!
+surface( krig.fit )
+# you're almost there!
+
+# and here's an alternate approach using the `gam` function
+library(mgcv)
+
+gam.fit <- 
+	gam( 
+		share ~ s(intptlon , intptlat ) , 
+		weights = weight , 
+		data = x
+	)
+	
+# # end of step 6 # #
+# # # # # # # # # # #
+
+
+# # # # # # # # # # # #
+# # step 7: outline # #
+
+library(maptools)
+
+shpus.tf <- tempfile() ; td <- tempdir()
+
+download.cache( 
+	"http://www2.census.gov/geo/tiger/TIGER2010/STATE/2010/tl_2010_us_state10.zip" ,
+	shpus.tf ,
+	mode = 'wb'
+)
+
+shpus.uz <- unzip( shpus.tf , exdir = td )
+
+us.shp <- readShapePoly( shpus.uz[ grep( 'shp$' , shpus.uz ) ] )
+
+# remove alaska, hawaii, and puerto rico
+us.shp <- subset( us.shp , !( STUSPS10 %in% c( 'AK' , 'HI' , 'PR' ) ) )
+
+# projection <- paste0( "+proj=albers +lat_0=" , min( x$intptlat ) , " +lat_1=" , max( x$intptlat ) )
+
+# proj4string( us.shp ) <- projection
+# us.shp <- spTransform( us.shp , CRS( projection ) )
+
+# # end of step 7 # #
+# # # # # # # # # # #
+
+
+# # # # # # # # # # # # # # # # # # # #
+# # step 8: make a grid and predict # #
+
+# do you want your map to print decently in a few minutes?
+grid.length <- 100
+# or beautifully in a few hours?
+# grid.length <- 250
+
+
+# create three identical grid objects
+grd <- gam.grd <- krig.grd <- 
+	expand.grid(
+		intptlon = seq( from = bbox( us.shp )[1,1] , to = bbox( us.shp )[1,2] , length = grid.length ) , 
+		intptlat = seq( from = bbox( us.shp )[2,1] , to = bbox( us.shp )[2,2] , length = grid.length )
+	)
+
+# outer.grd <- 
+	# data.frame(
+		# intptlon = c( x.range[1] - x.diff , x.range[2] + x.diff ) , 
+		# intptlat = c( y.range[1] - y.diff , y.range[2] + y.diff )
+	# )
+
+
+# along your rectangular grid,
+# what are the predicted values of
+# the poverty rate?
+krig.grd$kout <- predict( krig.fit , krig.grd )
+
+# alternate grid using gam.fit
+gam.grd$gamout <- predict( gam.fit , gam.grd )
+
+# # end of step 8 # #
+# # # # # # # # # # #
+
+
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# # step 9: create a polygon to cover everything outside the boundary # #
+
+library(rgeos)
+
+# convert grd to SpatialPoints object
+# coordinates( outer.grd ) <- c( "intptlon" , "intptlat" )
+
+# draw a rectangle around the grd
+# us.shp.diff <- gEnvelope( outer.grd )
+# us.shp.out <- gEnvelope( us.shp )
+
+
+# Create a bounding box 10% bigger than the bounding box of connecticut
+x_excess = (us.shp@bbox['x','max'] - us.shp@bbox['x','min'])*0.1
+y_excess = (us.shp@bbox['y','max'] - us.shp@bbox['y','min'])*0.1
+x_min = us.shp@bbox['x','min'] - x_excess
+x_max = us.shp@bbox['x','max'] + x_excess
+y_min = us.shp@bbox['y','min'] - y_excess
+y_max = us.shp@bbox['y','max'] + y_excess
+bbox = matrix(c(x_min,x_max,x_max,x_min,x_min,
+                y_min,y_min,y_max,y_max,y_min),
+              nrow = 5, ncol =2)
+bbox = Polygon(bbox, hole=FALSE)
+bbox = Polygons(list(bbox), "bbox")
+us.shp.out = SpatialPolygons(Srl=list(bbox), pO=1:1, proj4string=us.shp@proj4string)
+
+
+
+
+# proj4string( us.shp.diff ) <- projection
+# us.shp.diff <- spTransform( us.shp.diff , CRS( projection ) )
+
+# get the difference between your boundary and the rectangle
+# us.shp.diff <- gDifference( bbox , us.shp )
+us.shp.diff <- gDifference( us.shp.out , us.shp )
+
+# # end of step 9 # #
+# # # # # # # # # # #
+
+
+
+
+library(ggplot2)
+library(scales)
+library(mapproj)
+
+
+outside <- fortify( us.shp.diff )
+# outside <- us.shp.diff
+
+# weighted.
+plot <- ggplot(data = krig.grd, aes(x = intptlon, y = intptlat))  #start with the base-plot 
+layer1 <- geom_tile(data = krig.grd, aes(fill = kout ))  #then create a tile layer and fill with predicted values
+layer2 <- geom_polygon(data=outside, aes(x=long,y=lat,group=group), fill='white')
+co <- coord_map( project = "albers" , lat0 = min( x$intptlat ) , lat1 = max( x$intptlat ) )
+# print this to a pdf instead, so it formats properly
+# plot + layer1 + layer2 + co + scale_fill_gradient( low = muted( 'blue' ) , high = muted( 'red' ) )
+# plot + layer1 + layer2 + scale_fill_gradient( low = muted( 'blue' ) , high = muted( 'red' ) )
+
+plot + layer1 + layer2 + co + scale_fill_gradient( low = muted( 'blue' ) , high = muted( 'red' ) ) + coord_equal()
+
+
+
+
+# weighted.
+plot <- ggplot(data = gam.grd, aes(x = intptlon, y = intptlat))  #start with the base-plot 
+layer1 <- geom_tile(data = gam.grd, aes(fill = kout ))  #then create a tile layer and fill with predicted values
+# sol <- fortify( ct.shp )
+# layer2 <- geom_path(data = sol, aes(long, lat), colour = "grey40", size = 1)
+co <- coord_map( project = "albers" , lat0 = min( x$intptlat ) , lat1 = max( x$intptlat ) )
+# print this to a pdf instead, so it formats properly
+# plot + layer1 + layer2 + co + scale_fill_gradient( low = muted( 'blue' ) , high = muted( 'red' ) )
+plot + layer1 + co + scale_fill_gradient( low = muted( 'blue' ) , high = muted( 'red' ) )
+
+
+
+# raster plots
+
+coordinates(krig.grd) <- coordinates(gam.grd) <- c("intptlon", "intptlat")
+gridded(krig.grd) <- gridded(gam.grd) <- TRUE
+krig.r <- raster(krig.grd)
+gam.r <- raster(gam.grd)
+
+colRamp <- colorRampPalette(c(muted("blue"),muted("red")))
+plot(krig.r, axes=FALSE, col=colRamp(100), main="Krig")
+plot(ct.shp.diff, add=TRUE, col="white", border="white", lwd=5)
+degAxis(1)
+degAxis(2)
+box()
+
+plot(gam.r, axes=FALSE, col=colRamp(100), main="GAM")
+plot(ct.shp.diff, add=TRUE, col="white", border="white", lwd=5)
+degAxis(1)
+degAxis(2)
+box()
+
