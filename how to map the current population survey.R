@@ -455,7 +455,7 @@ ct.shp <- readShapePoly( shpct.uz[ grep( 'shp$' , shpct.uz ) ] )
 
 
 # # # # # # # # # # # # # # # # # # # #
-# # step 7: make a grid and predict # #
+# # step 8: make a grid and predict # #
 
 # x.range <- summary( x$intptlon )[ c( 1 , 6 ) ]
 # y.range <- summary( x$intptlat )[ c( 1 , 6 ) ]
@@ -498,13 +498,13 @@ krig.grd$kout <- predict( krig.fit , krig.grd )
 # alternate grid using gam.fit
 gam.grd$gamout <- predict( gam.fit , gam.grd )
 
-# # end of step 7 # #
+# # end of step 8 # #
 # # # # # # # # # # #
 
 
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-# # step 9: create a polygon to cover everything outside your boundary # #
+# # step 9: create a polygon to cover everything outside the boundary # #
 
 library(rgeos)
 
