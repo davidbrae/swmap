@@ -607,3 +607,7 @@ plot(ct.shp.diff, add=TRUE, col="white", border="white", lwd=5)
 degAxis(1)
 degAxis(2)
 box()
+
+
+stop( "do you want to use the nyc specific projection for this?" )
+
