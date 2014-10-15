@@ -554,3 +554,67 @@ stopifnot(
 
 # # end of step 8 # #
 # # # # # # # # # # #
+
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# # step 9: create a polygon to cover everything outside the boundary # #
+
+library(rgeos)
+
+# convert grd to SpatialPoints object
+coordinates( outer.grd ) <- c( "intptlon" , "intptlat" )
+
+# draw a rectangle around the grd
+ak.shp.diff <- gEnvelope( outer.grd )
+ak.shp.out <- gEnvelope( ak.shp )
+
+
+# Create a bounding box 10% bigger than the bounding box of connecticut
+# x_excess = (ak.shp@bbox['x','max'] - ak.shp@bbox['x','min'])*0.1
+# y_excess = (ak.shp@bbox['y','max'] - ak.shp@bbox['y','min'])*0.1
+# x_min = ak.shp@bbox['x','min'] - x_excess
+# x_max = ak.shp@bbox['x','max'] + x_excess
+# y_min = ak.shp@bbox['y','min'] - y_excess
+# y_max = ak.shp@bbox['y','max'] + y_excess
+# bbox = matrix(c(x_min,x_max,x_max,x_min,x_min,
+                # y_min,y_min,y_max,y_max,y_min),
+              # nrow = 5, ncol =2)
+# bbox = Polygon(bbox, hole=FALSE)
+# bbox = Polygons(list(bbox), "bbox")
+# ak.shp.out = SpatialPolygons(Srl=list(bbox), pO=1:1, proj4string=ak.shp@proj4string)
+
+
+
+
+# proj4string( ak.shp.diff ) <- projection
+# ak.shp.diff <- spTransform( ak.shp.diff , CRS( projection ) )
+
+# get the difference between your boundary and the rectangle
+# ak.shp.diff <- gDifference( bbox , ak.shp )
+ak.shp.diff <- gDifference( ak.shp.out , ak.shp )
+
+# # end of step 9 # #
+# # # # # # # # # # #
+
+
+
+
+library(ggplot2)
+library(scales)
+library(mapproj)
+
+
+outside <- fortify( ak.shp.diff )
+# outside <- ak.shp.diff
+
+# weighted.
+plot <- ggplot(data = krig.grd, aes(x = intptlon, y = intptlat))  #start with the base-plot 
+layer1 <- geom_tile(data = krig.grd, aes(fill = kout ))  #then create a tile layer and fill with predicted values
+layer2 <- geom_polygon(data=outside, aes(x=long,y=lat,group=group), fill='white')
+co <- coord_map( project = "albers" , lat0 = min( x$intptlat ) , lat1 = max( x$intptlat ) )
+# print this to a pdf instead, so it formats properly
+# plot + layer1 + layer2 + co + scale_fill_gradient( low = muted( 'blue' ) , high = muted( 'red' ) )
+# plot + layer1 + layer2 + scale_fill_gradient( low = muted( 'blue' ) , high = muted( 'red' ) )
+layer3 <- geom_path( data = ak.shp , aes( x=long , y=lat , group = group ) )
+
+plot + layer1 + layer2 + layer3 + scale_fill_gradient( low = 'white' , high = muted( 'red' ) )
