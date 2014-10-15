@@ -389,6 +389,11 @@ rm( fmly.design ) ; gc()
 # merge the available geographies on to the census block file too
 sf <- merge( sf , ag , all = TRUE )
 
+# note that alaska and hawaii need to be manually removed,
+# but some of the geographies in these areas will be collapsed
+# into the 99/9999 categories.  so pre-collapse, identify them.
+sf$akhi <- sf$state %in% c( 2 , 15 )
+
 # anyone with a missing flag needs their geography blanked out
 sf[ is.na( sf$keep ) , 'state' ] <- 99
 sf[ is.na( sf$keep ) , 'psu' ] <- 9999
@@ -475,7 +480,7 @@ x$weight <- x$weight / mean( x$weight )
 
 # now that all weights have been computed,
 # remove alaska and hawaii
-x <- subset( x , !( state %in% c( 2 , 15 ) )
+x <- subset( x , !( akhi ) )
 # note that those states need to be included up until this point
 # otherwise their populations won't scoop up their
 # respective shares of any multi-state statistics
