@@ -478,7 +478,7 @@ y.range[ 2 ] <- y.range[ 2 ] + y.diff
 
 
 # this is a small map, so using a very fine grid does not take much time
-grid.length <- 500
+grid.length <- 1000
 
 
 # create three identical grid objects
@@ -567,8 +567,13 @@ co <- coord_map( project = "albers" , lat0 = min( x$intptlat ) , lat1 = max( x$i
 # print this to a pdf instead, so it formats properly
 # plot + layer1 + layer2 + co + scale_fill_gradient( low = muted( 'blue' ) , high = muted( 'red' ) )
 # plot + layer1 + layer2 + scale_fill_gradient( low = muted( 'blue' ) , high = muted( 'red' ) )
+layer3 <- geom_path( data = nyc.shp , aes( x=long , y=lat , group = group ) )
 
-plot + layer1 + layer2 + scale_fill_gradient( low = 'white' , high = muted( 'red' ) )
+co <- coord_map( project = "newyorker" , r = 0 )
+
+plot + layer1 + layer2 + layer3 + scale_fill_gradient( low = 'white' , high = muted( 'red' ) )
+
+
 # plot + layer1 + layer2 + co + scale_fill_gradient( low = muted( 'blue' ) , high = muted( 'red' ) ) + coord_equal()
 
 
