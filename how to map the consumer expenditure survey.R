@@ -402,7 +402,7 @@ sf[ is.na( sf$keep ) , 'psu' ] <- 9999
 sf$keep <- NULL
 
 # continue being as sparse as possible.  remove columns you no longer need.
-sf <- sf[ , ( names( sf ) %in% c( 'state' , 'psu' , 'smsastat' , 'pop100' , 'intptlat' , 'intptlon' ) ) ]
+sf <- sf[ , ( names( sf ) %in% c( 'state' , 'psu' , 'smsastat' , 'pop100' , 'intptlat' , 'intptlon' , 'akhi' ) ) ]
 
 # integers are overflowing
 sf$pop100 <- as.numeric( sf$pop100 )
