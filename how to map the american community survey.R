@@ -37,7 +37,7 @@
 # # value of interest # #
 # # # # # # # # # # # # #
 
-# median property value among owner-occupied homes
+# race/ethnicity population shares (categorical)
 
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -73,7 +73,7 @@ library(MonetDB.R)
 
 # following the analysis examples in the r code repository --
 # # https://raw.githubusercontent.com/ajdamico/usgsd/master/American%20Community%20Survey/2011%20single-year%20-%20analysis%20examples.R
-# -- calculate the transportation share of total expenditure at the smallest available geographic area
+# -- calculate race/ethnicity shares at the smallest available geographic area
 
 
 
@@ -101,47 +101,50 @@ db <- dbConnect( MonetDB.R() , monet.url , wait = TRUE )
 # analyze the 2012 single-year acs
 load( './acs2012_1yr.rda' )
 
-# open the design connection to the household-level design, not the person-level design
-acs.h <- open( acs.h.design , driver = MonetDB.R() , wait = TRUE )
+# open the design connection to the person-level design
+acs.m <- open( acs.m.design , driver = MonetDB.R() , wait = TRUE )
 
-# restrict the acs.h object to alaska only
-acs.h.alaska <- subset( acs.h , st == 2 )
+# restrict the acs.m object to alaska only
+acs.m.alaska <- subset( acs.m , st == 2 )
 
-# determine the unique pumas in alaska
-alaska.pumas <- dbGetQuery( db , 'select distinct puma from acs2012_1yr_h where st = 2 order by puma' )
+# percent american indian/alaska native by puma
+aian <- svymean( ~I( racaian == 1 ) , acs.m.alaska , byvar = ~ puma )
 
-# there's the starting data.frame object
-class( alaska.pumas )
+# percent white non-hispanic by puma
+white.nh <- svymean( ~ I( rac1p == 1 & hisp == 1 ) , acs.m.alaska , byvar = ~ puma )
 
-# loop through this data.frame object with one record per alaskan puma
-for ( i in seq( nrow( alaska.pumas ) ) ){
+# percent all others by puma
+all.others <- svymean( ~ I( ( ( rac1p > 1 ) | ( hisp > 1 ) ) & racaian == 0 ) , acs.m.alaska , byvar = ~ puma )
 
-	# sqlsurvey's subsetting is funky and svyby() and byvar= do not work on svyquantile
-	puma.ss.line <-
-		paste( 
-			"this.puma <- subset( acs.h.alaska , ( valp > 0 ) & ( puma = " , 
-			alaska.pumas[ i , 'puma' ] , 
-			") )"	
-		)
 
-	# execute the current string to create the alaskan household object,
-	# subsetted to the current puma
-	eval( parse( text = puma.ss.line ) )
-		
-	# calculate the median and standard error
-	this.result <- svyquantile( ~ valp , this.puma , quantiles = 0.5 , se = TRUE )
-		
-	# store the median home value
-	alaska.pumas[ i , 'mhv' ] <- as.numeric( this.result )
-	
-	# store the standard error
-	alaska.pumas[ i , 'se' ] <- attr( this.result , 'ci' )[ 3 ]
+# note: if your variables of interest aren't easily accessible from the current structure
+# you might recode the variables into your desired categories instead
+# https://github.com/ajdamico/usgsd/blob/master/American%20Community%20Survey/2011%20single-year%20-%20variable%20recode%20example.R
 
-}
+
+# create a data.frame with these three results..
+results <- cbind( aian , white.nh , all.others )
+
+# ..and standard errors
+ses <- cbind( SE( aian ) , SE( white.nh ), SE( all.others ) )
+
+# combine everything into a single data.frame object
+alaska.pumas <- 
+	data.frame( 
+		puma = gsub( "X____racaian___1____:" , "" , rownames( results ) ) ,
+		results , 
+		ses
+	)
+
+# name the three standard error columns
+names( alaska.pumas )[ 5:7 ] <- paste0( 'se.' , names( alaska.pumas )[ 2:4 ] )
+
+# remove the row names, since they're useless
+rownames( alaska.pumas ) <- NULL
 
 # close the connection to the sqlrepsurvey design object
-close( acs.h.alaska )
-close( acs.h )
+close( acs.m.alaska )
+close( acs.m )
 
 # disconnect from the current monet database
 dbDisconnect( db )
@@ -250,7 +253,7 @@ rm( sf1ak ) ; gc()
 # one record per census block,
 # and also with the geography (puma)
 # that matches the american community survey
-head( sf1ct.101 )
+head( sf1ak.101 )
 
 # and guess what?
 # we've now got the census 2010 weighted populations (field pop100)
@@ -260,46 +263,233 @@ head( sf1ct.101 )
 # # # # # # # # # # #
 
 
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# # step 4: merge the results of your survey analysis with the small-area geography # #
+
+# confirm that we've created all possible geographies correctly.
+
+# the number of records in our small area statistics..
+sas.row <- nrow( sas )
+
+# ..should equal the number of unique-match-merged records..
+mrow <- nrow( merge( unique( sf1ak.101[ "puma" ] ) , sas ) )
+
+# ..and it does/they do.
+stopifnot( sas.row == mrow )
+
+# now the census block-level alaska census data *could* merge if you wanted it to.
 
 
+# but you don't.  yet.
 
 
+# the standard error (the `se.` fields) are measures of precision.
+print( sas )
+# the smaller the standard error, the more confident you should be
+# that the estimate at a particular geography is correct.
 
 
+# so invert them.  you heard me.  invert them.
+sas$invse.white.nh <- 1 / sas$se.white.nh
+sas$invse.aian <- 1 / sas$se.aian
+sas$invse.all.others <- 1 / sas$se.all.others
+# a smaller standard error indicates more precision.
+
+# for our purposes, precision can be considered weight! #
+
+# now we've got the weight that we should give each of our estimates #
+
+# distribute that weight across all census blocks #
 
 
+# aggregate the 2010 census block populations to the geographies that you have.
+popsum <- aggregate( sf1ak.101$pop100 , by = ( sf1ak.101[ "puma" ] ) , sum )
+
+# make the column name meaningful
+names( popsum )[ names( popsum ) == 'x' ] <- 'popsum'
+
+# merge the popsum onto the sasfile
+sas <- merge( sas , popsum )
+
+# now.  merge
+	# the race/ethnicity shares (the variable of interest)
+	# the inverted standard errors (the total weight of the broad geography)
+	# the population sum (the total population of all census blocks that are part of that geography)
+
+x <- merge( sf1ak.101 , sas )
+
+# confirm no record loss
+stopifnot( nrow( x ) == nrow( sf1ak.101 ) )
 
 
+# (this is the fun part)
+# calculate three weights at each census block
+x$weight.aian <- x$invse.aian * ( x$pop100 / x$popsum )
+x$weight.white.nh <- x$invse.white.nh * ( x$pop100 / x$popsum )
+x$weight.all.others <- x$invse.all.others * ( x$pop100 / x$popsum )
+
+# note that weight of all census blocks put together
+# sums to the `invse` on the original analysis file
+stopifnot( sum( x$weight.aian ) == sum( sas$invse.aian ) )
+stopifnot( sum( x$weight.white.nh ) == sum( sas$invse.white.nh ) )
+stopifnot( sum( x$weight.all.others ) == sum( sas$invse.all.others ) )
+
+# remove records with zero population across all three measures
+x <- subset( x , weight.aian > 0 | weight.white.nh > 0 | weight.all.others > 0 )
+
+# scale all weights so that they average to one
+x$weight.aian <- x$weight.aian / mean( x$weight.aian )
+x$weight.white.nh <- x$weight.white.nh / mean( x$weight.white.nh )
+x$weight.all.others <- x$weight.all.others / mean( x$weight.all.others )
+
+# you're done preparing your data.
+# keep only the columns you need.
+x <- x[ , c( 'aian' , 'white.nh' , 'all.others' , 'weight.aian' , 'weight.white.nh' , 'weight.all.others' , 'intptlat' , 'intptlon' ) ]
+
+# # end of step 4 # #
+# # # # # # # # # # #
 
 
+# # # # # # # # # # # # # # # # # # # # # # #
+# # step 5: decide on your map parameters # #
+
+library(ggplot2)
+library(scales)
+library(mapproj)
+
+# pop quiz: which states are the furthest north, east, south, west?
+# if you guessed alaska, maine, hawaii, alaska, you are wrong!
+# the answer is alaska, alaska, hawaii, alaska.
+
+# a few of the aleutians cross the international date line.
+
+# do you want to keep the edges of the aleutian islands in your map?
+# of course you do!  here's an ultra-simple recode to keep them gridded together.
+x <- transform( x , intptlon = ifelse( intptlon > 0 , intptlon - 360 , intptlon ) )
 
 
+# before you ever touch surface smoothing or kriging,
+# make some decisions about how you generally want
+# your map to look:  the projection and coloring
+
+# the options below simply use hadley wickham's ggplot2
+# with the census block-level race/ethnicity shares and centroids
+
+# add a unique color-identifier to the data.frame
+x$color.column <- paste( x$aian , x$white.nh , x$all.others )
+
+# add the hex color identifier
+x$color.value <- rgb( x$aian , x$white.nh , x$all.others )
+
+# initiate the simple map
+ak.map <- 
+	qplot( 
+		intptlon , 
+		intptlat , 
+		data = x , 
+		colour = color.column ,
+		xlab = NULL ,
+		ylab = NULL
+	)
 
 
+# manually add the hex colors to the map
+ak.map <- ak.map + scale_color_manual( values = unique( x$color.value ) )
+
+	
+# remove all map crap.
+
+ak.map <- 
+	ak.map + 
+
+	scale_x_continuous( breaks = NULL ) +
+
+    scale_y_continuous( breaks = NULL ) +
+
+    theme(
+		legend.position = "none" ,
+		panel.grid.major = element_blank(),
+		panel.grid.minor = element_blank(),
+		panel.background = element_blank(),
+		panel.border = element_blank(),
+		axis.ticks = element_blank()
+	)
 
 
+# print the map without any projection
+ak.map
+# personally, i prefer this one for alaska.
+# if you do too, just don't add the coord_map() option
+
+# print the map with an albers projection.
+ak.map + coord_map( project = "albers" , lat0 = min( x$intptlat ) , lat1 = max( x$intptlat ) )
+# see ?mapproject for a zillion alternatives
+
+# # end of step 5 # #
+# # # # # # # # # # #
 
 
+# # # # # # # # # # # # # # # # # #
+# # step 6: tie knots and krige # #
+
+library(fields)
+
+# how many knots should you make?
+
+# cannot be more than `nrow( x )`
+# but one hundred is okay.
+# if you've got a powerful computer,
+# you can increase this
+number.of.knots <- min( 100 , nrow( x ) )
+# number.of.knots <- min( 250 , nrow( x ) )
 
 
+xknots <- cover.design( cbind( x$intptlon , x$intptlat ) , number.of.knots )$design
 
 
+# run the `Krig` function on all three categories,
+# each with their own respective weight.
+
+krig.aian <-
+	Krig(
+		cbind( x$intptlon , x$intptlat ) ,
+		x$aian ,
+		weights = x$weight.aian ,
+		knots = xknots # ,
+		# Covariance = "Matern"
+	)
+
+krig.white.nh <-
+	Krig(
+		cbind( x$intptlon , x$intptlat ) ,
+		x$white.nh ,
+		weights = x$weight.white.nh ,
+		knots = xknots # ,
+		# Covariance = "Matern"
+	)
+
+krig.all.others <-
+	Krig(
+		cbind( x$intptlon , x$intptlat ) ,
+		x$all.others ,
+		weights = x$weight.all.others ,
+		knots = xknots # ,
+		# Covariance = "Matern"
+	)
+
+# # end of step 6 # #
+# # # # # # # # # # #
 
 
+# # # # # # # # # # # #
+# # step 7: outline # #
 
+library(maptools)
 
-
-
-
-
-
-# create a temporary file containing the census bureau's
-# 2010 census tract shapefile for alaska
-# then download the file.
-shpak.tf <- tempfile() ; td <- tempdir()
+shpak.tf <- tempfile()
 
 download.cache( 
-	"ftp://ftp2.census.gov/geo/tiger/TIGER2010/TRACT/2010/tl_2010_02_tract10.zip" ,
+	"ftp://ftp2.census.gov/geo/pvs/tiger2010st/02_Alaska/02/tl_2010_02_state10.zip" ,
 	shpak.tf ,
 	mode = 'wb'
 )
@@ -308,28 +498,59 @@ shpak.uz <- unzip( shpak.tf , exdir = td )
 
 ak.shp <- readShapePoly( shpak.uz[ grep( 'shp$' , shpak.uz ) ] )
 
+# # end of step 7 # #
+# # # # # # # # # # #
 
 
+# # # # # # # # # # # # # # # # # # # #
+# # step 8: make a grid and predict # #
 
-# from the census tract shapefile,
-# we can merge on puma-level statistics and also
-# calculate the total 2010 census population, by tract
-sum( sf1ct.101$pop100 )
-# http://quickfacts.census.gov/qfd/states/02000.html
+# do you want your map to print decently in a few minutes?
+grid.length <- 100
+# or beautifully in a few hours?
+# grid.length <- 250
+
+# again, adjust for the aleutian islands over the international date line
+bb <- bbox( ak.shp )
+
+bb[ 1 , 2 ] <- bb[ 1 , 2 ] - 360
+# adjustment over.
+
+# create two identical grid objects
+grd <- krig.grd <- 
+	expand.grid(
+		intptlon = seq( from = bb[1,1] , to = bb[1,2] , length = grid.length ) , 
+		intptlat = seq( from = bb[2,1] , to = bb[2,2] , length = grid.length )
+	)
 
 
-# so now we have a data.frame object with
-# one record per census block,
-# and also with the two geography-levels
-# that match the current population survey
-head( sf1ct.101 )
-# in connecticut,
-# necta is the cbsa and
-# nmemi indicates metropolitan status
+# along your rectangular grid,
+# what are the predicted values of
+# each race/ethnicity category?
+krig.grd$aian <- predict( krig.aian , krig.grd[ , 1:2 ] )
 
-# and guess what?
-# we've now got the census 2010 weighted populations (field pop100)
-# and also each census block's centroid latitude & longitude (fields intptlat + intptlon)
+krig.grd$white.nh <- predict( krig.white.nh , krig.grd[ , 1:2 ] )
 
-# # end of step 3 # #
+krig.grd$all.others <- predict( krig.all.others , krig.grd[ , 1:2 ] )
+
+# since these predicted values do not sum to one (they need to!)
+# calculate an expansion/contraction factor for each record
+krig.grd$factor <- 1 / rowSums( krig.grd[ , c( 'aian' , 'white.nh' , 'all.others' ) ] )
+
+# scale each predicted categorical share up or down, proportionally
+krig.grd[ , c( 'aian' , 'white.nh' , 'all.others' ) ] <-
+	sapply( 
+		krig.grd[ , c( 'aian' , 'white.nh' , 'all.others' ) ] ,
+		function( z ){ z * krig.grd$factor }
+	)
+
+# confirm that each row sums to one.
+stopifnot( 
+	all.equal( 
+		rowSums( krig.grd[ , c( 'aian' , 'white.nh' , 'all.others' ) ] ) , 
+		rep( 1 , nrow( krig.grd ) ) 
+	) 
+)
+
+# # end of step 8 # #
 # # # # # # # # # # #
