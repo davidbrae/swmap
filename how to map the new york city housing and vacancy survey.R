@@ -203,6 +203,9 @@ stopifnot( nrow( bo ) == nrow( nychvs.subboro ) )
 # rename the `bo` data.frame's census tract column to match `sf1ny.101`
 names( bo )[ names( bo ) == 'ctract' ] <- 'tract'
 
+# rename the `bo` data.frame's boro column to match `sas`
+names( bo )[ names( bo ) == 'boro' ] <- 'borough'
+
 # merge this with the new york state summary file #1..
 sf1.bo <- merge( sf1ny.101 , bo )
 
@@ -221,5 +224,83 @@ head( sf1.bo )
 # and also each census block's centroid latitude & longitude (fields intptlat + intptlon)
 
 # # end of step 3 # #
+# # # # # # # # # # #
+
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# # step 4: merge the results of your survey analysis with the small-area geography # #
+
+# confirm that we've created all possible geographies correctly.
+
+# the number of records in our small area statistics..
+sas.row <- nrow( sas )
+
+# ..should equal the number of unique-match-merged records..
+mrow <- nrow( merge( unique( sf1.bo[ , c( 'borough' , 'subboro' ) ] ) , sas ) )
+
+# ..and it does/they do.
+stopifnot( sas.row == mrow )
+
+# now the census block-level new york city census data *could* merge if you wanted it to.
+
+
+# but you don't.  yet.
+
+
+# the standard error (the `se` field) is a measure of precision.
+print( sas )
+# the smaller the standard error, the more confident you should be
+# that the estimate at a particular geography is correct.
+
+
+# so invert it.  you heard me.  invert it.
+sas$invse <- 1 / sas$se
+# a smaller standard error indicates more precision.
+
+# for our purposes, precision can be considered weight! #
+
+# now we've got the weight that we should give each of our estimates #
+
+# distribute that weight across all census blocks #
+
+# aggregate the 2010 census block populations to the geographies that you have.
+popsum <- aggregate( sf1.bo$pop100 , by = ( sf1.bo[ , c( 'borough' , 'subboro' ) ] ) , sum )
+
+# make the column name meaningful
+names( popsum )[ names( popsum ) == 'x' ] <- 'popsum'
+
+# merge the popsum onto the sasfile
+sas <- merge( sas , popsum )
+
+# now.  merge
+	# the persons per room rate (the variable of interest)
+	# the inverted standard error (the total weight of the broad geography)
+	# the population sum (the total population of all census blocks that are part of that geography)
+
+x <- merge( sf1.bo , sas )
+
+# confirm no record loss
+stopifnot( nrow( x ) == nrow( sf1.bo ) )
+
+
+# (this is the fun part)
+# calculate the weight of each census block
+x$weight <- x$invse * ( x$pop100 / x$popsum )
+
+# note that weight of all census blocks put together
+# sums to the `invse` on the original analysis file
+stopifnot( all.equal( sum( x$weight ) , sum( sas$invse ) ) )
+
+# remove records with zero population
+x <- subset( x , weight > 0 )
+
+# scale all weights so that they average to one
+x$weight <- x$weight / mean( x$weight )
+
+# you're done preparing your data.
+# keep only the columns you need.
+x <- x[ , c( 'pproom' , 'weight' , 'intptlat' , 'intptlon' ) ]
+
+# # end of step 4 # #
 # # # # # # # # # # #
 
