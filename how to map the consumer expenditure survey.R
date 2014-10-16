@@ -607,6 +607,7 @@ number.of.knots <- min( 100 , nrow( x ) )
 # number.of.knots <- min( 250 , nrow( x ) )
 
 
+stop( "stop using knots!  use population-weighted centroids instead" )
 xknots <- cover.design( cbind( x$intptlon , x$intptlat ) , number.of.knots )$design
 
 
@@ -674,9 +675,9 @@ us.shp <- subset( us.shp , !( STUSPS10 %in% c( 'AK' , 'HI' , 'PR' ) ) )
 # # step 8: make a grid and predict # #
 
 # do you want your map to print decently in a few minutes?
-grid.length <- 100
+# grid.length <- 100
 # or beautifully in a few hours?
-# grid.length <- 250
+grid.length <- 500
 
 
 # create three identical grid objects
@@ -716,22 +717,22 @@ library(rgeos)
 
 # draw a rectangle around the grd
 # us.shp.diff <- gEnvelope( outer.grd )
-# us.shp.out <- gEnvelope( us.shp )
+us.shp.out <- gEnvelope( us.shp )
 
 
 # Create a bounding box 10% bigger than the bounding box of connecticut
-x_excess = (us.shp@bbox['x','max'] - us.shp@bbox['x','min'])*0.1
-y_excess = (us.shp@bbox['y','max'] - us.shp@bbox['y','min'])*0.1
-x_min = us.shp@bbox['x','min'] - x_excess
-x_max = us.shp@bbox['x','max'] + x_excess
-y_min = us.shp@bbox['y','min'] - y_excess
-y_max = us.shp@bbox['y','max'] + y_excess
-bbox = matrix(c(x_min,x_max,x_max,x_min,x_min,
-                y_min,y_min,y_max,y_max,y_min),
-              nrow = 5, ncol =2)
-bbox = Polygon(bbox, hole=FALSE)
-bbox = Polygons(list(bbox), "bbox")
-us.shp.out = SpatialPolygons(Srl=list(bbox), pO=1:1, proj4string=us.shp@proj4string)
+# x_excess = (us.shp@bbox['x','max'] - us.shp@bbox['x','min'])*0.1
+# y_excess = (us.shp@bbox['y','max'] - us.shp@bbox['y','min'])*0.1
+# x_min = us.shp@bbox['x','min'] - x_excess
+# x_max = us.shp@bbox['x','max'] + x_excess
+# y_min = us.shp@bbox['y','min'] - y_excess
+# y_max = us.shp@bbox['y','max'] + y_excess
+# bbox = matrix(c(x_min,x_max,x_max,x_min,x_min,
+                # y_min,y_min,y_max,y_max,y_min),
+              # nrow = 5, ncol =2)
+# bbox = Polygon(bbox, hole=FALSE)
+# bbox = Polygons(list(bbox), "bbox")
+# us.shp.out = SpatialPolygons(Srl=list(bbox), pO=1:1, proj4string=us.shp@proj4string)
 
 
 
@@ -766,8 +767,9 @@ co <- coord_map( project = "albers" , lat0 = min( x$intptlat ) , lat1 = max( x$i
 # plot + layer1 + layer2 + co + scale_fill_gradient( low = muted( 'blue' ) , high = muted( 'red' ) )
 # plot + layer1 + layer2 + scale_fill_gradient( low = muted( 'blue' ) , high = muted( 'red' ) )
 
-plot + layer1 + layer2 + co + scale_fill_gradient( low = muted( 'blue' ) , high = muted( 'red' ) ) + coord_equal()
+# plot + layer1 + layer2 + co + scale_fill_gradient( low = muted( 'blue' ) , high = muted( 'red' ) ) + coord_equal()
 
+plot + layer1 + layer2 + scale_fill_gradient( low = muted( 'white' ) , high = muted( 'red' ) ) + co
 
 
 
