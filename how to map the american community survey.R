@@ -430,51 +430,35 @@ ak.map + coord_map( project = "albers" , lat0 = min( x$intptlat ) , lat1 = max( 
 
 
 # # # # # # # # # # # # # # # # # #
-# # step 6: tie knots and krige # #
+# # step 6: gamorous prediction # #
 
-library(fields)
+library(mgcv)
 
-# how many knots should you make?
+# alaska has a vast geography and highly skewed population centers
 
-# cannot be more than `nrow( x )`
-# but one hundred is okay.
-# if you've got a powerful computer,
-# you can increase this
-number.of.knots <- min( 100 , nrow( x ) )
-# number.of.knots <- min( 250 , nrow( x ) )
+# kriging functions might not converge.
 
+# the gam() function provides a useable alternative.
 
-xknots <- cover.design( cbind( x$intptlon , x$intptlat ) , number.of.knots )$design
-
-
-# run the `Krig` function on all three categories,
-# each with their own respective weight.
-
-krig.aian <-
-	Krig(
-		cbind( x$intptlon , x$intptlat ) ,
-		x$aian ,
-		weights = x$weight.aian ,
-		knots = xknots # ,
-		# Covariance = "Matern"
+gam.aian <- 
+	gam( 
+		aian ~ s( intptlon , intptlat ) , 
+		weights = weight.aian , 
+		data = x
 	)
 
-krig.white.nh <-
-	Krig(
-		cbind( x$intptlon , x$intptlat ) ,
-		x$white.nh ,
-		weights = x$weight.white.nh ,
-		knots = xknots # ,
-		# Covariance = "Matern"
+gam.white.nh <- 
+	gam( 
+		white.nh ~ s( intptlon , intptlat ) , 
+		weights = weight.white.nh , 
+		data = x
 	)
 
-krig.all.others <-
-	Krig(
-		cbind( x$intptlon , x$intptlat ) ,
-		x$all.others ,
-		weights = x$weight.all.others ,
-		knots = xknots # ,
-		# Covariance = "Matern"
+gam.all.others <- 
+	gam( 
+		all.others ~ s( intptlon , intptlat ) , 
+		weights = weight.all.others , 
+		data = x
 	)
 
 # # end of step 6 # #
@@ -505,10 +489,8 @@ ak.shp <- readShapePoly( shpak.uz[ grep( 'shp$' , shpak.uz ) ] )
 # # # # # # # # # # # # # # # # # # # #
 # # step 8: make a grid and predict # #
 
-# do you want your map to print decently in a few minutes?
-grid.length <- 100
-# or beautifully in a few hours?
-# grid.length <- 250
+# use as fine of a grid as your computer can handle
+grid.length <- 500
 
 # again, adjust for the aleutian islands over the international date line
 bb <- bbox( ak.shp )
@@ -517,38 +499,57 @@ bb[ 1 , 2 ] <- bb[ 1 , 2 ] - 360
 # adjustment over.
 
 # create two identical grid objects
-grd <- krig.grd <- 
-	expand.grid(
-		intptlon = seq( from = bb[1,1] , to = bb[1,2] , length = grid.length ) , 
-		intptlat = seq( from = bb[2,1] , to = bb[2,2] , length = grid.length )
-	)
+# grd <- gam.grd <- 
+	# expand.grid(
+		# intptlon = seq( from = bb[1,1] , to = bb[1,2] , length = grid.length ) , 
+		# intptlat = seq( from = bb[2,1] , to = bb[2,2] , length = grid.length )
+	# )
 
+grd <- gam.grd <- 
+	expand.grid(
+		intptlon = c( bb[1,1] , unique( ctract.knots$intptlon ) , bb[1,2] ) , 
+		intptlat = c( bb[2,1] , unique( ctract.knots$intptlat ) , bb[2,2] )
+	)
 
 # along your rectangular grid,
 # what are the predicted values of
 # each race/ethnicity category?
-krig.grd$aian <- predict( krig.aian , krig.grd[ , 1:2 ] )
+gam.grd$aian <- predict( gam.aian , gam.grd[ , 1:2 ] )
 
-krig.grd$white.nh <- predict( krig.white.nh , krig.grd[ , 1:2 ] )
+gam.grd$white.nh <- predict( gam.white.nh , gam.grd[ , 1:2 ] )
 
-krig.grd$all.others <- predict( krig.all.others , krig.grd[ , 1:2 ] )
+gam.grd$all.others <- predict( gam.all.others , gam.grd[ , 1:2 ] )
+
+# the gam() function occasionally predicts impossible values.
+# confirm that did not happen.
+sapply( gam.grd , summary )
+# whoops, it did.
+
+# note that some predictions are below zero or above one.  min and max these out
+gam.grd[ c( 'aian' , 'white.nh' , 'all.others' ) ] <-
+	sapply( 
+		gam.grd[ c( 'aian' , 'white.nh' , 'all.others' ) ] ,
+		function( z ) pmax( pmin( z , 1 ) , 0 )
+	)
+	
+			
 
 # since these predicted values do not sum to one (they need to!)
 # calculate an expansion/contraction factor for each record
-krig.grd$factor <- 1 / rowSums( krig.grd[ , c( 'aian' , 'white.nh' , 'all.others' ) ] )
+gam.grd$factor <- 1 / rowSums( gam.grd[ , c( 'aian' , 'white.nh' , 'all.others' ) ] )
 
 # scale each predicted categorical share up or down, proportionally
-krig.grd[ , c( 'aian' , 'white.nh' , 'all.others' ) ] <-
+gam.grd[ , c( 'aian' , 'white.nh' , 'all.others' ) ] <-
 	sapply( 
-		krig.grd[ , c( 'aian' , 'white.nh' , 'all.others' ) ] ,
-		function( z ){ z * krig.grd$factor }
+		gam.grd[ , c( 'aian' , 'white.nh' , 'all.others' ) ] ,
+		function( z ){ z * gam.grd$factor }
 	)
 
 # confirm that each row sums to one.
 stopifnot( 
 	all.equal( 
-		rowSums( krig.grd[ , c( 'aian' , 'white.nh' , 'all.others' ) ] ) , 
-		rep( 1 , nrow( krig.grd ) ) 
+		rowSums( gam.grd[ , c( 'aian' , 'white.nh' , 'all.others' ) ] ) , 
+		rep( 1 , nrow( gam.grd ) ) 
 	) 
 )
 
@@ -562,10 +563,10 @@ stopifnot(
 library(rgeos)
 
 # convert grd to SpatialPoints object
-coordinates( outer.grd ) <- c( "intptlon" , "intptlat" )
+# coordinates( outer.grd ) <- c( "intptlon" , "intptlat" )
 
 # draw a rectangle around the grd
-ak.shp.diff <- gEnvelope( outer.grd )
+# ak.shp.diff <- gEnvelope( outer.grd )
 ak.shp.out <- gEnvelope( ak.shp )
 
 
@@ -604,17 +605,45 @@ library(scales)
 library(mapproj)
 
 
+
+# add the hex color identifier
+gam.grd$color.value <- rgb( gam.grd$aian , gam.grd$white.nh , gam.grd$all.others )
+
+# add a unique color-identifier to the data.frame
+gam.grd$color.column <- factor( gam.grd$color.value )
+
 outside <- fortify( ak.shp.diff )
-# outside <- ak.shp.diff
 
-# weighted.
-plot <- ggplot(data = krig.grd, aes(x = intptlon, y = intptlat))  #start with the base-plot 
-layer1 <- geom_tile(data = krig.grd, aes(fill = kout ))  #then create a tile layer and fill with predicted values
-layer2 <- geom_polygon(data=outside, aes(x=long,y=lat,group=group), fill='white')
-co <- coord_map( project = "albers" , lat0 = min( x$intptlat ) , lat1 = max( x$intptlat ) )
-# print this to a pdf instead, so it formats properly
-# plot + layer1 + layer2 + co + scale_fill_gradient( low = muted( 'blue' ) , high = muted( 'red' ) )
-# plot + layer1 + layer2 + scale_fill_gradient( low = muted( 'blue' ) , high = muted( 'red' ) )
-layer3 <- geom_path( data = ak.shp , aes( x=long , y=lat , group = group ) )
 
-plot + layer1 + layer2 + layer3 + scale_fill_gradient( low = 'white' , high = muted( 'red' ) )
+# this one works for manual color filling.
+
+stop( "i swore this worked before.  now it does not work." )
+
+
+plot <- ggplot( data = gam.grd , aes( x = intptlon , y = intptlat ) )
+
+plot <-
+	plot + 
+
+	scale_x_continuous( breaks = NULL ) +
+
+    scale_y_continuous( breaks = NULL ) +
+
+    theme(
+		legend.position = "none" ,
+		panel.grid.major = element_blank(),
+		panel.grid.minor = element_blank(),
+		panel.background = element_blank(),
+		panel.border = element_blank(),
+		axis.ticks = element_blank()
+	)
+
+
+layer1 <- geom_tile( aes( fill = color.column ) )
+
+plot + layer1 + scale_fill_manual( values = gam.grd$color.value ) 
+
+# + layer2
+
+# layer2 <- geom_polygon(data=outside, aes(x=long,y=lat,group=group), fill='white')
+
