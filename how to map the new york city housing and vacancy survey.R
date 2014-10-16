@@ -187,11 +187,14 @@ download( "https://raw.githubusercontent.com/ajdamico/usgsd/master/New%20York%20
 
 nychvs.subboro <- read.csv( nycsb.tf )
 
+# also define nyc counties
+nyc.counties <- c( '005' , '047' , '061' , '081' , '085' ) 
+
 # ahh, we also need a county fips code to new york city borough match.
 boro.to.county.fips <-
 	data.frame( 
 		boroname = c( 'Bronx' , 'Brooklyn' , 'Manhattan' , 'Queens' , 'Staten Island' ) , 
-		county = c( 5 , 47 , 61 , 81 , 85 ) 
+		county = as.numeric( nyc.counties ) 
 	)
 
 # merge on the borough county fips codes	
@@ -437,7 +440,7 @@ library(maptools)
 
 shpny.tf <- tempfile() ; td <- tempdir()
 
-download.cache( 
+download.cache(
 	"http://www2.census.gov/geo/tiger/TIGER2010/COUNTY/2010/tl_2010_36_county10.zip" ,
 	shpny.tf ,
 	mode = 'wb'
@@ -450,10 +453,12 @@ ny.shp <- readShapePoly( shpny.uz[ grep( 'shp$' , shpny.uz ) ] )
 # limit the shapefile to only the five boroughs
 nyc.shp <- subset( ny.shp , as.numeric( as.character( COUNTYFP10 ) ) %in% c( 5 , 47 , 61 , 81 , 85 ) )
 
+
+
 # projection <- paste0( "+proj=albers +lat_0=" , min( x$intptlat ) , " +lat_1=" , max( x$intptlat ) )
 
-# proj4string( ct.shp ) <- projection
-# ct.shp <- spTransform( ct.shp , CRS( projection ) )
+# proj4string( nyc.shp ) <- projection
+# nyc.shp <- spTransform( nyc.shp , CRS( projection ) )
 
 # # end of step 7 # #
 # # # # # # # # # # #
@@ -571,10 +576,37 @@ layer3 <- geom_path( data = nyc.shp , aes( x=long , y=lat , group = group ) )
 
 co <- coord_map( project = "newyorker" , r = 0 )
 
-plot + layer1 + layer2 + layer3 + scale_fill_gradient( low = 'white' , high = muted( 'red' ) )
+myplot <-
+	plot + layer1 + layer2 + layer3 + scale_fill_gradient( low = 'white' , high = muted( 'red' ) )
 
 
 # plot + layer1 + layer2 + co + scale_fill_gradient( low = muted( 'blue' ) , high = muted( 'red' ) ) + coord_equal()
+
+tf <- tempfile() ; td <- tempdir()
+for ( this.county in nyc.counties ){
+
+	this.file <- 
+		paste0(
+			"http://www2.census.gov/geo/tiger/TIGER2013/AREAWATER/tl_2013_36" ,
+			this.county ,
+			"_areawater.zip"
+		)
+		
+	download.file( this.file , tf )
+	
+	z <- unzip( tf , exdir = td )
+	
+	nyc.shp <- readShapePoly( z[ grep( 'shp$' , z ) ] )
+
+	water <- fortify( nyc.shp )
+	water <- geom_polygon(data = water , aes(x=long,y=lat,group=group), fill='white')
+	
+	myplot <- myplot + water
+	
+}
+
+
+
 
 
 
