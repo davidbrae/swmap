@@ -399,6 +399,7 @@ number.of.knots <- min( 100 , nrow( x ) )
 # number.of.knots <- min( 250 , nrow( x ) )
 
 
+stop( "stop using knots!  use population-weighted centroids instead" )
 xknots <- cover.design( cbind( x$intptlon , x$intptlat ) , number.of.knots )$design
 
 
