@@ -57,6 +57,7 @@ source_url( "https://raw.github.com/ajdamico/usgsd/master/Consumer%20Expenditure
 # # step 2: download and import necessary geographic crosswalks # #
 
 library(downloader)
+library(sqldf)
 
 # load the download.cache and related functions
 # to prevent re-downloading of files once they've been downloaded.
@@ -117,19 +118,41 @@ for ( state.number in 1:51 ){
 	sf1.uz <- unzip( sf1.tf , exdir = td )
 
 	# file layout from http://www.census.gov/prod/cen2010/doc/sf1.pdf#page=18
-	sf1 <- read.fwf( sf1.uz[ grep( "geo2010" , sf1.uz ) ] , c( -8 , 3 , -14 , 1 , -1 , 2 , -25 , 6 , 1 , 4 , -47 , 5 , 2 , -5 , 3 , -191 , 9 , -9 , 11 , 12 ) )
+	sf1 <- read.fwf( sf1.uz[ grep( "geo2010" , sf1.uz ) ] , c( -8 , 3 , -14 , 1 , -1 , 2 , 3 , -22 , 6 , 1 , 4 , -47 , 5 , 2 , -5 , 3 , -191 , 9 , -9 , 11 , 12 ) )
 
 	# add columns names matching the census bureau, so it's easy to read
-	names( sf1 ) <- c( "sumlev" , "region" , "state" , "tract" , "blkgrp" , "block" , "cbsa" , "cbsasc" , "csa" , "pop100" , "intptlat" , "intptlon" )
+	names( sf1 ) <- c( "sumlev" , "region" , "state" , "county" , "tract" , "blkgrp" , "block" , "cbsa" , "cbsasc" , "csa" , "pop100" , "intptlat" , "intptlon" )
 
 	# summary level 101 has metro areas, urban/rural status, and census blocks
-	sf1.101 <- subset( sf1 , sumlev == "101" )
+	sf101 <- subset( sf1 , sumlev == "101" )
 
+	# within each census tract x cbsa/csa combo,
+	# calculate the population-weighted mean of the coordinates
+	sfs <- 
+		sqldf( 
+			"select 
+				region , state , county , tract , cbsa , cbsasc , csa , 
+				count(*) as census_blocks ,
+				sum( pop100 ) as pop100 , 
+				sum( pop100 * intptlon ) / sum( pop100 ) as intptlon ,
+				sum( pop100 * intptlat ) / sum( pop100 ) as intptlat
+			from sf101
+			group by
+				region , state , county , tract , cbsa , cbsasc , csa" )
+	# note: this screws up coordinates that cross the international date line
+	# or the equator.  in the united states, only alaska's aleutian islands do this
+	# and those geographies will be thrown out later.  so it doesn't matter.
+	
+	# the above consolidation step isn't necessary if you have a huge computer
+	# and a lot of time.. but it makes all of the kriging and rendering computations
+	# work much faster, and mapping at the census tract- versus census block-level
+	# really doesn't make much of a damn difference.
+	
 	# stack these blocks in with all the other states
-	sf <- rbind( sf , sf1.101 )
+	sf <- rbind( sf , sfs )
 	
 	# remove the single-state data.frame objects and clear up RAM
-	rm( sf1.101 , sf1 ) ; gc()
+	rm( sf101 , sf1 , sfs ) ; gc()
 	
 	# remove the unzipped files from your local disk
 	file.remove( sf1.uz , sf1.tf )
@@ -137,7 +160,7 @@ for ( state.number in 1:51 ){
 }
 
 # one record per census block in every state.  see?  same number.
-table( sf$state )
+tapply( sf$census_blocks , sf$state , sum )
 # https://www.census.gov/geo/maps-data/data/tallies/census_block_tally.html
 
 # and guess what?  the population by state matches as well.
@@ -145,7 +168,7 @@ tapply( sf$pop100 , sf$state , sum )
 # http://en.wikipedia.org/wiki/2010_United_States_Census#State_rankings
 
 # remove columns you actually don't need
-sf <- sf[ , !( names( sf ) %in% c( 'sumlev' , 'block' , 'region' , 'tract' , 'blkgrp' , 'cbsasc' ) ) ]
+sf <- sf[ , !( names( sf ) %in% c( 'sumlev' , 'block' , 'county' , 'region' , 'tract' , 'blkgrp' , 'cbsasc' ) ) ]
 
 # remove records with zero population
 sf <- subset( sf , pop100 > 0 )
