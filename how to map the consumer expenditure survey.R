@@ -748,6 +748,9 @@ us.shp.diff <- gDifference( us.shp.out , us.shp )
 # # # # # # # # # # #
 
 
+stop( "capping your outliers is critically important.  the scale is much more visible if they are maxxed and minned" )
+
+
 
 
 library(ggplot2)
