@@ -599,6 +599,9 @@ ak.shp.diff <- gDifference( ak.shp.out , ak.shp )
 
 
 
+stop( "can you use scale_fill_gradientn() for this?  isn't that its purpose?  why aren't you using it?" )
+
+
 stop( "capping your outliers is critically important.  the scale is much more visible if they are maxxed and minned" )
 
 

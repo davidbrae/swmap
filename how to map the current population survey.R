@@ -54,6 +54,11 @@ source_url( "https://raw.github.com/ajdamico/usgsd/master/Current%20Population%2
 # # # # # # # # # # #
 
 
+stop( "this map is totally wrong!  both `sas` and the sf1 need to download adjacent states!" )
+stop( "new york, rhode island, and massachusetts should all influence the edges of the state" )
+
+
+
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # # step 2: conduct your analysis of interest at the smallest geography allowed # #
 
