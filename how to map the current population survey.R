@@ -565,12 +565,13 @@ co2 <- co
 class(co2) <- c("hoge", class(co2))
 is.linear.hoge <- function(coord) TRUE
 
-plot + 
+p <-
+	plot + 
 	co + 
 	layer1 + 
 	layer2 + 
 	coord_fixed() +
-	scale_fill_gradient( low = 'white' , high = muted( 'red' ) ) + 
+	scale_fill_gradient( low = 'green' , high = 'red' ) + 
 	theme(
 		legend.position = "none" ,
 		axis.title.x = element_blank() ,
@@ -586,8 +587,54 @@ plot +
 		axis.ticks = element_blank()
 	)
 
+# plot that.
+p
 
 
+
+# water files for all state/county combos
+ascc <- unique( sf1ct.101[ , c( 'state' , 'county' ) ] )
+
+
+
+library(stringr)
+library(maptools)
+library(plyr)
+library(ggplot2)
+
+water.files <-
+	paste0( 
+		"ftp://ftp2.census.gov/geo/tiger/TIGER2013/AREAWATER/tl_2013_" ,
+		str_pad( ascc[ , 1 ] , 2 , pad = '0' ) ,
+		str_pad( ascc[ , 2 ] , 3 , pad = '0' ) ,
+		"_areawater.zip"
+	)
+
+psave <- p
+
+tf <- tempfile() ; td <- tempdir()
+
+for ( fn in water.files ){
+
+	download.file( fn , tf )
+	
+	z <- unzip( tf , exdir = td )
+
+	
+	w <- readShapePoly( z[ grep( 'shp$' , z ) ] )
+
+	wo <- fortify( w )
+
+	w2 <- ddply( wo , .( piece ) , function( x ) rbind( x , wo[ 1 , ] ) )
+
+	wl <- geom_polygon( data = w2 , aes( x = long , y = lat , group = group ) , fill='white' )
+
+	p <- p + wl
+	
+}
+
+# print with all water blanked out.
+p
 
 
 # weighted.
