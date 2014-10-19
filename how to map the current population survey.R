@@ -424,6 +424,10 @@ gam.fit <-
 		data = x
 	)
 	
+stop( "add a third option- SMOOTHING.. from this" )
+# http://stackoverflow.com/a/26281162/1759499
+	
+	
 # # end of step 6 # #
 # # # # # # # # # # #
 
@@ -433,17 +437,25 @@ gam.fit <-
 
 library(maptools)
 
-shpct.tf <- tempfile()
+shpstate.tf <- tempfile()
+
+# connnecticut borders the ocean,
+# so use the census bureau's cartographic boundary files
+# instead of the regular tiger shapefiles
+# unless you want to display poverty rates in the ocean.
 
 download.cache( 
-	"ftp://ftp2.census.gov/geo/pvs/tiger2010st/09_Connecticut/09/tl_2010_09_state10.zip" ,
-	shpct.tf ,
+	"http://www2.census.gov/geo/tiger/GENZ2013/cb_2013_us_state_500k.zip" ,
+	shpstate.tf ,
 	mode = 'wb'
 )
 
-shpct.uz <- unzip( shpct.tf , exdir = td )
+shpstate.uz <- unzip( shpstate.tf , exdir = td )
 
-ct.shp <- readShapePoly( shpct.uz[ grep( 'shp$' , shpct.uz ) ] )
+state.shp <- readShapePoly( shpstate.uz[ grep( 'shp$' , shpstate.uz ) ] )
+
+ct.shp <- subset( state.shp , STATEFP == '09' )
+
 
 # projection <- paste0( "+proj=albers +lat_0=" , min( x$intptlat ) , " +lat_1=" , max( x$intptlat ) )
 
@@ -457,37 +469,37 @@ ct.shp <- readShapePoly( shpct.uz[ grep( 'shp$' , shpct.uz ) ] )
 # # # # # # # # # # # # # # # # # # # #
 # # step 8: make a grid and predict # #
 
-# x.range <- summary( x$intptlon )[ c( 1 , 6 ) ]
-# y.range <- summary( x$intptlat )[ c( 1 , 6 ) ]
+x.range <- summary( x$intptlon )[ c( 1 , 6 ) ]
+y.range <- summary( x$intptlat )[ c( 1 , 6 ) ]
 
 # add five percent on each side
-# x.diff <- abs( x.range[ 2 ] - x.range[ 1 ] ) * 0.05
-# y.diff <- abs( y.range[ 2 ] - y.range[ 1 ] ) * 0.05
+x.diff <- abs( x.range[ 2 ] - x.range[ 1 ] ) * 0.05
+y.diff <- abs( y.range[ 2 ] - y.range[ 1 ] ) * 0.05
 
-# x.range[ 1 ] <- x.range[ 1 ] - x.diff
-# x.range[ 2 ] <- x.range[ 2 ] + x.diff
-# y.range[ 1 ] <- y.range[ 1 ] - y.diff
-# y.range[ 2 ] <- y.range[ 2 ] + y.diff
+x.range[ 1 ] <- x.range[ 1 ] - x.diff
+x.range[ 2 ] <- x.range[ 2 ] + x.diff
+y.range[ 1 ] <- y.range[ 1 ] - y.diff
+y.range[ 2 ] <- y.range[ 2 ] + y.diff
 
 
 # do you want your map to print decently in a few minutes?
-grid.length <- 100
+# grid.length <- 100
 # or beautifully in a few hours?
-# grid.length <- 250
+grid.length <- 500
 
 
 # create three identical grid objects
-grd <- gam.grd <- krig.grd <- 
-	expand.grid(
-		intptlon = seq( from = bbox( ct.shp )[1,1] , to = bbox( ct.shp )[1,2] , length = grid.length ) , 
-		intptlat = seq( from = bbox( ct.shp )[2,1] , to = bbox( ct.shp )[2,2] , length = grid.length )
-	)
-
-# outer.grd <- 
-	# data.frame(
-		# intptlon = c( x.range[1] - x.diff , x.range[2] + x.diff ) , 
-		# intptlat = c( y.range[1] - y.diff , y.range[2] + y.diff )
+# grd <- gam.grd <- krig.grd <- 
+	# expand.grid(
+		# intptlon = seq( from = bbox( ct.shp )[1,1] , to = bbox( ct.shp )[1,2] , length = grid.length ) , 
+		# intptlat = seq( from = bbox( ct.shp )[2,1] , to = bbox( ct.shp )[2,2] , length = grid.length )
 	# )
+
+grd <- gam.grd <- krig.grd <-
+	expand.grid(
+		intptlon = seq( from = x.range[1] - x.diff , to = x.range[2] + x.diff , length = grid.length ) , 
+		intptlat = seq( from = y.range[1] - y.diff , to = y.range[2] + y.diff , length = grid.length )
+	)
 
 
 # along your rectangular grid,
@@ -506,38 +518,12 @@ gam.grd$gamout <- predict( gam.fit , gam.grd )
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # # step 9: create a polygon to cover everything outside the boundary # #
 
+library(raster)
 library(rgeos)
 
-# convert grd to SpatialPoints object
-# coordinates( outer.grd ) <- c( "intptlon" , "intptlat" )
+# draw a rectangle 15% bigger than the grd
+ct.shp.out <- as( 1.3 * extent( ct.shp ), "SpatialPolygons" )
 
-# draw a rectangle around the grd
-# ct.shp.diff <- gEnvelope( outer.grd )
-# ct.shp.out <- gEnvelope( ct.shp )
-
-
-# Create a bounding box 10% bigger than the bounding box of connecticut
-x_excess = (ct.shp@bbox['x','max'] - ct.shp@bbox['x','min'])*0.1
-y_excess = (ct.shp@bbox['y','max'] - ct.shp@bbox['y','min'])*0.1
-x_min = ct.shp@bbox['x','min'] - x_excess
-x_max = ct.shp@bbox['x','max'] + x_excess
-y_min = ct.shp@bbox['y','min'] - y_excess
-y_max = ct.shp@bbox['y','max'] + y_excess
-bbox = matrix(c(x_min,x_max,x_max,x_min,x_min,
-                y_min,y_min,y_max,y_max,y_min),
-              nrow = 5, ncol =2)
-bbox = Polygon(bbox, hole=FALSE)
-bbox = Polygons(list(bbox), "bbox")
-ct.shp.out = SpatialPolygons(Srl=list(bbox), pO=1:1, proj4string=ct.shp@proj4string)
-
-
-
-
-# proj4string( ct.shp.diff ) <- projection
-# ct.shp.diff <- spTransform( ct.shp.diff , CRS( projection ) )
-
-# get the difference between your boundary and the rectangle
-# ct.shp.diff <- gDifference( bbox , ct.shp )
 ct.shp.diff <- gDifference( ct.shp.out , ct.shp )
 
 # # end of step 9 # #
@@ -548,6 +534,7 @@ ct.shp.diff <- gDifference( ct.shp.out , ct.shp )
 stop( "capping your outliers is critically important.  the scale is much more visible if they are maxxed and minned" )
 
 
+
 library(ggplot2)
 library(scales)
 library(mapproj)
@@ -556,49 +543,82 @@ library(mapproj)
 outside <- fortify( ct.shp.diff )
 # outside <- ct.shp.diff
 
+# islands fix
+library(plyr)
+outside2 <- ddply(outside, .(piece), function(x)rbind(x, outside[1, ]))
+
+
 # weighted.
 plot <- ggplot(data = krig.grd, aes(x = intptlon, y = intptlat))  #start with the base-plot 
 layer1 <- geom_tile(data = krig.grd, aes(fill = kout ))  #then create a tile layer and fill with predicted values
-layer2 <- geom_polygon(data=outside, aes(x=long,y=lat,group=group), fill='white')
+layer2 <- geom_polygon(data=outside2, aes(x=long,y=lat,group=id), fill='white')
 co <- coord_map( project = "albers" , lat0 = min( x$intptlat ) , lat1 = max( x$intptlat ) )
 # print this to a pdf instead, so it formats properly
 # plot + layer1 + layer2 + co + scale_fill_gradient( low = muted( 'blue' ) , high = muted( 'red' ) )
 # plot + layer1 + layer2 + scale_fill_gradient( low = muted( 'blue' ) , high = muted( 'red' ) )
 
-plot + layer1 + layer2 + co + scale_fill_gradient( low = muted( 'blue' ) , high = muted( 'red' ) ) + coord_equal()
+
+# plot + layer1 + layer2 + co + scale_fill_gradient( low = 'white' , high = muted( 'red' ) )
+
+
+co2 <- co
+class(co2) <- c("hoge", class(co2))
+is.linear.hoge <- function(coord) TRUE
+
+plot + 
+	co + 
+	layer1 + 
+	layer2 + 
+	coord_fixed() +
+	scale_fill_gradient( low = 'white' , high = muted( 'red' ) ) + 
+	theme(
+		legend.position = "none" ,
+		axis.title.x = element_blank() ,
+		axis.title.y = element_blank()		
+	) + 
+	scale_x_continuous(breaks = NULL) +
+    scale_y_continuous(breaks = NULL) +
+	theme(
+		panel.grid.major = element_blank(),
+		panel.grid.minor = element_blank(),
+		panel.background = element_blank(),
+		panel.border = element_blank(),
+		axis.ticks = element_blank()
+	)
+
 
 
 
 
 # weighted.
-plot <- ggplot(data = gam.grd, aes(x = intptlon, y = intptlat))  #start with the base-plot 
-layer1 <- geom_tile(data = gam.grd, aes(fill = kout ))  #then create a tile layer and fill with predicted values
+# plot <- ggplot(data = gam.grd, aes(x = intptlon, y = intptlat))  #start with the base-plot 
+# layer1 <- geom_tile(data = gam.grd, aes(fill = kout ))  #then create a tile layer and fill with predicted values
 # sol <- fortify( ct.shp )
 # layer2 <- geom_path(data = sol, aes(long, lat), colour = "grey40", size = 1)
-co <- coord_map( project = "albers" , lat0 = min( x$intptlat ) , lat1 = max( x$intptlat ) )
+# co <- coord_map( project = "albers" , lat0 = min( x$intptlat ) , lat1 = max( x$intptlat ) )
 # print this to a pdf instead, so it formats properly
 # plot + layer1 + layer2 + co + scale_fill_gradient( low = muted( 'blue' ) , high = muted( 'red' ) )
-plot + layer1 + co + scale_fill_gradient( low = muted( 'blue' ) , high = muted( 'red' ) )
+# plot + layer1 + co + scale_fill_gradient( low = muted( 'blue' ) , high = muted( 'red' ) )
 
 
 
 # raster plots
 
-coordinates(krig.grd) <- coordinates(gam.grd) <- c("intptlon", "intptlat")
-gridded(krig.grd) <- gridded(gam.grd) <- TRUE
-krig.r <- raster(krig.grd)
-gam.r <- raster(gam.grd)
+# coordinates(krig.grd) <- coordinates(gam.grd) <- c("intptlon", "intptlat")
+# gridded(krig.grd) <- gridded(gam.grd) <- TRUE
+# krig.r <- raster(krig.grd)
+# gam.r <- raster(gam.grd)
 
-colRamp <- colorRampPalette(c(muted("blue"),muted("red")))
-plot(krig.r, axes=FALSE, col=colRamp(100), main="Krig")
-plot(ct.shp.diff, add=TRUE, col="white", border="white", lwd=5)
-degAxis(1)
-degAxis(2)
-box()
+# colRamp <- colorRampPalette(c(muted("blue"),muted("red")))
+# plot(krig.r, axes=FALSE, col=colRamp(100), main="Krig")
+# plot(ct.shp.diff, add=TRUE, col="white", border="white", lwd=5)
+# degAxis(1)
+# degAxis(2)
+# box()
 
-plot(gam.r, axes=FALSE, col=colRamp(100), main="GAM")
-plot(ct.shp.diff, add=TRUE, col="white", border="white", lwd=5)
-degAxis(1)
-degAxis(2)
-box()
+# plot(gam.r, axes=FALSE, col=colRamp(100), main="GAM")
+# plot(ct.shp.diff, add=TRUE, col="white", border="white", lwd=5)
+# degAxis(1)
+# degAxis(2)
+# box()
 
