@@ -54,11 +54,6 @@ source_url( "https://raw.github.com/ajdamico/usgsd/master/Current%20Population%2
 # # # # # # # # # # #
 
 
-stop( "this map is totally wrong!  both `sas` and the sf1 need to download adjacent states!" )
-stop( "new york, rhode island, and massachusetts should all influence the edges of the state" )
-
-
-
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # # step 2: conduct your analysis of interest at the smallest geography allowed # #
 
@@ -86,8 +81,17 @@ cps.design <-
 		dbname = "cps.asec.db"
 	)
 
-# restrict the survey object to connecticut records only
-connecticut.design <- subset( cps.design , gestfips == 9 )
+# restrict the survey object to connecticut *plus adjacent state* records only
+cpas.design <- 
+	subset( 
+		cps.design , 
+		gestfips %in% c( 
+			9 ,		# connecticut
+			25 , 	# massachusetts
+			36 , 	# new york
+			44		# rhode island
+		)
+	)
 
 # the original national survey object is no longer necessary
 rm( cps.design ) ; gc()
@@ -95,7 +99,7 @@ rm( cps.design ) ; gc()
 
 
 # calculate the 2012 connecticut state-wide poverty rate
-svymean( ~ as.numeric( povll %in% 1:3 ) , subset( connecticut.design , pov_univ == 1 ) )
+svymean( ~ as.numeric( povll %in% 1:3 ) , subset( cpas.design , gestfips == 9 & pov_univ == 1 ) )
 # using only records in the poverty universe
 
 # note: this estimate and standard error precisely matches
@@ -107,24 +111,30 @@ svymean( ~ as.numeric( povll %in% 1:3 ) , subset( connecticut.design , pov_univ 
 
 # the current population survey identifies records
 # from six different core-based statistical areas (cbsa)
-svytable( ~ gtcbsa , connecticut.design )
+svytable( ~ gtcbsa , cpas.design )
 
 # the current population survey identifies records
 # from both metro and non-metro respondents
-svytable( ~ gtmetsta , connecticut.design )
+svytable( ~ gtmetsta , cpas.design )
+
+# the current population survey identifies records
+# from every state in the nation,
+# but we've restricted this design to
+# connecticut + adjacent states
+svytable( ~ gestfips , cpas.design )
 
 # the smallest geography reasonably extracted
 # from this survey microdata set will be
 # cbsa + metro status combined
-svytable( ~ gtcbsa + gtmetsta , connecticut.design )
+svytable( ~ gtcbsa + gtmetsta + gestfips , cpas.design )
 
 # simply use both of those geographies in the by= argument
 # of the `svyby` command, and re-calculate the poverty rates
 smallest.area.statistics <-
 	svyby( 
 		~ as.numeric( povll %in% 1:3 ) , 
-		~ gtcbsa + gtmetsta , 
-		subset( connecticut.design , pov_univ == 1 ) , 
+		~ gtcbsa + gtmetsta + gestfips , 
+		subset( cpas.design , pov_univ == 1 ) , 
 		svymean 
 	)
 # this is the same command as the statewide calculation above,
@@ -158,43 +168,71 @@ source_url(
 	echo = FALSE
 )
 
-
 # create a temporary file containing the census bureau's
-# 2010 census summary file #1 for connecticut
+# 2010 census summary file #1 for all four states
 # then download the file.
-sf1ct.tf <- tempfile()
-
-
-download.cache( 
-	"ftp://ftp2.census.gov/census_2010/04-Summary_File_1/Connecticut/ct2010.sf1.zip" ,
-	sf1ct.tf ,
-	mode = 'wb'
-)
-
+sf1.tf <- tempfile()
 
 # create a temporary directory
 td <- tempdir()
 
+# create two vectors with the names and abbreviations of all four states to download
+sn <- c( "Connecticut" , "Massachusetts" , "New_York" , "Rhode_Island" )
+sa <- c( "ct" , "ma" , "ny" , "ri" )
 
-# unzip the summary file #1 files
-sf1ct.uz <- unzip( sf1ct.tf , exdir = td )
+# create an empty data.frame
+sf1.stack <- NULL
 
+# loop through all four connecticut-adjacent states
+for ( i in 1:4 ){
 
-# file layout from http://www.census.gov/prod/cen2010/doc/sf1.pdf#page=18
-sf1ct <- read.fwf( sf1ct.uz[ grep( "ctgeo2010" , sf1ct.uz ) ] , c( -8 , 3 , -16 , 2 , 3 , -22 , 6 , 1 , 4 , -62 , 5 , -186 , 9 , -9 , 11 , 12 , -117 , 1 ) )
+	# create a single-element character string containing the ftp path
+	ftp.loc <- 
+		paste0( 
+			"ftp://ftp2.census.gov/census_2010/04-Summary_File_1/" ,
+			sn[ i ] ,
+			"/" ,
+			sa[ i ] ,
+			"2010.sf1.zip"
+		)
 
-# add columns names matching the census bureau, so it's easy to read
-names( sf1ct ) <- c( "sumlev" , "state" , "county" , "tract" , "blkgrp" , "block" , "necta" , "pop100" , "intptlat" , "intptlon" , "nmemi" )
+	# download the current state's summary file
+	download.cache( ftp.loc , sf1.tf , mode = 'wb' )
+	# note: to re-download a file from scratch, add the parameter usecache = FALSE
+	
+	# unzip the summary file #1 files to the current working directory
+	sf1.uz <- unzip( sf1.tf , exdir = getwd() )
 
-# summary level 101 has NECTA and census blocks
-sf1ct.101 <- subset( sf1ct , sumlev == "101" )
+	# file layout from http://www.census.gov/prod/cen2010/doc/sf1.pdf#page=18
+	sf1 <- 
+		read.fwf( 
+			sf1.uz[ grep( "geo2010" , sf1.uz ) ] , 
+			c( -8 , 3 , -16 , 2 , 3 , -22 , 6 , 1 , 4 , -47 , 5 , -10 , 5 , -186 , 9 , -9 , 11 , 12 , -116 , 1 , 1 ) 
+		)
+
+	# add columns names matching the census bureau, so it's easy to read
+	names( sf1 ) <- c( "sumlev" , "state" , "county" , "tract" , "blkgrp" , "block" , "cbsa" , "necta" , "pop100" , "intptlat" , "intptlon" , "memi" , "nmemi" )
+
+	# summary level 101 has NECTA and census blocks
+	sf1.101 <- subset( sf1 , sumlev == "101" )
+
+	# stack all four states into one object
+	sf1.stack <- rbind( sf1.stack , sf1.101 )
+
+	# remove some data.frames and clear up RAM
+	rm( sf1.101 , sf1 ) ; gc()
+	
+}
+
+# just as a check, limit the summary file #1 to connecticut.
+sf1ct <- subset( sf1.stack , state == 9 )
 
 # one record per census block in connecticut.  see?  same number.
-nrow( sf1ct.101 )
+nrow( sf1ct )
 # https://www.census.gov/geo/maps-data/data/tallies/census_block_tally.html
 
 # and guess what?  the total connecticut population matches as well.
-sum( sf1ct.101$pop100 )
+sum( sf1ct$pop100 )
 # http://quickfacts.census.gov/qfd/states/09000.html
 
 
@@ -202,8 +240,8 @@ sum( sf1ct.101$pop100 )
 # one record per census block,
 # and also with the two geography-levels
 # that match the current population survey
-head( sf1ct.101 )
-# in connecticut,
+head( sf1.stack )
+# in connecticut, rhode island, and massachusetts
 # necta is the cbsa and
 # nmemi indicates metropolitan status
 
@@ -220,27 +258,49 @@ head( sf1ct.101 )
 
 # add the current population survey results'
 # geographic identifiers to the connecticut census block data.frame
-sf1ct.101 <-
+sf1.merge <-
+	
 	transform(
-		sf1ct.101 ,
-		# if the new england city and town area is in the cps result, keep it.  otherwise zero-it.
-		gtcbsa = ifelse( necta %in% unique( sas$gtcbsa ) , necta , 0 ) ,
-		# if the census block is metro, `gtmetsta` is a one.  otherwise it's a two.
-		gtmetsta = ifelse( nmemi == 1 , 1 , 2 )
+	
+		sf1.stack ,
+	
+		gestfips = state ,
+	
+		gtcbsa = 
+			# if the record is in new york state,
+			# check if the cbsa is in the current population survey, and if it is, keep it.
+			ifelse( ( state %in% 36 ) & cbsa %in% unique( sas$gtcbsa ) , cbsa ,
+			
+			# if the record is in connecticut, rhode island, or massachusetts,
+			# check if the new england city and town area (necta) is in the cps result,
+			# and if it is, keep it.  otherwise zero-it.
+			ifelse( !( state %in% 36 ) & necta %in% unique( sas$gtcbsa ) , necta , 0 ) ) ,
+		
+		gtmetsta = 
+			# check whether to use the new england variable or not..
+			ifelse( state %in% 36 ,
+				
+				# if the census block is metro, `gtmetsta` is a one.  otherwise it's a two.
+				ifelse( memi == 1 , 1 , 2 ) ,
+				
+				ifelse( nmemi == 1 , 1 , 2 )
+			)
+		
 	)
-
+	
 # confirm that we've created all possible geographies correctly.
 
 # the number of records in our small area statistics..
 sas.row <- nrow( sas )
 
 # ..should equal the number of unique-match-merged records..
-mrow <- nrow( merge( unique( sf1ct.101[ , c( 'gtcbsa' , 'gtmetsta' ) ] ) , sas ) )
+mrow <- nrow( merge( unique( sf1.merge[ , c( 'gtcbsa' , 'gtmetsta' , 'gestfips' ) ] ) , sas ) )
 
 # ..and it does/they do.
 stopifnot( sas.row == mrow )
 
-# now the census block-level connecticut census data *could* merge if you wanted it to.
+# now the census block-level connecticut+adjacent state census data
+# *could* merge if you wanted it to.
 
 
 # but you don't.  yet.
@@ -264,7 +324,12 @@ sas$invse <- 1 / sas$se
 
 
 # aggregate the 2010 census block populations to the geographies that you have.
-popsum <- aggregate( sf1ct.101$pop100 , by = ( sf1ct.101[ , c( 'gtcbsa' , 'gtmetsta' ) ] ) , sum )
+popsum <- 
+	aggregate( 
+		sf1.merge$pop100 , 
+		by = ( sf1.merge[ , c( 'gestfips' , 'gtcbsa' , 'gtmetsta' ) ] ) , 
+		sum 
+	)
 
 # make the column name meaningful
 names( popsum )[ names( popsum ) == 'x' ] <- 'popsum'
@@ -277,10 +342,10 @@ sas <- merge( sas , popsum )
 	# the inverted standard error (the total weight of the broad geography)
 	# the population sum (the total population of all census blocks that are part of that geography)
 
-x <- merge( sf1ct.101 , sas )
+x <- merge( sf1.merge , sas )
 
 # confirm no record loss
-stopifnot( nrow( x ) == nrow( sf1ct.101 ) )
+stopifnot( nrow( x ) == nrow( sf1.merge ) )
 
 
 # (this is the fun part)
@@ -312,6 +377,7 @@ library(ggplot2)
 library(scales)
 library(mapproj)
 
+
 # before you ever touch surface smoothing or kriging,
 # make some decisions about how you generally want
 # your map to look:  the projection and coloring
@@ -331,27 +397,8 @@ ct.map <-
 		ylab = NULL
 	)
 
-# choose your coloring and severity from the midpoint
-ct.map <- 
-	ct.map + 
 
-	scale_colour_gradient2( 
-	
-		# low poverty rates are good
-		low = muted( "blue" ) , 
-		# so invert the default colors
-		high = muted( "red" ) , 
-		
-		# shows the most severe difference in coloring
-		midpoint = mean( unique( x$povrate ) )
-		
-		# shows the population-weighted difference in coloring
-		# midpoint = weighted.mean( x$povrate , x$weight )
-	)
-
-	
 # remove all map crap.
-
 ct.map <- 
 	ct.map + 
 
@@ -382,6 +429,20 @@ stop( "the above numbers do not match." )
 ct.map + coord_map( project = "albers" , lat0 = min( x$intptlat ) , lat1 = max( x$intptlat ) )
 # see ?mapproject for a zillion alternatives
 
+# if you like that projection, store it in the map object.
+ct.map <- 
+	ct.map + 
+	coord_map( project = "albers" , lat0 = min( x$intptlat ) , lat1 = max( x$intptlat ) )
+
+
+# choose your coloring and you're done!
+ct.map + scale_fill_gradient( low = 'green' , high = 'red' )
+
+ct.map + scale_fill_gradient( low = 'white' , high = 'blue' )
+
+ct.map + scale_fill_gradient( low = 'white' , high = muted( 'red' ) )
+
+	
 
 # notice how the dotted delineations match the census bureau's 2006 necta definitions
 # http://www2.census.gov/geo/maps/metroarea/us_wall/Dec2006/necta_1206_large.gif
@@ -400,17 +461,40 @@ stop( "this is where to have people stop if they don't want to krig" )
 
 library(fields)
 
-# how many knots should you make?
+# how many knots should you make? #
 
-# cannot be more than `nrow( x )`
-# but one hundred is okay.
-# if you've got a powerful computer,
-# you can increase this
-number.of.knots <- min( 100 , nrow( x ) )
-# number.of.knots <- min( 250 , nrow( x ) )
+# knots are the computationally-intensive part of this process,
+# choose as many as your computer and your patience can handle.
 
-stop( "stop using knots!  use population-weighted centroids instead" )
-xknots <- cover.design( cbind( x$intptlon , x$intptlat ) , number.of.knots )$design
+# you should aim for between 100 - 999 knots, depending on well everything
+
+# you could let the `fields` package attempt to guess knots for you,
+# xknots <- cover.design( cbind( x$intptlon , x$intptlat ) , 100 )$design
+# but with census microdata, you've already got easy access to a relevant geographic grouping
+
+# the state of connecticut has 833 census tracts.
+# https://www.census.gov/geo/maps-data/data/tallies/tractblock.html
+# that's between 100 and 999, isn't it?  alright!
+
+# for the knotting, note that adjacent states are no longer necessary,
+# so subset the census summary file #1 to only connecticut census blocks.
+
+# within each census tract, calculate the population-weighted mean of the coordinates
+ctract.knots <- 
+	sqldf( 
+		"select 
+			region , state , county , tract , 
+			count(*) as census_blocks ,
+			sum( pop100 ) as pop100 , 
+			sum( pop100 * intptlon ) / sum( pop100 ) as intptlon ,
+			sum( pop100 * intptlat ) / sum( pop100 ) as intptlat
+		from sf101
+		where state == '09'
+		group by
+			region , state , county , tract" )
+# note: this screws up coordinates that cross the international date line
+# or the equator.  in the united states, only alaska's aleutian islands do this
+# and those geographies will be thrown out later.  so it doesn't matter.
 
 
 krig.fit <-
@@ -418,8 +502,7 @@ krig.fit <-
 		cbind( x$intptlon , x$intptlat ) ,
 		x$povrate ,
 		weights = x$weight ,
-		knots = xknots # ,
-		# Covariance = "Matern"
+		knots = as.matrix( ctract.knots[ , c( 'intptlon' , 'intptlat' ) ] )
 	)
 
 # that is: what is the (weighted) relationship between
@@ -430,7 +513,8 @@ krig.fit <-
 surface( krig.fit )
 # you're almost there!
 
-# and here's an alternate approach using the `gam` function
+
+# here's an alternate approach using the `gam` function
 library(mgcv)
 
 gam.fit <- 
@@ -440,8 +524,8 @@ gam.fit <-
 		data = x
 	)
 	
-stop( "add a third option- SMOOTHING.. from this" )
-# http://stackoverflow.com/a/26281162/1759499
+
+# for the third alternative, keep reading.
 	
 	
 # # end of step 6 # #
@@ -511,10 +595,10 @@ grid.length <- 500
 		# intptlat = seq( from = bbox( ct.shp )[2,1] , to = bbox( ct.shp )[2,2] , length = grid.length )
 	# )
 
-grd <- gam.grd <- krig.grd <-
+grd <- gam.grd <- krig.grd <- smooth.grd <-
 	expand.grid(
-		intptlon = seq( from = x.range[1] - x.diff , to = x.range[2] + x.diff , length = grid.length ) , 
-		intptlat = seq( from = y.range[1] - y.diff , to = y.range[2] + y.diff , length = grid.length )
+		intptlon = seq( from = x.range[1] , to = x.range[2] , length = grid.length ) , 
+		intptlat = seq( from = y.range[1] , to = y.range[2] , length = grid.length )
 	)
 
 
@@ -525,6 +609,20 @@ krig.grd$kout <- predict( krig.fit , krig.grd )
 
 # alternate grid using gam.fit
 gam.grd$gamout <- predict( gam.fit , gam.grd )
+
+# alternate grid using smoothing
+smooth.grd$smoout <- 
+	Smooth(
+		ppp( 
+			x$intptlon , 
+			x$intptlat , 
+			summary( smooth.grd$intptlon )[ c( 1 , 6 ) ] ,
+			summary( smooth.grd$intptlat )[ c( 1 , 6 ) ] ,
+			marks = x$povrate
+		) ,
+		weights = x$weight ,
+		at = "points"
+	)
 
 # # end of step 8 # #
 # # # # # # # # # # #
@@ -537,7 +635,7 @@ gam.grd$gamout <- predict( gam.fit , gam.grd )
 library(raster)
 library(rgeos)
 
-# draw a rectangle 15% bigger than the grd
+# draw a rectangle 15% bigger than the original state
 ct.shp.out <- as( 1.3 * extent( ct.shp ), "SpatialPolygons" )
 
 ct.shp.diff <- gDifference( ct.shp.out , ct.shp )
@@ -565,8 +663,27 @@ outside2 <- ddply(outside, .(piece), function(x)rbind(x, outside[1, ]))
 
 
 # weighted.
-plot <- ggplot(data = krig.grd, aes(x = intptlon, y = intptlat))  #start with the base-plot 
-layer1 <- geom_tile(data = krig.grd, aes(fill = kout ))  #then create a tile layer and fill with predicted values
+krg.plot <- 
+	ggplot(data = krig.grd, aes(x = intptlon, y = intptlat))
+	geom_tile(data = krig.grd, aes(fill = kout ))
+	
+gam.plot <- 
+	ggplot(data = gam.grd, aes(x = intptlon, y = intptlat))
+	geom_tile(data = gam.grd, aes(fill = gamout ))
+
+smooth.plot <- 
+	ggplot(data = smooth.grd, aes(x = intptlon, y = intptlat))
+	geom_tile(data = smooth.grd, aes(fill = smoout ))
+
+
+	
+		usPPP <- ppp(ptsCords$x,ptsCords$y,c(-125,-67),c(25,49),marks=vals)
+col <- colorRampPalette(brewer.pal(9,"Reds"))(100)
+plot(Smooth(usPPP,weights=valWeights),col=col,main=NA,ribbon=FALSE)
+
+
+
+
 layer2 <- geom_polygon(data=outside2, aes(x=long,y=lat,group=id), fill='white')
 co <- coord_map( project = "albers" , lat0 = min( x$intptlat ) , lat1 = max( x$intptlat ) )
 # print this to a pdf instead, so it formats properly
@@ -609,7 +726,7 @@ p
 
 
 # water files for all state/county combos
-ascc <- unique( sf1ct.101[ , c( 'state' , 'county' ) ] )
+ascc <- unique( sf1.merge[ , c( 'state' , 'county' ) ] )
 
 
 
