@@ -286,6 +286,24 @@ sf1.merge <-
 	)
 	
 # confirm that we've created all possible geographies correctly.
+merge( unique( sf1.merge[ , c( 'gtcbsa' , 'gtmetsta' , 'gestfips' ) ] ) , sas , all = TRUE )
+# nope.  there are missings.
+
+# recode anyone in new york state not in a cbsa to be non-metro
+sf1.merge[ 
+	sf1.merge$gestfips == 36 & 
+	sf1.merge$gtmetsta == 1 & 
+	sf1.merge$gtcbsa == 0 , 
+	'gtmetsta' ] <- 2
+
+# recode 100% of rhode island to be a part of the providence cbsa
+sf1.merge[ sf1.merge$gestfips == 44 , 'gtcbsa' ] <- 77200
+sf1.merge[ sf1.merge$gestfips == 44 , 'gtmetsta' ] <- 1
+
+# recode connecticut residents in the
+# worcester, ma or springfield, ma cbsas to unavailable cbsas
+sf1.merge[ sf1.merge$gestfips == 9 & sf1.merge$gtcbsa %in% c( 78100 , 79600 ) , 'gtcbsa' ] <- 0
+
 
 # the number of records in our small area statistics..
 sas.row <- nrow( sas )
@@ -351,7 +369,7 @@ x$weight <- x$invse * ( x$pop100 / x$popsum )
 
 # note that weight of all census blocks put together
 # sums to the `invse` on the original analysis file
-stopifnot( sum( x$weight ) == sum( sas$invse ) )
+stopifnot( all.equal( sum( x$weight ) , sum( sas$invse ) ) )
 
 # remove records with zero population
 x <- subset( x , weight > 0 )
@@ -361,7 +379,9 @@ x$weight <- x$weight / mean( x$weight )
 
 # you're done preparing your data.
 # keep only the columns you need.
-x <- x[ , c( 'povrate' , 'weight' , 'intptlat' , 'intptlon' ) ]
+x <- x[ , c( 'povrate' , 'weight' , 'intptlat' , 'intptlon' , 'gestfips' ) ]
+# be sure to save the state identifier for easy subsets
+
 
 # # end of step 4 # #
 # # # # # # # # # # #
@@ -388,7 +408,7 @@ ct.map <-
 	qplot( 
 		intptlon , 
 		intptlat , 
-		data = x , 
+		data = subset( x , gestfips == 9 ) , 
 		colour = povrate ,
 		xlab = NULL ,
 		ylab = NULL
@@ -416,12 +436,6 @@ ct.map <-
 # print the map without any projection
 ct.map
 
-stop( "this is wrong this is wrong!" )
-# compare your dotted or bordered map to a bordered example elsewhere
-# http://www.indexmundi.com/facts/united-states/quick-facts/connecticut/percent-of-people-of-all-ages-in-poverty#map
-stop( "the above numbers do not match." )
-
-
 # print the map with an albers projection.
 ct.map + coord_map( project = "albers" , lat0 = min( x$intptlat ) , lat1 = max( x$intptlat ) )
 # see ?mapproject for a zillion alternatives
@@ -432,31 +446,57 @@ ct.map <-
 	coord_map( project = "albers" , lat0 = min( x$intptlat ) , lat1 = max( x$intptlat ) )
 
 
-# choose your coloring and you're done!
-ct.map + scale_fill_gradient( low = 'green' , high = 'red' )
+# check out some purty colors.
+ct.map + scale_colour_gradient( low = 'green' , high = 'red' )
 
-ct.map + scale_fill_gradient( low = 'white' , high = 'blue' )
+ct.map + scale_colour_gradient( low = 'white' , high = 'blue' )
 
-ct.map + scale_fill_gradient( low = 'white' , high = muted( 'red' ) )
-
-	
+ct.map + scale_colour_gradient( low = muted( 'blue' ) , high = muted( 'red' ) )
 
 # notice how the dotted delineations match the census bureau's 2006 necta definitions
 # http://www2.census.gov/geo/maps/metroarea/us_wall/Dec2006/necta_1206_large.gif
-
-
-stop( "add a hard-bordered example here!" )
-stop( "this is where to have people stop if they don't want to krig" )
-
 
 # # end of step 5 # #
 # # # # # # # # # # #
 
 
+# # # # # # # # # # # #
+# # step 6: outline # #
+
+library(maptools)
+library(raster)
+
+shpstate.tf <- tempfile()
+
+# connnecticut borders the ocean,
+# so use the census bureau's cartographic boundary files
+# instead of the regular tiger shapefiles
+# unless you want to display poverty rates in the ocean.
+
+download.cache( 
+	"http://www2.census.gov/geo/tiger/GENZ2013/cb_2013_us_state_500k.zip" ,
+	shpstate.tf ,
+	mode = 'wb'
+)
+
+shpstate.uz <- unzip( shpstate.tf , exdir = tempdir() )
+
+state.shp <- readShapePoly( shpstate.uz[ grep( 'shp$' , shpstate.uz ) ] )
+
+ct.shp <- subset( state.shp , STATEFP == '09' )
+
+# draw a rectangle 10% bigger than the original state
+ct.shp.out <- as( 1.2 * extent( ct.shp ), "SpatialPolygons" )
+
+# # end of step 6 # #
+# # # # # # # # # # #
+
+
 # # # # # # # # # # # # # # # # # #
-# # step 6: tie knots and krige # #
+# # step 7: tie knots and krige # #
 
 library(fields)
+library(sqldf)
 
 # how many knots should you make? #
 
@@ -476,24 +516,40 @@ library(fields)
 # for the knotting, note that adjacent states are no longer necessary,
 # so subset the census summary file #1 to only connecticut census blocks.
 
+# the sqldf() function doesn't like `.` in data.frame object names
+sf1s <- sf1.stack
+
 # within each census tract, calculate the population-weighted mean of the coordinates
 ctract.knots <- 
 	sqldf( 
 		"select 
-			region , state , county , tract , 
+			state , county , tract , 
 			count(*) as census_blocks ,
 			sum( pop100 ) as pop100 , 
 			sum( pop100 * intptlon ) / sum( pop100 ) as intptlon ,
 			sum( pop100 * intptlat ) / sum( pop100 ) as intptlat
-		from sf101
-		where state == '09'
+		from sf1s
 		group by
-			region , state , county , tract"
+			state , county , tract"
 	)
 # note: this screws up coordinates that cross the international date line
 # or the equator.  in the united states, only alaska's aleutian islands do this
 # and those geographies will be thrown out later.  so it doesn't matter.
 
+# retain only knots within the bounding box
+ctract.knots <- 
+	subset( 
+		ctract.knots ,
+		( bbox( ct.shp.out )[ 1 , 1 ] < intptlon ) &
+		( bbox( ct.shp.out )[ 2 , 1 ] < intptlat ) &
+		( bbox( ct.shp.out )[ 1 , 2 ] > intptlon ) &
+		( bbox( ct.shp.out )[ 2 , 2 ] > intptlat ) 
+	)
+
+# you can look at the weighted centroids of those remaining tracts
+plot( ctract.knots$intptlon , ctract.knots$intptlat )
+# and look at that, bits of long island will be influencing our results
+# since it's within a 15% range of the state of connecticut box
 
 krig.fit <-
 	Krig(
@@ -526,40 +582,6 @@ gam.fit <-
 # for the third alternative, keep reading.
 	
 	
-# # end of step 6 # #
-# # # # # # # # # # #
-
-
-# # # # # # # # # # # #
-# # step 7: outline # #
-
-library(maptools)
-
-shpstate.tf <- tempfile()
-
-# connnecticut borders the ocean,
-# so use the census bureau's cartographic boundary files
-# instead of the regular tiger shapefiles
-# unless you want to display poverty rates in the ocean.
-
-download.cache( 
-	"http://www2.census.gov/geo/tiger/GENZ2013/cb_2013_us_state_500k.zip" ,
-	shpstate.tf ,
-	mode = 'wb'
-)
-
-shpstate.uz <- unzip( shpstate.tf , exdir = tempdir() )
-
-state.shp <- readShapePoly( shpstate.uz[ grep( 'shp$' , shpstate.uz ) ] )
-
-ct.shp <- subset( state.shp , STATEFP == '09' )
-
-
-# projection <- paste0( "+proj=albers +lat_0=" , min( x$intptlat ) , " +lat_1=" , max( x$intptlat ) )
-
-# proj4string( ct.shp ) <- projection
-# ct.shp <- spTransform( ct.shp , CRS( projection ) )
-
 # # end of step 7 # #
 # # # # # # # # # # #
 
