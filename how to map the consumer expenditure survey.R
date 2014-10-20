@@ -113,6 +113,7 @@ for ( state.number in 1:51 ){
 
 	# download the current state's summary file
 	download.cache( ftp.loc , sf1.tf , mode = 'wb' )
+	# note: to re-download a file from scratch, add the parameter usecache = FALSE
 
 	# unzip the summary file #1 files
 	sf1.uz <- unzip( sf1.tf , exdir = td )

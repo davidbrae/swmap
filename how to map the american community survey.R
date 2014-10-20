@@ -192,6 +192,7 @@ download.cache(
 	ctpxw.tf ,
 	mode = 'wb'
 )
+# note: to re-download a file from scratch, add the parameter usecache = FALSE
 
 # import this csv file into an R data.frame object
 ctpxw <- read.csv( ctpxw.tf )
@@ -216,6 +217,7 @@ download.cache(
 	sf1ak.tf ,
 	mode = 'wb'
 )
+# note: to re-download a file from scratch, add the parameter usecache = FALSE
 
 # create a temporary directory
 td <- tempdir()
@@ -477,6 +479,7 @@ download.cache(
 	shpak.tf ,
 	mode = 'wb'
 )
+# note: to re-download a file from scratch, add the parameter usecache = FALSE
 
 shpak.uz <- unzip( shpak.tf , exdir = td )
 

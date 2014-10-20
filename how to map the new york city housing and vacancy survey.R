@@ -150,7 +150,7 @@ download.cache(
 	sf1ny.tf ,
 	mode = 'wb'
 )
-
+# note: to re-download a file from scratch, add the parameter usecache = FALSE
 
 # create a temporary directory
 td <- tempdir()
@@ -446,6 +446,7 @@ download.cache(
 	shpny.tf ,
 	mode = 'wb'
 )
+# note: to re-download a file from scratch, add the parameter usecache = FALSE
 
 shpny.uz <- unzip( shpny.tf , exdir = td )
 
