@@ -17,7 +17,7 @@
 # # # # # # # # # # # # # # # # # #
 
 # state, core-based statistical areas
-# (for connecticut, new england city and town areas)
+# (for connecticut, massachusetts, and rhode island: new england city and town areas)
 
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -223,6 +223,9 @@ for ( i in 1:4 ){
 
 # just as a check, limit the summary file #1 to connecticut.
 sf1ct <- subset( sf1.stack , state == 9 )
+
+# hold on to all unique counties in connecticut
+ascc <- unique( sf1ct[ , c( 'state' , 'county' ) ] )
 
 # one record per census block in connecticut.  see?  same number.
 nrow( sf1ct )
@@ -491,8 +494,8 @@ state.shp <- readShapePoly( shpstate.uz[ grep( 'shp$' , shpstate.uz ) ] )
 
 ct.shp <- subset( state.shp , STATEFP == '09' )
 
-# draw a rectangle 10% bigger than the original state
-ct.shp.out <- as( 1.2 * extent( ct.shp ), "SpatialPolygons" )
+# draw a rectangle 5% bigger than the original state
+ct.shp.out <- as( 1.1 * extent( ct.shp ), "SpatialPolygons" )
 
 # clear up RAM
 rm( state.shp ) ; gc()
@@ -564,6 +567,16 @@ ct.knots <-
 		( bbox( ct.shp.out )[ 2 , 2 ] > intptlat ) 
 	)
 	
+# retain only points within the bounding box
+x <- 
+	subset( 
+		x ,
+		( bbox( ct.shp.out )[ 1 , 1 ] < intptlon ) &
+		( bbox( ct.shp.out )[ 2 , 1 ] < intptlat ) &
+		( bbox( ct.shp.out )[ 1 , 2 ] > intptlon ) &
+		( bbox( ct.shp.out )[ 2 , 2 ] > intptlat ) 
+	)
+	
 # count again
 nrow( ct.knots )
 # that's more like it.
@@ -572,6 +585,9 @@ nrow( ct.knots )
 plot( ct.knots$intptlon , ct.knots$intptlat )
 # and look at that, bits of long island will be influencing our results
 # since it's within a 15% range of the state of connecticut box
+
+# clear up RAM
+rm( sf1.stack , sf1s ) ; gc()
 
 krig.fit <-
 	Krig(
@@ -625,20 +641,10 @@ x.range[ 2 ] <- x.range[ 2 ] + x.diff
 y.range[ 1 ] <- y.range[ 1 ] - y.diff
 y.range[ 2 ] <- y.range[ 2 ] + y.diff
 
-
-# do you want your map to print decently in a few minutes?
-# grid.length <- 100
-# or beautifully in a few hours?
+# choose the number of ticks (in each direction) on your grid
 grid.length <- 500
 
-
-# create three identical grid objects
-# grd <- gam.grd <- krig.grd <- 
-	# expand.grid(
-		# intptlon = seq( from = bbox( ct.shp )[1,1] , to = bbox( ct.shp )[1,2] , length = grid.length ) , 
-		# intptlat = seq( from = bbox( ct.shp )[2,1] , to = bbox( ct.shp )[2,2] , length = grid.length )
-	# )
-
+# create some grid data.frame objects, one for each interpolation type
 grd <- gam.grd <- krig.grd <-
 	expand.grid(
 		intptlon = seq( from = x.range[1] , to = x.range[2] , length = grid.length ) , 
@@ -656,19 +662,27 @@ gam.grd$gamout <- predict( gam.fit , gam.grd )
 
 
 library(spatstat)
-# alternate grid (x becomes its own grid) using smoothing
-x$smoout <- 
+# alternate grid using smoothing
+smoout <- 
 	Smooth(
 		ppp( 
 			x$intptlon , 
 			x$intptlat , 
-			summary( x$intptlon )[ c( 1 , 6 ) ] ,
-			summary( x$intptlat )[ c( 1 , 6 ) ] ,
+			x.range ,
+			y.range ,
 			marks = x$povrate
 		) ,
-		weights = x$weight ,
-		at = "points"
+		sigma = 0.5 ,
+		weights = x$weight
 	)
+
+smoo.grd <-	
+	expand.grid(
+		intptlon = seq( from = x.range[1] , to = x.range[2] , length = smoout$dim[1] ) , 
+		intptlat = seq( from = y.range[1] , to = y.range[2] , length = smoout$dim[2] )
+	)
+
+smoo.grd$smoout <- as.numeric( smoout$v )
 
 # # end of step 8 # #
 # # # # # # # # # # #
@@ -677,40 +691,90 @@ x$smoout <-
 # # # # # # # # # # # # # # # # # # # # #
 # # step 9: ggplot and choose options # #
 
+library(ggplot2)
+library(mapproj)
+
+
+# # # psa # # # 
+# capping your outliers might drastically change your map.
+# if you find the 25th percentile and 75th percentile with
+# summary( krig.grd$kout )
+# and then replace all `kout` values below the 25th or above the 75th
+# with those capped percentile endpoints, i promise promise promise
+# your maps will appear quite different.  you could cap at the 25th and 75th with..
+# grd.sum <- summary( krig.grd$kout )
+# krig.grd[ krig.grd$kout > grd.sum[ 5 ] , 'kout' ] <- grd.sum[ 5 ]
+# krig.grd[ krig.grd$kout < grd.sum[ 2 ] , 'kout' ] <- grd.sum[ 2 ]
+# # # end # # # 
+
+
+# you don't want to cap at the 25th and 75th?
+# well consider one other idea: cap within the minimum and maximum of the state
+# this will also increase the visible gradient ultimately plotted.
+
+# capture the connecticut statewide minimum and maximum known poverty rates
+state.sum <- summary( subset( x , gestfips == 9 )$povrate )
+
+# if a numeric vector has values below the minimum or above the maximum, cap 'em
+minnmax.at.statesum <- 
+	function( z , ss ){ 
+		z[ z < ss[ 1 ] ] <- ss[ 1 ]
+		z[ z > ss[ 6 ] ] <- ss[ 6 ]
+		z
+	}
+
+# min and max all numeric values.  this makes the gradient much more visible.
+krig.grd$kout <- minnmax.at.statesum( krig.grd$kout , state.sum )
+gam.grd$gamout <- minnmax.at.statesum( gam.grd$gamout , state.sum )
+smoo.grd$smoout <- minnmax.at.statesum( smoo.grd$smoout , state.sum )
+# this moderates the effect of adjacent-state high-poverty areas.
+# you're not discounting the poverty rates in connecticut's border states,
+# but you're forcing the richest and poorest spots on the map to be within state borders
+
+
 # initiate the krige-based plot
 krg.plot <- 
-	ggplot( data = krig.grd , aes( x = intptlon , y = intptlat ) )
+	ggplot( data = krig.grd , aes( x = intptlon , y = intptlat ) ) +
 	geom_tile( data = krig.grd , aes( fill = kout ) )
 	
 # initiate the gam-based plot
 gam.plot <- 
-	ggplot( data = gam.grd , aes( x = intptlon , y = intptlat ) )
+	ggplot( data = gam.grd , aes( x = intptlon , y = intptlat ) ) +
 	geom_tile( data = gam.grd , aes( fill = gamout ) )
 
 # initiate the smooth-based plot
 smooth.plot <- 
-	ggplot( data = x , aes( x = intptlon , y = intptlat ) )
-	geom_tile( data = x , aes( fill = smoout ) )
+	ggplot( data = smoo.grd , aes( x = intptlon , y = intptlat ) ) +
+	geom_tile( data = smoo.grd , aes( fill = smoout ) )
 
 
-# choose an albers projection using the connecticut borders
+# choose a projection.  here's one using albers on the connecticut borders
 co <- coord_map( project = "albers" , lat0 = min( x$intptlat ) , lat1 = max( x$intptlat ) )
 
+# force this projection to work on all objects
 co2 <- co
 class(co2) <- c("hoge", class(co2))
 is.linear.hoge <- function(coord) TRUE
 
-p <-
+# initiate the entire plot
+the.plot <-
+	# choose one of these three
+	krg.plot +
+	# gam.plot +
+	# smooth.plot +
+	
+	# include the projection requirements
 	co2 + 
-	layer1 + 
-	layer2 + 
 	coord_fixed() +
-	scale_fill_gradient( low = 'green' , high = 'red' ) + 
+	
+	# blank out the legend and axis labels
 	theme(
 		legend.position = "none" ,
 		axis.title.x = element_blank() ,
 		axis.title.y = element_blank()		
 	) + 
+	
+	# blank out other plot elements
 	scale_x_continuous(breaks = NULL) +
     scale_y_continuous(breaks = NULL) +
 	theme(
@@ -721,27 +785,20 @@ p <-
 		axis.ticks = element_blank()
 	)
 
-# plot that.
-p
-
-
-
-
-
-
+# print the plot to the screen
+the.plot
 
 # # end of step 9 # #
 # # # # # # # # # # #
 
 
-
-stop( "capping your outliers is critically important.  the scale is much more visible if they are maxxed and minned" )
-
-
+# # # # # # # # # # # # # # # # # #
+# # step 10: blank and colo(u)r # #
 
 library(ggplot2)
 library(scales)
-library(mapproj)
+library(raster)
+library(plyr)
 
 # draw a rectangle 15% bigger than the original state
 ct.shp.blank <- as( 1.3 * extent( ct.shp ), "SpatialPolygons" )
@@ -749,94 +806,25 @@ ct.shp.blank <- as( 1.3 * extent( ct.shp ), "SpatialPolygons" )
 # compute the difference between connecticut and the rectangle 15% beyond the borders
 ct.shp.diff <- gDifference( ct.shp.blank , ct.shp )
 
-
+# prepare the difference layer for ggplot2
 outside <- fortify( ct.shp.diff )
-# outside <- ct.shp.diff
 
-# islands fix
-library(plyr)
-outside2 <- ddply(outside, .(piece), function(x)rbind(x, outside[1, ]))
+# fix the islands
+outside2 <- ddply( outside , .(piece) , function(x) rbind( x , outside[ 1 , ] ) )
 
-
-
-layer2 <- geom_polygon(data=outside2, aes(x=long,y=lat,group=id), fill='white')
-co <- coord_map( project = "albers" , lat0 = min( x$intptlat ) , lat1 = max( x$intptlat ) )
-# print this to a pdf instead, so it formats properly
-# plot + layer1 + layer2 + co + scale_fill_gradient( low = muted( 'blue' ) , high = muted( 'red' ) )
-# plot + layer1 + layer2 + scale_fill_gradient( low = muted( 'blue' ) , high = muted( 'red' ) )
-
-
-# plot + layer1 + layer2 + co + scale_fill_gradient( low = 'white' , high = muted( 'red' ) )
-
-
-co2 <- co
-class(co2) <- c("hoge", class(co2))
-is.linear.hoge <- function(coord) TRUE
-
-p <-
-	# krg.plot +
-	# gam.plot +
-	# smooth.plot +
-	co + 
-	layer1 + 
-	layer2 + 
-	coord_fixed() +
-	scale_fill_gradient( low = 'green' , high = 'red' ) + 
-	theme(
-		legend.position = "none" ,
-		axis.title.x = element_blank() ,
-		axis.title.y = element_blank()		
-	) + 
-	scale_x_continuous(breaks = NULL) +
-    scale_y_continuous(breaks = NULL) +
-	theme(
-		panel.grid.major = element_blank(),
-		panel.grid.minor = element_blank(),
-		panel.background = element_blank(),
-		panel.border = element_blank(),
-		axis.ticks = element_blank()
+# blank out coastal areas
+blank.layer <- 
+	geom_polygon( 
+		data = outside2 , 
+		aes( x = long , y = lat , group = id ) , 
+		fill = 'white' 
 	)
 
-# plot that.
-p
+# closer, eh?
+the.plot + blank.layer
 
-
-
-# weighted.
-# plot <- ggplot(data = gam.grd, aes(x = intptlon, y = intptlat))  #start with the base-plot 
-# layer1 <- geom_tile(data = gam.grd, aes(fill = kout ))  #then create a tile layer and fill with predicted values
-# sol <- fortify( ct.shp )
-# layer2 <- geom_path(data = sol, aes(long, lat), colour = "grey40", size = 1)
-# co <- coord_map( project = "albers" , lat0 = min( x$intptlat ) , lat1 = max( x$intptlat ) )
-# print this to a pdf instead, so it formats properly
-# plot + layer1 + layer2 + co + scale_fill_gradient( low = muted( 'blue' ) , high = muted( 'red' ) )
-# plot + layer1 + co + scale_fill_gradient( low = muted( 'blue' ) , high = muted( 'red' ) )
-
-
-
-# raster plots
-
-# coordinates(krig.grd) <- coordinates(gam.grd) <- c("intptlon", "intptlat")
-# gridded(krig.grd) <- gridded(gam.grd) <- TRUE
-# krig.r <- raster(krig.grd)
-# gam.r <- raster(gam.grd)
-
-# colRamp <- colorRampPalette(c(muted("blue"),muted("red")))
-# plot(krig.r, axes=FALSE, col=colRamp(100), main="Krig")
-# plot(ct.shp.diff, add=TRUE, col="white", border="white", lwd=5)
-# degAxis(1)
-# degAxis(2)
-# box()
-
-# plot(gam.r, axes=FALSE, col=colRamp(100), main="GAM")
-# plot(ct.shp.diff, add=TRUE, col="white", border="white", lwd=5)
-# degAxis(1)
-# degAxis(2)
-# box()
-
-
-# water files for all state/county combos
-ascc <- unique( sf1ct[ , c( 'state' , 'county' ) ] )
+# store this plot
+the.plot <- the.plot + blank.layer	
 
 # location of all water files within the state of connecticut
 water.files <-
@@ -847,30 +835,59 @@ water.files <-
 		"_areawater.zip"
 	)
 
+# initiate another temporary file
 watemp <- tempfile()
 
+# start with all missing water
 all.water <- NULL
 
+# loop through each water.file
 for ( fn in water.files ){
 
+	# download the shapefile to the local disk
 	download.cache( fn , watemp )
 	
+	# unzip it into a temporary directory
 	z <- unzip( watemp , exdir = tempdir() )
 
+	# read it in..
 	w <- readShapePoly( z[ grep( 'shp$' , z ) ] )
 
+	# ..prepare it for ggplot2..
 	wo <- fortify( w )
 
+	# ..fix any islands or weird outlying shapes
 	w2 <- ddply( wo , .( piece ) , function( x ) rbind( x , wo[ 1 , ] ) )
 
+	# create a white-filled layer
 	wl <- geom_polygon( data = w2 , aes( x = long , y = lat , group = group ) , fill = 'white' )
 
-	p <- p + wl
+	# add it to the current plot
+	the.plot <- the.plot + wl
 	
 }
 
-
-
-
 # print with all water blanked out.
-p
+the.plot
+
+# print with the same purty colors
+the.plot + scale_fill_gradient( low = muted( 'blue' ) , high = muted( 'red' ) )
+
+the.plot + scale_fill_gradient( low = 'white' , high = 'red' )
+
+the.plot + scale_fill_gradient( low = 'green' , high = 'red' )
+
+# ooh i like that one mom, can we keep it can we keep it?
+final.plot <- the.plot + scale_fill_gradient( low = 'green' , high = 'red' )
+
+final.plot
+
+# would you like to save this game?
+ggsave( 
+	plot = final.plot , 
+	"2012 connecticut poverty rate.pdf" ,
+	w = 11 , h = 8.5
+)
+
+# # end of step ten # #
+# # # # # # # # # # # #
