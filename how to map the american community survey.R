@@ -471,8 +471,10 @@ library(maptools)
 
 shpak.tf <- tempfile()
 
+# use the clipped alaska public use microdata area map, described
+# https://www.census.gov/geo/maps-data/maps/2010puma/st02_ak.html
 download.cache( 
-	"ftp://ftp2.census.gov/geo/pvs/tiger2010st/02_Alaska/02/tl_2010_02_state10.zip" ,
+	'http://www2.census.gov/geo/tiger/GENZ2013/cb_2013_02_puma10_500k.zip' ,
 	shpak.tf ,
 	mode = 'wb'
 )
