@@ -152,12 +152,9 @@ download.cache(
 )
 # note: to re-download a file from scratch, add the parameter usecache = FALSE
 
-# create a temporary directory
-td <- tempdir()
-
 
 # unzip the summary file #1 files
-sf1ny.uz <- unzip( sf1ny.tf , exdir = td )
+sf1ny.uz <- unzip( sf1ny.tf , exdir = tempdir() )
 
 
 # file layout from http://www.census.gov/prod/cen2010/doc/sf1.pdf#page=18
@@ -439,7 +436,7 @@ gam.fit <-
 
 library(maptools)
 
-shpny.tf <- tempfile() ; td <- tempdir()
+shpny.tf <- tempfile()
 
 download.cache(
 	"http://www2.census.gov/geo/tiger/TIGER2010/COUNTY/2010/tl_2010_36_county10.zip" ,
@@ -448,7 +445,7 @@ download.cache(
 )
 # note: to re-download a file from scratch, add the parameter usecache = FALSE
 
-shpny.uz <- unzip( shpny.tf , exdir = td )
+shpny.uz <- unzip( shpny.tf , exdir = tempdir() )
 
 ny.shp <- readShapePoly( shpny.uz[ grep( 'shp$' , shpny.uz ) ] )
 
@@ -587,7 +584,7 @@ myplot <-
 
 # plot + layer1 + layer2 + co + scale_fill_gradient( low = muted( 'blue' ) , high = muted( 'red' ) ) + coord_equal()
 
-tf <- tempfile() ; td <- tempdir()
+tf <- tempfile()
 for ( this.county in nyc.counties ){
 
 	this.file <- 
@@ -599,7 +596,7 @@ for ( this.county in nyc.counties ){
 		
 	download.file( this.file , tf )
 	
-	z <- unzip( tf , exdir = td )
+	z <- unzip( tf , exdir = tempdir() )
 	
 	nyc.shp <- readShapePoly( z[ grep( 'shp$' , z ) ] )
 

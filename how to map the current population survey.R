@@ -173,9 +173,6 @@ source_url(
 # then download the file.
 sf1.tf <- tempfile()
 
-# create a temporary directory
-td <- tempdir()
-
 # create two vectors with the names and abbreviations of all four states to download
 sn <- c( "Connecticut" , "Massachusetts" , "New_York" , "Rhode_Island" )
 sa <- c( "ct" , "ma" , "ny" , "ri" )
@@ -201,7 +198,7 @@ for ( i in 1:4 ){
 	# note: to re-download a file from scratch, add the parameter usecache = FALSE
 	
 	# unzip the summary file #1 files to the current working directory
-	sf1.uz <- unzip( sf1.tf , exdir = getwd() )
+	sf1.uz <- unzip( sf1.tf , exdir = tempdir() )
 
 	# file layout from http://www.census.gov/prod/cen2010/doc/sf1.pdf#page=18
 	sf1 <- 
@@ -491,7 +488,8 @@ ctract.knots <-
 		from sf101
 		where state == '09'
 		group by
-			region , state , county , tract" )
+			region , state , county , tract"
+	)
 # note: this screws up coordinates that cross the international date line
 # or the equator.  in the united states, only alaska's aleutian islands do this
 # and those geographies will be thrown out later.  so it doesn't matter.
@@ -550,7 +548,7 @@ download.cache(
 	mode = 'wb'
 )
 
-shpstate.uz <- unzip( shpstate.tf , exdir = td )
+shpstate.uz <- unzip( shpstate.tf , exdir = tempdir() )
 
 state.shp <- readShapePoly( shpstate.uz[ grep( 'shp$' , shpstate.uz ) ] )
 
@@ -664,23 +662,16 @@ outside2 <- ddply(outside, .(piece), function(x)rbind(x, outside[1, ]))
 
 # weighted.
 krg.plot <- 
-	ggplot(data = krig.grd, aes(x = intptlon, y = intptlat))
-	geom_tile(data = krig.grd, aes(fill = kout ))
+	ggplot( data = krig.grd , aes( x = intptlon , y = intptlat ) )
+	geom_tile( data = krig.grd , aes( fill = kout ) )
 	
 gam.plot <- 
-	ggplot(data = gam.grd, aes(x = intptlon, y = intptlat))
-	geom_tile(data = gam.grd, aes(fill = gamout ))
+	ggplot( data = gam.grd , aes( x = intptlon , y = intptlat ) )
+	geom_tile( data = gam.grd , aes( fill = gamout ) )
 
 smooth.plot <- 
-	ggplot(data = smooth.grd, aes(x = intptlon, y = intptlat))
-	geom_tile(data = smooth.grd, aes(fill = smoout ))
-
-
-	
-		usPPP <- ppp(ptsCords$x,ptsCords$y,c(-125,-67),c(25,49),marks=vals)
-col <- colorRampPalette(brewer.pal(9,"Reds"))(100)
-plot(Smooth(usPPP,weights=valWeights),col=col,main=NA,ribbon=FALSE)
-
+	ggplot( data = smooth.grd , aes( x = intptlon , y = intptlat ) )
+	geom_tile( data = smooth.grd , aes( fill = smoout ) )
 
 
 
@@ -699,7 +690,9 @@ class(co2) <- c("hoge", class(co2))
 is.linear.hoge <- function(coord) TRUE
 
 p <-
-	plot + 
+	# krg.plot +
+	# gam.plot +
+	# smooth.plot +
 	co + 
 	layer1 + 
 	layer2 + 
@@ -745,13 +738,13 @@ water.files <-
 
 psave <- p
 
-tf <- tempfile() ; td <- tempdir()
+tf <- tempfile()
 
 for ( fn in water.files ){
 
 	download.file( fn , tf )
 	
-	z <- unzip( tf , exdir = td )
+	z <- unzip( tf , exdir = tempdir() )
 
 	
 	w <- readShapePoly( z[ grep( 'shp$' , z ) ] )

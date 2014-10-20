@@ -219,11 +219,8 @@ download.cache(
 )
 # note: to re-download a file from scratch, add the parameter usecache = FALSE
 
-# create a temporary directory
-td <- tempdir()
-
 # unzip the summary file #1 files
-sf1ak.uz <- unzip( sf1ak.tf , exdir = td )
+sf1ak.uz <- unzip( sf1ak.tf , exdir = tempdir() )
 
 # file layout from http://www.census.gov/prod/cen2010/doc/sf1.pdf#page=18
 sf1ak <- read.fwf( sf1ak.uz[ grep( "akgeo2010" , sf1ak.uz ) ] , c( -8 , 3 , -16 , 2 , 3 , -22 , 6 , 1 , 4 , -253 , 9 , -9 , 11 , 12 ) )
@@ -481,7 +478,7 @@ download.cache(
 )
 # note: to re-download a file from scratch, add the parameter usecache = FALSE
 
-shpak.uz <- unzip( shpak.tf , exdir = td )
+shpak.uz <- unzip( shpak.tf , exdir = tempdir() )
 
 ak.shp <- readShapePoly( shpak.uz[ grep( 'shp$' , shpak.uz ) ] )
 

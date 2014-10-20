@@ -72,9 +72,6 @@ source_url(
 # 2010 census summary file #1, then download the file.
 sf1.tf <- tempfile()
 
-# create a temporary directory
-td <- tempdir()
-
 # initiate an empty data.frame object
 # to store all summary file blocks
 sf <- NULL
@@ -116,7 +113,7 @@ for ( state.number in 1:51 ){
 	# note: to re-download a file from scratch, add the parameter usecache = FALSE
 
 	# unzip the summary file #1 files
-	sf1.uz <- unzip( sf1.tf , exdir = td )
+	sf1.uz <- unzip( sf1.tf , exdir = tempdir() )
 
 	# file layout from http://www.census.gov/prod/cen2010/doc/sf1.pdf#page=18
 	sf1 <- read.fwf( sf1.uz[ grep( "geo2010" , sf1.uz ) ] , c( -8 , 3 , -14 , 1 , -1 , 2 , 3 , -22 , 6 , 1 , 4 , -47 , 5 , 2 , -5 , 3 , -191 , 9 , -9 , 11 , 12 ) )
@@ -648,7 +645,7 @@ gam.fit <-
 
 library(maptools)
 
-shpus.tf <- tempfile() ; td <- tempdir()
+shpus.tf <- tempfile()
 
 download.cache( 
 	"http://www2.census.gov/geo/tiger/TIGER2010/STATE/2010/tl_2010_us_state10.zip" ,
@@ -656,7 +653,7 @@ download.cache(
 	mode = 'wb'
 )
 
-shpus.uz <- unzip( shpus.tf , exdir = td )
+shpus.uz <- unzip( shpus.tf , exdir = tempdir() )
 
 us.shp <- readShapePoly( shpus.uz[ grep( 'shp$' , shpus.uz ) ] )
 
