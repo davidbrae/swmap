@@ -372,6 +372,12 @@ ct.map <-
 # print the map without any projection
 ct.map
 
+stop( "this is wrong this is wrong!" )
+# compare your dotted or bordered map to a bordered example elsewhere
+# http://www.indexmundi.com/facts/united-states/quick-facts/connecticut/percent-of-people-of-all-ages-in-poverty#map
+stop( "the above numbers do not match." )
+
+
 # print the map with an albers projection.
 ct.map + coord_map( project = "albers" , lat0 = min( x$intptlat ) , lat1 = max( x$intptlat ) )
 # see ?mapproject for a zillion alternatives
@@ -379,6 +385,11 @@ ct.map + coord_map( project = "albers" , lat0 = min( x$intptlat ) , lat1 = max( 
 
 # notice how the dotted delineations match the census bureau's 2006 necta definitions
 # http://www2.census.gov/geo/maps/metroarea/us_wall/Dec2006/necta_1206_large.gif
+
+
+stop( "add a hard-bordered example here!" )
+stop( "this is where to have people stop if they don't want to krig" )
+
 
 # # end of step 5 # #
 # # # # # # # # # # #
