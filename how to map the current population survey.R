@@ -382,7 +382,6 @@ x$weight <- x$weight / mean( x$weight )
 x <- x[ , c( 'povrate' , 'weight' , 'intptlat' , 'intptlon' , 'gestfips' ) ]
 # be sure to save the state identifier for easy subsets
 
-
 # # end of step 4 # #
 # # # # # # # # # # #
 
@@ -456,6 +455,9 @@ ct.map + scale_colour_gradient( low = muted( 'blue' ) , high = muted( 'red' ) )
 # notice how the dotted delineations match the census bureau's 2006 necta definitions
 # http://www2.census.gov/geo/maps/metroarea/us_wall/Dec2006/necta_1206_large.gif
 
+# clear up RAM
+rm( ct.map ) ; gc()
+
 # # end of step 5 # #
 # # # # # # # # # # #
 
@@ -492,11 +494,8 @@ ct.shp <- subset( state.shp , STATEFP == '09' )
 # draw a rectangle 10% bigger than the original state
 ct.shp.out <- as( 1.2 * extent( ct.shp ), "SpatialPolygons" )
 
-# draw a rectangle 15% bigger than the original state
-ct.shp.blank <- as( 1.3 * extent( ct.shp ), "SpatialPolygons" )
-
-# compute the difference between connecticut and the rectangle 15% beyond the borders
-ct.shp.diff <- gDifference( ct.shp.blank , ct.shp )
+# clear up RAM
+rm( state.shp ) ; gc()
 
 # # end of step 6 # #
 # # # # # # # # # # #
@@ -534,6 +533,7 @@ sf1s <- sf1.stack
 
 # within each county x county subdivision,
 # calculate the population-weighted mean of the coordinates
+# and (for smoothing) the weighted poverty rate at each county-sub centroid
 ct.knots <- 
 	sqldf( 
 		"select 
@@ -613,8 +613,8 @@ gam.fit <-
 # # # # # # # # # # # # # # # # # # # #
 # # step 8: make a grid and predict # #
 
-x.range <- summary( x$intptlon )[ c( 1 , 6 ) ]
-y.range <- summary( x$intptlat )[ c( 1 , 6 ) ]
+x.range <- bbox( ct.shp.out )[ 1 , ]
+y.range <- bbox( ct.shp.out )[ 2 , ]
 
 # add five percent on each side
 x.diff <- abs( x.range[ 2 ] - x.range[ 1 ] ) * 0.05
@@ -639,7 +639,7 @@ grid.length <- 500
 		# intptlat = seq( from = bbox( ct.shp )[2,1] , to = bbox( ct.shp )[2,2] , length = grid.length )
 	# )
 
-grd <- gam.grd <- krig.grd <- smooth.grd <-
+grd <- gam.grd <- krig.grd <-
 	expand.grid(
 		intptlon = seq( from = x.range[1] , to = x.range[2] , length = grid.length ) , 
 		intptlat = seq( from = y.range[1] , to = y.range[2] , length = grid.length )
@@ -656,14 +656,14 @@ gam.grd$gamout <- predict( gam.fit , gam.grd )
 
 
 library(spatstat)
-# alternate grid using smoothing
-smooth.grd$smoout <- 
+# alternate grid (x becomes its own grid) using smoothing
+x$smoout <- 
 	Smooth(
 		ppp( 
 			x$intptlon , 
 			x$intptlat , 
-			summary( smooth.grd$intptlon )[ c( 1 , 6 ) ] ,
-			summary( smooth.grd$intptlat )[ c( 1 , 6 ) ] ,
+			summary( x$intptlon )[ c( 1 , 6 ) ] ,
+			summary( x$intptlat )[ c( 1 , 6 ) ] ,
 			marks = x$povrate
 		) ,
 		weights = x$weight ,
@@ -674,8 +674,56 @@ smooth.grd$smoout <-
 # # # # # # # # # # #
 
 
-# # # # # # # # # # # # # # # # # # # # # # # # # # #
-# # step 9: create a polygon layer to blank stuff # #
+# # # # # # # # # # # # # # # # # # # # #
+# # step 9: ggplot and choose options # #
+
+# initiate the krige-based plot
+krg.plot <- 
+	ggplot( data = krig.grd , aes( x = intptlon , y = intptlat ) )
+	geom_tile( data = krig.grd , aes( fill = kout ) )
+	
+# initiate the gam-based plot
+gam.plot <- 
+	ggplot( data = gam.grd , aes( x = intptlon , y = intptlat ) )
+	geom_tile( data = gam.grd , aes( fill = gamout ) )
+
+# initiate the smooth-based plot
+smooth.plot <- 
+	ggplot( data = x , aes( x = intptlon , y = intptlat ) )
+	geom_tile( data = x , aes( fill = smoout ) )
+
+
+# choose an albers projection using the connecticut borders
+co <- coord_map( project = "albers" , lat0 = min( x$intptlat ) , lat1 = max( x$intptlat ) )
+
+co2 <- co
+class(co2) <- c("hoge", class(co2))
+is.linear.hoge <- function(coord) TRUE
+
+p <-
+	co2 + 
+	layer1 + 
+	layer2 + 
+	coord_fixed() +
+	scale_fill_gradient( low = 'green' , high = 'red' ) + 
+	theme(
+		legend.position = "none" ,
+		axis.title.x = element_blank() ,
+		axis.title.y = element_blank()		
+	) + 
+	scale_x_continuous(breaks = NULL) +
+    scale_y_continuous(breaks = NULL) +
+	theme(
+		panel.grid.major = element_blank(),
+		panel.grid.minor = element_blank(),
+		panel.background = element_blank(),
+		panel.border = element_blank(),
+		axis.ticks = element_blank()
+	)
+
+# plot that.
+p
+
 
 
 
@@ -695,6 +743,12 @@ library(ggplot2)
 library(scales)
 library(mapproj)
 
+# draw a rectangle 15% bigger than the original state
+ct.shp.blank <- as( 1.3 * extent( ct.shp ), "SpatialPolygons" )
+
+# compute the difference between connecticut and the rectangle 15% beyond the borders
+ct.shp.diff <- gDifference( ct.shp.blank , ct.shp )
+
 
 outside <- fortify( ct.shp.diff )
 # outside <- ct.shp.diff
@@ -702,20 +756,6 @@ outside <- fortify( ct.shp.diff )
 # islands fix
 library(plyr)
 outside2 <- ddply(outside, .(piece), function(x)rbind(x, outside[1, ]))
-
-
-# weighted.
-krg.plot <- 
-	ggplot( data = krig.grd , aes( x = intptlon , y = intptlat ) )
-	geom_tile( data = krig.grd , aes( fill = kout ) )
-	
-gam.plot <- 
-	ggplot( data = gam.grd , aes( x = intptlon , y = intptlat ) )
-	geom_tile( data = gam.grd , aes( fill = gamout ) )
-
-smooth.plot <- 
-	ggplot( data = smooth.grd , aes( x = intptlon , y = intptlat ) )
-	geom_tile( data = smooth.grd , aes( fill = smoout ) )
 
 
 
