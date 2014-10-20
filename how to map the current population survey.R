@@ -495,44 +495,8 @@ ct.shp.out <- as( 1.2 * extent( ct.shp ), "SpatialPolygons" )
 # draw a rectangle 15% bigger than the original state
 ct.shp.blank <- as( 1.3 * extent( ct.shp ), "SpatialPolygons" )
 
+# compute the difference between connecticut and the rectangle 15% beyond the borders
 ct.shp.diff <- gDifference( ct.shp.blank , ct.shp )
-
-# water files for all state/county combos
-ascc <- unique( sf1ct[ , c( 'state' , 'county' ) ] )
-
-# location of all water files within the state of connecticut
-water.files <-
-	paste0( 
-		"ftp://ftp2.census.gov/geo/tiger/TIGER2013/AREAWATER/tl_2013_" ,
-		str_pad( ascc[ , 1 ] , 2 , pad = '0' ) ,
-		str_pad( ascc[ , 2 ] , 3 , pad = '0' ) ,
-		"_areawater.zip"
-	)
-
-watemp <- tempfile()
-
-all.water <- NULL
-
-for ( fn in water.files ){
-
-	download.cache( fn , watemp )
-	
-	z <- unzip( watemp , exdir = tempdir() )
-
-	w <- readShapePoly( z[ grep( 'shp$' , z ) ] )
-
-	wo <- fortify( w )
-
-	w2 <- ddply( wo , .( piece ) , function( x ) rbind( x , wo[ 1 , ] ) )
-
-	wl <- geom_polygon( data = w2 , aes( x = long , y = lat , group = group ) , fill='white' )
-
-	all.water <- all.water + wl
-	
-}
-
-
-
 
 # # end of step 6 # #
 # # # # # # # # # # #
@@ -798,10 +762,6 @@ p
 
 
 
-# print with all water blanked out.
-p
-
-
 # weighted.
 # plot <- ggplot(data = gam.grd, aes(x = intptlon, y = intptlat))  #start with the base-plot 
 # layer1 <- geom_tile(data = gam.grd, aes(fill = kout ))  #then create a tile layer and fill with predicted values
@@ -834,3 +794,43 @@ p
 # degAxis(2)
 # box()
 
+
+# water files for all state/county combos
+ascc <- unique( sf1ct[ , c( 'state' , 'county' ) ] )
+
+# location of all water files within the state of connecticut
+water.files <-
+	paste0( 
+		"ftp://ftp2.census.gov/geo/tiger/TIGER2013/AREAWATER/tl_2013_" ,
+		str_pad( ascc[ , 1 ] , 2 , pad = '0' ) ,
+		str_pad( ascc[ , 2 ] , 3 , pad = '0' ) ,
+		"_areawater.zip"
+	)
+
+watemp <- tempfile()
+
+all.water <- NULL
+
+for ( fn in water.files ){
+
+	download.cache( fn , watemp )
+	
+	z <- unzip( watemp , exdir = tempdir() )
+
+	w <- readShapePoly( z[ grep( 'shp$' , z ) ] )
+
+	wo <- fortify( w )
+
+	w2 <- ddply( wo , .( piece ) , function( x ) rbind( x , wo[ 1 , ] ) )
+
+	wl <- geom_polygon( data = w2 , aes( x = long , y = lat , group = group ) , fill = 'white' )
+
+	p <- p + wl
+	
+}
+
+
+
+
+# print with all water blanked out.
+p
