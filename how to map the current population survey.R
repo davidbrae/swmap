@@ -204,11 +204,11 @@ for ( i in 1:4 ){
 	sf1 <- 
 		read.fwf( 
 			sf1.uz[ grep( "geo2010" , sf1.uz ) ] , 
-			c( -8 , 3 , -16 , 2 , 3 , -22 , 6 , 1 , 4 , -47 , 5 , -10 , 5 , -186 , 9 , -9 , 11 , 12 , -116 , 1 , 1 ) 
+			c( -8 , 3 , -16 , 2 , 3 , -4 , 5 , -4 , 5 , -4 , 6 , 1 , 4 , -47 , 5 , -10 , 5 , -186 , 9 , -9 , 11 , 12 , -116 , 1 , 1 ) 
 		)
 
 	# add columns names matching the census bureau, so it's easy to read
-	names( sf1 ) <- c( "sumlev" , "state" , "county" , "tract" , "blkgrp" , "block" , "cbsa" , "necta" , "pop100" , "intptlat" , "intptlon" , "memi" , "nmemi" )
+	names( sf1 ) <- c( "sumlev" , "state" , "county" , "cousub" , "place" , "tract" , "blkgrp" , "block" , "cbsa" , "necta" , "pop100" , "intptlat" , "intptlon" , "memi" , "nmemi" )
 
 	# summary level 101 has NECTA and census blocks
 	sf1.101 <- subset( sf1 , sumlev == "101" )
@@ -465,6 +465,10 @@ ct.map + scale_colour_gradient( low = muted( 'blue' ) , high = muted( 'red' ) )
 
 library(maptools)
 library(raster)
+library(rgeos)
+library(stringr)
+library(plyr)
+library(ggplot2)
 
 shpstate.tf <- tempfile()
 
@@ -488,6 +492,48 @@ ct.shp <- subset( state.shp , STATEFP == '09' )
 # draw a rectangle 10% bigger than the original state
 ct.shp.out <- as( 1.2 * extent( ct.shp ), "SpatialPolygons" )
 
+# draw a rectangle 15% bigger than the original state
+ct.shp.blank <- as( 1.3 * extent( ct.shp ), "SpatialPolygons" )
+
+ct.shp.diff <- gDifference( ct.shp.blank , ct.shp )
+
+# water files for all state/county combos
+ascc <- unique( sf1ct[ , c( 'state' , 'county' ) ] )
+
+# location of all water files within the state of connecticut
+water.files <-
+	paste0( 
+		"ftp://ftp2.census.gov/geo/tiger/TIGER2013/AREAWATER/tl_2013_" ,
+		str_pad( ascc[ , 1 ] , 2 , pad = '0' ) ,
+		str_pad( ascc[ , 2 ] , 3 , pad = '0' ) ,
+		"_areawater.zip"
+	)
+
+watemp <- tempfile()
+
+all.water <- NULL
+
+for ( fn in water.files ){
+
+	download.cache( fn , watemp )
+	
+	z <- unzip( watemp , exdir = tempdir() )
+
+	w <- readShapePoly( z[ grep( 'shp$' , z ) ] )
+
+	wo <- fortify( w )
+
+	w2 <- ddply( wo , .( piece ) , function( x ) rbind( x , wo[ 1 , ] ) )
+
+	wl <- geom_polygon( data = w2 , aes( x = long , y = lat , group = group ) , fill='white' )
+
+	all.water <- all.water + wl
+	
+}
+
+
+
+
 # # end of step 6 # #
 # # # # # # # # # # #
 
@@ -503,7 +549,8 @@ library(sqldf)
 # knots are the computationally-intensive part of this process,
 # choose as many as your computer and your patience can handle.
 
-# you should aim for between 100 - 999 knots, depending on well everything
+# you should aim for between 100 - 999 knots,
+# but numbers closer to 1,000 will overload smaller computers
 
 # you could let the `fields` package attempt to guess knots for you,
 # xknots <- cover.design( cbind( x$intptlon , x$intptlat ) , 100 )$design
@@ -511,43 +558,54 @@ library(sqldf)
 
 # the state of connecticut has 833 census tracts.
 # https://www.census.gov/geo/maps-data/data/tallies/tractblock.html
-# that's between 100 and 999, isn't it?  alright!
+# if you have a powerful computer, you could group based on weighted tracts
+# however, to keep the processing requirements lower,
+# i'll use county subdivisions
 
 # for the knotting, note that adjacent states are no longer necessary,
-# so subset the census summary file #1 to only connecticut census blocks.
+# so subset the census summary file #1 to only connecticut and nearby census blocks.
 
 # the sqldf() function doesn't like `.` in data.frame object names
 sf1s <- sf1.stack
 
-# within each census tract, calculate the population-weighted mean of the coordinates
-ctract.knots <- 
+# within each county x county subdivision,
+# calculate the population-weighted mean of the coordinates
+ct.knots <- 
 	sqldf( 
 		"select 
-			state , county , tract , 
-			count(*) as census_blocks ,
+			state , county , cousub ,
 			sum( pop100 ) as pop100 , 
 			sum( pop100 * intptlon ) / sum( pop100 ) as intptlon ,
 			sum( pop100 * intptlat ) / sum( pop100 ) as intptlat
 		from sf1s
 		group by
-			state , county , tract"
+			state , county , cousub"
 	)
 # note: this screws up coordinates that cross the international date line
 # or the equator.  in the united states, only alaska's aleutian islands do this
 # and those geographies will be thrown out later.  so it doesn't matter.
 
+# how many knots have you gots?
+nrow( ct.knots )
+# too many, because you've included
+# all of the adjacent states
+
 # retain only knots within the bounding box
-ctract.knots <- 
+ct.knots <- 
 	subset( 
-		ctract.knots ,
+		ct.knots ,
 		( bbox( ct.shp.out )[ 1 , 1 ] < intptlon ) &
 		( bbox( ct.shp.out )[ 2 , 1 ] < intptlat ) &
 		( bbox( ct.shp.out )[ 1 , 2 ] > intptlon ) &
 		( bbox( ct.shp.out )[ 2 , 2 ] > intptlat ) 
 	)
+	
+# count again
+nrow( ct.knots )
+# that's more like it.
 
 # you can look at the weighted centroids of those remaining tracts
-plot( ctract.knots$intptlon , ctract.knots$intptlat )
+plot( ct.knots$intptlon , ct.knots$intptlat )
 # and look at that, bits of long island will be influencing our results
 # since it's within a 15% range of the state of connecticut box
 
@@ -556,7 +614,9 @@ krig.fit <-
 		cbind( x$intptlon , x$intptlat ) ,
 		x$povrate ,
 		weights = x$weight ,
-		knots = as.matrix( ctract.knots[ , c( 'intptlon' , 'intptlat' ) ] )
+		knots = cbind( ct.knots$intptlon , ct.knots$intptlat )
+		# if you prefer to use cover.design, all you'd need is this knots= line instead:
+		# knots = xknots
 	)
 
 # that is: what is the (weighted) relationship between
@@ -630,6 +690,8 @@ krig.grd$kout <- predict( krig.fit , krig.grd )
 # alternate grid using gam.fit
 gam.grd$gamout <- predict( gam.fit , gam.grd )
 
+
+library(spatstat)
 # alternate grid using smoothing
 smooth.grd$smoout <- 
 	Smooth(
@@ -648,17 +710,13 @@ smooth.grd$smoout <-
 # # # # # # # # # # #
 
 
+# # # # # # # # # # # # # # # # # # # # # # # # # # #
+# # step 9: create a polygon layer to blank stuff # #
 
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-# # step 9: create a polygon to cover everything outside the boundary # #
 
-library(raster)
-library(rgeos)
 
-# draw a rectangle 15% bigger than the original state
-ct.shp.out <- as( 1.3 * extent( ct.shp ), "SpatialPolygons" )
 
-ct.shp.diff <- gDifference( ct.shp.out , ct.shp )
+
 
 # # end of step 9 # #
 # # # # # # # # # # #
@@ -739,47 +797,6 @@ p <-
 p
 
 
-
-# water files for all state/county combos
-ascc <- unique( sf1.merge[ , c( 'state' , 'county' ) ] )
-
-
-
-library(stringr)
-library(maptools)
-library(plyr)
-library(ggplot2)
-
-water.files <-
-	paste0( 
-		"ftp://ftp2.census.gov/geo/tiger/TIGER2013/AREAWATER/tl_2013_" ,
-		str_pad( ascc[ , 1 ] , 2 , pad = '0' ) ,
-		str_pad( ascc[ , 2 ] , 3 , pad = '0' ) ,
-		"_areawater.zip"
-	)
-
-psave <- p
-
-tf <- tempfile()
-
-for ( fn in water.files ){
-
-	download.file( fn , tf )
-	
-	z <- unzip( tf , exdir = tempdir() )
-
-	
-	w <- readShapePoly( z[ grep( 'shp$' , z ) ] )
-
-	wo <- fortify( w )
-
-	w2 <- ddply( wo , .( piece ) , function( x ) rbind( x , wo[ 1 , ] ) )
-
-	wl <- geom_polygon( data = w2 , aes( x = long , y = lat , group = group ) , fill='white' )
-
-	p <- p + wl
-	
-}
 
 # print with all water blanked out.
 p
