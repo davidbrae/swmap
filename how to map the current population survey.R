@@ -507,7 +507,6 @@ rm( state.shp ) ; gc()
 # # # # # # # # # # # # # # # # # #
 # # step 7: tie knots and krige # #
 
-library(fields)
 library(sqldf)
 
 # how many knots should you make? #
@@ -589,6 +588,9 @@ plot( ct.knots$intptlon , ct.knots$intptlat )
 # clear up RAM
 rm( sf1.stack , sf1s ) ; gc()
 
+# interpolation option one #
+library(fields)
+
 krig.fit <-
 	Krig(
 		cbind( x$intptlon , x$intptlat ) ,
@@ -608,7 +610,7 @@ surface( krig.fit )
 # you're almost there!
 
 
-# here's an alternate approach using the `gam` function
+# interpolation option two #
 library(mgcv)
 
 gam.fit <- 
@@ -660,9 +662,9 @@ krig.grd$kout <- predict( krig.fit , krig.grd )
 # alternate grid using gam.fit
 gam.grd$gamout <- predict( gam.fit , gam.grd )
 
-
+# interpolation option three #
 library(spatstat)
-# alternate grid using smoothing
+
 smoout <- 
 	Smooth(
 		ppp( 
@@ -672,17 +674,18 @@ smoout <-
 			y.range ,
 			marks = x$povrate
 		) ,
-		sigma = 0.5 ,
+		# here's a good starting point for sigma, but screw around with this value.
+		sigma = ( max( x$povrate ) - min( x$povrate ) ) / 2 ,
 		weights = x$weight
 	)
 
 smoo.grd <-	
 	expand.grid(
-		intptlon = seq( from = x.range[1] , to = x.range[2] , length = smoout$dim[1] ) , 
-		intptlat = seq( from = y.range[1] , to = y.range[2] , length = smoout$dim[2] )
+		intptlon = seq( from = smoout$xrange[1] , to = smoout$xrange[2] , length = smoout$dim[1] ) , 
+        intptlat = seq( from = smoout$yrange[1] , to = smoout$yrange[2] , length = smoout$dim[2] )
 	)
 
-smoo.grd$smoout <- as.numeric( smoout$v )
+smoo.grd$smoout <- as.numeric( t( smoout$v ) )
 
 # # end of step 8 # #
 # # # # # # # # # # #
@@ -712,8 +715,11 @@ library(mapproj)
 # well consider one other idea: cap within the minimum and maximum of the state
 # this will also increase the visible gradient ultimately plotted.
 
+# subset `x` to connecticut only
+ctx <- subset( x , gestfips == 9 )
+
 # capture the connecticut statewide minimum and maximum known poverty rates
-state.sum <- summary( subset( x , gestfips == 9 )$povrate )
+state.sum <- summary( ctx$povrate )
 
 # if a numeric vector has values below the minimum or above the maximum, cap 'em
 minnmax.at.statesum <- 
@@ -747,18 +753,28 @@ smooth.plot <-
 	ggplot( data = smoo.grd , aes( x = intptlon , y = intptlat ) ) +
 	geom_tile( data = smoo.grd , aes( fill = smoout ) )
 
+# view all three grids!
+krg.plot
+gam.plot
+smooth.plot
 
 # choose a projection.  here's one using albers on the connecticut borders
-co <- coord_map( project = "albers" , lat0 = min( x$intptlat ) , lat1 = max( x$intptlat ) )
+co <- coord_map( project = "albers" , lat0 = min( ctx$intptlat ) , lat1 = max( ctx$intptlat ) )
 
-# force this projection to work on all objects
+# re-view all three projected grids
+krg.plot + co
+gam.plot + co
+smooth.plot + co
+
+# force this projection to work on all object types
 co2 <- co
-class(co2) <- c("hoge", class(co2))
+class(co2) <- c( "hoge" , class( co2 ) )
 is.linear.hoge <- function(coord) TRUE
 
 # initiate the entire plot
 the.plot <-
-	# choose one of these three
+
+	# choose only one of the three interpolation grids
 	krg.plot +
 	# gam.plot +
 	# smooth.plot +
@@ -793,7 +809,7 @@ the.plot
 
 
 # # # # # # # # # # # # # # # # # #
-# # step 10: blank and colo(u)r # #
+# # step 10: blank, color, save # #
 
 library(ggplot2)
 library(scales)
@@ -886,7 +902,7 @@ final.plot
 ggsave( 
 	plot = final.plot , 
 	"2012 connecticut poverty rate.pdf" ,
-	w = 11 , h = 8.5
+	units = 'in' , w = 10.5 , h = 8
 )
 
 # # end of step ten # #
