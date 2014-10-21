@@ -761,11 +761,6 @@ smooth.plot
 # choose a projection.  here's one using albers on the connecticut borders
 co <- coord_map( project = "albers" , lat0 = min( ctx$intptlat ) , lat1 = max( ctx$intptlat ) )
 
-# re-view all three projected grids
-krg.plot + co
-gam.plot + co
-smooth.plot + co
-
 # force this projection to work on all object types
 co2 <- co
 class(co2) <- c( "hoge" , class( co2 ) )
