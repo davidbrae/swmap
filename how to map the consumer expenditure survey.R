@@ -176,17 +176,17 @@ gc()
 
 
 # so now we have a data.frame object with
-# one record per census block,
+# one record per census tract,
 # and also with each of the geography-levels
 # that match the consumer expenditure survey
 head( sf )
 
 # and guess what?
 # we've now got the census 2010 weighted populations (field pop100)
-# and also each census block's centroid latitude & longitude (fields intptlat + intptlon)
+# and also each census tract's centroid latitude & longitude (fields intptlat + intptlon)
 
 # add the consumer expenditure survey results'
-# geographic identifiers to the census block data.frame
+# geographic identifiers to the census tract data.frame
 
 # # align psu variables # #
 
@@ -407,7 +407,11 @@ rm( fmly.design ) ; gc()
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # # step 4: merge the results of your survey analysis with the small-area geography # #
 
-# merge the available geographies on to the census block file too
+# save a continental states copy of the `sf` table for later
+sfsave <- sf[ !( sf$state %in% c( 2 , 15 ) ), c( 'state' , 'csa' , 'cbsa' , 'pop100' , 'intptlat' , 'intptlon' ) ]
+# trust me, you'll need this.
+
+# merge the available geographies on to the census tract file too
 sf <- merge( sf , ag , all = TRUE )
 
 # note that alaska and hawaii need to be manually removed,
@@ -422,11 +426,11 @@ sf[ is.na( sf$keep ) , 'psu' ] <- 9999
 # remove the flag
 sf$keep <- NULL
 
-# continue being as sparse as possible.  remove columns you no longer need.
-sf <- sf[ , ( names( sf ) %in% c( 'state' , 'psu' , 'smsastat' , 'pop100' , 'intptlat' , 'intptlon' , 'akhi' ) ) ]
-
 # integers are overflowing
 sf$pop100 <- as.numeric( sf$pop100 )
+
+# continue being as sparse as possible.  remove columns you no longer need.
+sf <- sf[ , ( names( sf ) %in% c( 'state' , 'psu' , 'smsastat' , 'pop100' , 'intptlat' , 'intptlon' , 'akhi' ) ) ]
 
 # clear up RAM
 gc()
@@ -442,7 +446,7 @@ mrow <- nrow( merge( unique( sf[ , c( 'state' , 'psu' , 'smsastat' ) ] ) , sas )
 # ..and it does/they do.
 stopifnot( sas.row == mrow )
 
-# now the census block-level nationwide census data *could* merge if you wanted it to.
+# now the census tract-level nationwide census data *could* merge if you wanted it to.
 
 
 # but you don't.  yet.
@@ -462,7 +466,7 @@ sas$invse <- 1 / sas$se
 
 # now we've got the weight that we should give each of our estimates #
 
-# distribute that weight across all census blocks #
+# distribute that weight across all census tracts #
 
 
 # aggregate the 2010 census block populations to the geographies that you have.
@@ -477,7 +481,7 @@ sas <- merge( sas , popsum )
 # now.  merge
 	# the transportation share of total expenditure (the variable of interest)
 	# the inverted standard error (the total weight of the broad geography)
-	# the population sum (the total population of all census blocks that are part of that geography)
+	# the population sum (the total population of all census tracts that are part of that geography)
 
 x <- merge( sf , sas )
 
@@ -488,10 +492,10 @@ stopifnot( nrow( x ) == nrow( sf ) )
 rm( sf ) ; gc()
 
 # (this is the fun part)
-# calculate the weight of each census block
+# calculate the weight of each census tract
 x$weight <- x$invse * ( x$pop100 / x$popsum )
 
-# note that weight of all census blocks put together
+# note that weight of all census tracts put together
 # sums to the `invse` on the original analysis file
 stopifnot( all.equal( sum( x$weight ) , sum( sas$invse ) ) )
 
@@ -521,13 +525,14 @@ x <- x[ , c( 'share' , 'weight' , 'intptlat' , 'intptlon' ) ]
 library(ggplot2)
 library(scales)
 library(mapproj)
+library(RColorBrewer)
 
 # before you ever touch surface smoothing or kriging,
 # make some decisions about how you generally want
 # your map to look:  the projection and coloring
 
 # the options below simply use hadley wickham's ggplot2
-# with the census block-level transportation shares and centroids
+# with the census tract-level transportation spending shares and centroids
 
 
 # initiate the simple map
@@ -541,27 +546,8 @@ us.map <-
 		ylab = NULL
 	)
 
-# choose your coloring and severity from the midpoint
-us.map <- 
-	us.map + 
 
-	scale_colour_gradient2( 
-	
-		# low transportation spending is good
-		low = muted( "blue" ) , 
-		# so invert the default colors
-		high = muted( "red" ) , 
-		
-		# shows the most severe difference in coloring
-		midpoint = mean( unique( x$share ) )
-		
-		# shows the population-weighted difference in coloring
-		# midpoint = weighted.mean( x$share , x$weight )
-	)
-
-	
 # remove all map crap.
-
 us.map <- 
 	us.map + 
 
@@ -586,47 +572,158 @@ us.map
 us.map + coord_map( project = "albers" , lat0 = min( x$intptlat ) , lat1 = max( x$intptlat ) )
 # see ?mapproject for a zillion alternatives
 
+# if you like that projection, store it in the map object.
+us.map <- 
+	us.map + 
+	coord_map( project = "albers" , lat0 = min( x$intptlat ) , lat1 = max( x$intptlat ) )
+
+
+# check out some purty colors.
+
+# from http://colorbrewer2.org/
+
+# three sequential color schemes
+Greys.3.p <- colorRampPalette( rev( brewer.pal( 3 , "Greys" ) ) )
+YlGnBu.3.p <- colorRampPalette( rev( brewer.pal( 3 , "YlGnBu" ) ) )
+YlGnBu.9.p <- colorRampPalette( rev( brewer.pal( 9 , "YlGnBu" ) ) )
+
+# three diverging color schemes
+PRGn.11.p <- colorRampPalette( rev( brewer.pal( 11 , "PRGn" ) ) )
+RdYlBu.3.p <- colorRampPalette( rev( brewer.pal( 3 , "RdYlBu" ) ) )
+RdYlBu.11.p <- colorRampPalette( rev( brewer.pal( 11 , "RdYlBu" ) ) )
+
+# print all six
+us.map + scale_fill_gradientn( colours = Greys.3.p( 100 ) )
+us.map + scale_fill_gradientn( colours = YlGnBu.3.p( 100 ) )
+us.map + scale_fill_gradientn( colours = YlGnBu.9.p( 100 ) )
+
+us.map + scale_fill_gradientn( colours = PRGn.11.p( 100 ) )
+us.map + scale_fill_gradientn( colours = RdYlBu.3.p( 100 ) )
+us.map + scale_fill_gradientn( colours = RdYlBu.11.p( 100 ) )
+
+# clear up RAM
+rm( us.map ) ; gc()
+
 # # end of step 5 # #
 # # # # # # # # # # #
 
 
+# # # # # # # # # # # #
+# # step 6: outline # #
+
+library(maptools)
+library(raster)
+library(rgeos)
+library(stringr)
+library(plyr)
+library(ggplot2)
+
+shpus.tf <- tempfile()
+
+# use the census bureau's cartographic boundary files
+# instead of the regular tiger shapefiles
+# unless you want to display transportation shares in the ocean.
+
+download.cache( 
+	"http://www2.census.gov/geo/tiger/GENZ2013/cb_2013_us_state_500k.zip" ,
+	shpus.tf ,
+	mode = 'wb'
+)
+
+shpus.uz <- unzip( shpus.tf , exdir = tempdir() )
+
+us.shp <- readShapePoly( shpus.uz[ grep( 'shp$' , shpus.uz ) ] )
+
+# remove alaska, hawaii, and all territories
+us.shp <- subset( us.shp , !( STUSPS %in% c( 'AK' , 'HI' , 'PR' , 'AS' , 'VI' , 'GU' , 'MP' ) ) )
+
+# draw a rectangle 5% bigger than the original 48-state shape
+us.shp.out <- as( 1.1 * extent( us.shp ), "SpatialPolygons" )
+
+# # end of step 6 # #
+# # # # # # # # # # #
+
+
 # # # # # # # # # # # # # # # # # #
-# # step 6: tie knots and krige # #
+# # step 7: tie knots and krige # #
 
+library(sqldf)
+
+# how many knots should you make? #
+
+# knots are the computationally-intensive part of this process,
+# choose as many as your computer and your patience can handle.
+
+# you should aim for between 100 - 999 knots,
+# but numbers closer to 1,000 will overload smaller computers
+
+# you could let the `fields` package attempt to guess knots for you,
+# xknots <- cover.design( cbind( x$intptlon , x$intptlat ) , 100 )$design
+# but with census microdata, you've already got easy access to a relevant geographic grouping
+
+# the continental united states contains
+length( unique( sfsave$cbsa ) )
+# unique core-based statistical areas and
+length( unique( sfsave$csa ) )
+# unique combined statistical areas, including `99999` values.
+
+# but you should probably distinguish the `99999` values across states.
+# if you have a powerful computer, you could try creating knots table
+# that crosses states by cbsas, but for smaller computers (and quicker processing)
+nrow( unique( sfsave[ , c( 'state' , 'csa' ) ] ) )
+# here are 207 beeeeautiful knots just for you.
+
+
+# within each state x csa,
+# calculate the population-weighted mean of the coordinates
+# and (for smoothing) the weighted share at each state-csa centroid
+us.knots <- 
+	sqldf( 
+		"select 
+			state , csa ,
+			sum( pop100 ) as pop100 , 
+			sum( pop100 * intptlon ) / sum( pop100 ) as intptlon ,
+			sum( pop100 * intptlat ) / sum( pop100 ) as intptlat
+		from sfsave
+		group by
+			state , csa"
+	)
+# note: this screws up coordinates that cross the international date line
+# or the equator.  in the united states, only alaska's aleutian islands do this
+# and those geographies will be thrown out later.  so it doesn't matter.
+
+# how many knots have you gots?
+nrow( us.knots )
+
+# you can look at the weighted centroids of those csas by state
+plot( us.knots$intptlon , us.knots$intptlat )
+
+# clear up RAM
+rm( sfsave ) ; gc()
+
+# interpolation option one #
 library(fields)
-
-# how many knots should you make?
-
-# cannot be more than `nrow( x )`
-# but one hundred is okay.
-# if you've got a powerful computer,
-# you can increase this
-number.of.knots <- min( 100 , nrow( x ) )
-# number.of.knots <- min( 250 , nrow( x ) )
-
-
-stop( "stop using knots!  use population-weighted centroids instead" )
-xknots <- cover.design( cbind( x$intptlon , x$intptlat ) , number.of.knots )$design
-
 
 krig.fit <-
 	Krig(
 		cbind( x$intptlon , x$intptlat ) ,
 		x$share ,
 		weights = x$weight ,
-		knots = xknots # ,
-		# Covariance = "Matern"
+		knots = cbind( us.knots$intptlon , us.knots$intptlat )
+		# if you prefer to use cover.design, all you'd need is this knots= line instead:
+		# knots = xknots
 	)
 
 # that is: what is the (weighted) relationship between
-# your variable of interest (poverty rate) and
+# your variable of interest (transportation share of total expenditure) and
 # the x/y points on a grid?
 
 # check this out!
 surface( krig.fit )
 # you're almost there!
 
-# and here's an alternate approach using the `gam` function
+
+# interpolation option two #
 library(mgcv)
 
 gam.fit <- 
@@ -636,35 +733,10 @@ gam.fit <-
 		data = x
 	)
 	
-# # end of step 6 # #
-# # # # # # # # # # #
 
-
-# # # # # # # # # # # #
-# # step 7: outline # #
-
-library(maptools)
-
-shpus.tf <- tempfile()
-
-download.cache( 
-	"http://www2.census.gov/geo/tiger/TIGER2010/STATE/2010/tl_2010_us_state10.zip" ,
-	shpus.tf ,
-	mode = 'wb'
-)
-
-shpus.uz <- unzip( shpus.tf , exdir = tempdir() )
-
-us.shp <- readShapePoly( shpus.uz[ grep( 'shp$' , shpus.uz ) ] )
-
-# remove alaska, hawaii, and puerto rico
-us.shp <- subset( us.shp , !( STUSPS10 %in% c( 'AK' , 'HI' , 'PR' ) ) )
-
-# projection <- paste0( "+proj=albers +lat_0=" , min( x$intptlat ) , " +lat_1=" , max( x$intptlat ) )
-
-# proj4string( us.shp ) <- projection
-# us.shp <- spTransform( us.shp , CRS( projection ) )
-
+# for the third alternative, keep reading.
+	
+	
 # # end of step 7 # #
 # # # # # # # # # # #
 
@@ -672,139 +744,247 @@ us.shp <- subset( us.shp , !( STUSPS10 %in% c( 'AK' , 'HI' , 'PR' ) ) )
 # # # # # # # # # # # # # # # # # # # #
 # # step 8: make a grid and predict # #
 
-# do you want your map to print decently in a few minutes?
-# grid.length <- 100
-# or beautifully in a few hours?
+x.range <- bbox( us.shp.out )[ 1 , ]
+y.range <- bbox( us.shp.out )[ 2 , ]
+
+# add five percent on each side
+x.diff <- abs( x.range[ 2 ] - x.range[ 1 ] ) * 0.05
+y.diff <- abs( y.range[ 2 ] - y.range[ 1 ] ) * 0.05
+
+x.range[ 1 ] <- x.range[ 1 ] - x.diff
+x.range[ 2 ] <- x.range[ 2 ] + x.diff
+y.range[ 1 ] <- y.range[ 1 ] - y.diff
+y.range[ 2 ] <- y.range[ 2 ] + y.diff
+
+# choose the number of ticks (in each direction) on your grid
 grid.length <- 500
 
-
-# create three identical grid objects
-grd <- gam.grd <- krig.grd <- 
+# create some grid data.frame objects, one for each interpolation type
+grd <- gam.grd <- krig.grd <-
 	expand.grid(
-		intptlon = seq( from = bbox( us.shp )[1,1] , to = bbox( us.shp )[1,2] , length = grid.length ) , 
-		intptlat = seq( from = bbox( us.shp )[2,1] , to = bbox( us.shp )[2,2] , length = grid.length )
+		intptlon = seq( from = x.range[1] , to = x.range[2] , length = grid.length ) , 
+		intptlat = seq( from = y.range[1] , to = y.range[2] , length = grid.length )
 	)
-
-# outer.grd <- 
-	# data.frame(
-		# intptlon = c( x.range[1] - x.diff , x.range[2] + x.diff ) , 
-		# intptlat = c( y.range[1] - y.diff , y.range[2] + y.diff )
-	# )
 
 
 # along your rectangular grid,
 # what are the predicted values of
-# the poverty rate?
+# the transportation spending share?
 krig.grd$kout <- predict( krig.fit , krig.grd )
 
 # alternate grid using gam.fit
 gam.grd$gamout <- predict( gam.fit , gam.grd )
 
+# interpolation option three #
+library(spatstat)
+
+smoout <- 
+	Smooth(
+		ppp( 
+			x$intptlon , 
+			x$intptlat , 
+			x.range ,
+			y.range ,
+			marks = x$share
+		) ,
+		# here's a good starting point for sigma, but screw around with this value.
+		sigma = ( max( x$share ) - min( x$share ) ) ,
+		weights = x$weight
+	)
+
+smoo.grd <-	
+	expand.grid(
+		intptlon = seq( from = smoout$xrange[1] , to = smoout$xrange[2] , length = smoout$dim[1] ) , 
+        intptlat = seq( from = smoout$yrange[1] , to = smoout$yrange[2] , length = smoout$dim[2] )
+	)
+
+smoo.grd$smoout <- as.numeric( t( smoout$v ) )
+
 # # end of step 8 # #
 # # # # # # # # # # #
 
 
+# # # # # # # # # # # # # # # # # # # # #
+# # step 9: ggplot and choose options # #
 
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-# # step 9: create a polygon to cover everything outside the boundary # #
-
-library(rgeos)
-
-# convert grd to SpatialPoints object
-# coordinates( outer.grd ) <- c( "intptlon" , "intptlat" )
-
-# draw a rectangle around the grd
-# us.shp.diff <- gEnvelope( outer.grd )
-us.shp.out <- gEnvelope( us.shp )
+library(ggplot2)
+library(mapproj)
 
 
-# Create a bounding box 10% bigger than the bounding box of connecticut
-# x_excess = (us.shp@bbox['x','max'] - us.shp@bbox['x','min'])*0.1
-# y_excess = (us.shp@bbox['y','max'] - us.shp@bbox['y','min'])*0.1
-# x_min = us.shp@bbox['x','min'] - x_excess
-# x_max = us.shp@bbox['x','max'] + x_excess
-# y_min = us.shp@bbox['y','min'] - y_excess
-# y_max = us.shp@bbox['y','max'] + y_excess
-# bbox = matrix(c(x_min,x_max,x_max,x_min,x_min,
-                # y_min,y_min,y_max,y_max,y_min),
-              # nrow = 5, ncol =2)
-# bbox = Polygon(bbox, hole=FALSE)
-# bbox = Polygons(list(bbox), "bbox")
-# us.shp.out = SpatialPolygons(Srl=list(bbox), pO=1:1, proj4string=us.shp@proj4string)
+# # # psa # # # 
+# capping your outliers might drastically change your map.
+# if you find the 25th percentile and 75th percentile with
+# summary( krig.grd$kout )
+# and then replace all `kout` values below the 25th or above the 75th
+# with those capped percentile endpoints, i promise promise promise
+# your maps will appear quite different.  you could cap at the 25th and 75th with..
+# grd.sum <- summary( krig.grd$kout )
+# krig.grd[ krig.grd$kout > grd.sum[ 5 ] , 'kout' ] <- grd.sum[ 5 ]
+# krig.grd[ krig.grd$kout < grd.sum[ 2 ] , 'kout' ] <- grd.sum[ 2 ]
+# # # end # # # 
+
+# you don't want to cap at the 25th and 75th?
+# well consider one other idea: at least cap at the 5th and 95th of the nation
+# this will also increase the visible gradient ultimately plotted.
+
+# for example, the lowest krigged value is negative.
+summary( krig.grd$kout )
+# that's obviously not right.
+
+# if a numeric vector has values below the 5th percentile or above the 75th percentile, cap 'em
+minnmax.at.0595 <- 
+	function( z ){ 
+		q0595 <- quantile( z , c( 0.05 , 0.95 ) )
+		z[ z < q0595[ 1 ] ] <- q0595[ 1 ]
+		z[ z > q0595[ 2 ] ] <- q0595[ 2 ]
+		z
+	}
+
+# min and max all numeric values.  this makes the gradient much more visible.
+krig.grd$kout <- minnmax.at.0595( krig.grd$kout )
+gam.grd$gamout <- minnmax.at.0595( gam.grd$gamout )
+smoo.grd$smoout <- minnmax.at.0595( smoo.grd$smoout )
 
 
+# initiate the krige-based plot
+krg.plot <- 
+	ggplot( data = krig.grd , aes( x = intptlon , y = intptlat ) ) +
+	geom_tile( data = krig.grd , aes( fill = kout ) )
+	
+# initiate the gam-based plot
+gam.plot <- 
+	ggplot( data = gam.grd , aes( x = intptlon , y = intptlat ) ) +
+	geom_tile( data = gam.grd , aes( fill = gamout ) )
 
+# initiate the smooth-based plot
+smooth.plot <- 
+	ggplot( data = smoo.grd , aes( x = intptlon , y = intptlat ) ) +
+	geom_tile( data = smoo.grd , aes( fill = smoout ) )
 
-# proj4string( us.shp.diff ) <- projection
-# us.shp.diff <- spTransform( us.shp.diff , CRS( projection ) )
+# view all three grids!
+krg.plot
+gam.plot
+smooth.plot
 
-# get the difference between your boundary and the rectangle
-# us.shp.diff <- gDifference( bbox , us.shp )
-us.shp.diff <- gDifference( us.shp.out , us.shp )
+# choose a projection.  here's one using albers on the continental united states borders
+co <- coord_map( project = "albers" , lat0 = min( x$intptlat ) , lat1 = max( x$intptlat ) )
+
+# force this projection to work on all object types
+co2 <- co
+class(co2) <- c( "hoge" , class( co2 ) )
+is.linear.hoge <- function(coord) TRUE
+
+# initiate the entire plot
+the.plot <-
+
+	# choose only one of the three interpolation grids
+	krg.plot +
+	# gam.plot +
+	# smooth.plot +
+	
+	# include the projection requirements
+	co2 + 
+	coord_fixed() +
+	
+	# blank out the legend and axis labels
+	theme(
+		legend.position = "none" ,
+		axis.title.x = element_blank() ,
+		axis.title.y = element_blank()		
+	) + 
+	
+	# blank out other plot elements
+	scale_x_continuous(breaks = NULL) +
+    scale_y_continuous(breaks = NULL) +
+	theme(
+		panel.grid.major = element_blank(),
+		panel.grid.minor = element_blank(),
+		panel.background = element_blank(),
+		panel.border = element_blank(),
+		axis.ticks = element_blank()
+	)
+
+# print the plot to the screen
+the.plot
 
 # # end of step 9 # #
 # # # # # # # # # # #
 
 
-stop( "capping your outliers is critically important.  the scale is much more visible if they are maxxed and minned" )
-
-
-
+# # # # # # # # # # # # # # # # # #
+# # step 10: blank, color, save # #
 
 library(ggplot2)
 library(scales)
-library(mapproj)
+library(raster)
+library(plyr)
+library(RColorBrewer)
 
 
+# draw a rectangle 15% bigger than the original state
+us.shp.blank <- as( 1.3 * extent( us.shp ), "SpatialPolygons" )
+
+# compute the difference between connecticut and the rectangle 15% beyond the borders
+us.shp.diff <- gDifference( us.shp.blank , us.shp )
+
+# prepare the difference layer for ggplot2
 outside <- fortify( us.shp.diff )
-# outside <- us.shp.diff
 
-# weighted.
-plot <- ggplot(data = krig.grd, aes(x = intptlon, y = intptlat))  #start with the base-plot 
-layer1 <- geom_tile(data = krig.grd, aes(fill = kout ))  #then create a tile layer and fill with predicted values
-layer2 <- geom_polygon(data=outside, aes(x=long,y=lat,group=group), fill='white')
-co <- coord_map( project = "albers" , lat0 = min( x$intptlat ) , lat1 = max( x$intptlat ) )
-# print this to a pdf instead, so it formats properly
-# plot + layer1 + layer2 + co + scale_fill_gradient( low = muted( 'blue' ) , high = muted( 'red' ) )
-# plot + layer1 + layer2 + scale_fill_gradient( low = muted( 'blue' ) , high = muted( 'red' ) )
+# fix the islands
+outside2 <- ddply( outside , .(piece) , function(x) rbind( x , outside[ 1 , ] ) )
 
-# plot + layer1 + layer2 + co + scale_fill_gradient( low = muted( 'blue' ) , high = muted( 'red' ) ) + coord_equal()
+# blank out coastal areas
+blank.layer <- 
+	geom_polygon( 
+		data = outside2 , 
+		aes( x = long , y = lat , group = id ) , 
+		fill = 'white' 
+	)
 
-plot + layer1 + layer2 + scale_fill_gradient( low = muted( 'white' ) , high = muted( 'red' ) ) + co
+# closer, eh?
+the.plot + blank.layer
 
+# store this plot
+the.plot <- the.plot + blank.layer	
 
+# location of all state borders
+sbo <- fortify( us.shp )
 
-# weighted.
-plot <- ggplot(data = gam.grd, aes(x = intptlon, y = intptlat))  #start with the base-plot 
-layer1 <- geom_tile(data = gam.grd, aes(fill = kout ))  #then create a tile layer and fill with predicted values
-# sol <- fortify( ct.shp )
-# layer2 <- geom_path(data = sol, aes(long, lat), colour = "grey40", size = 1)
-co <- coord_map( project = "albers" , lat0 = min( x$intptlat ) , lat1 = max( x$intptlat ) )
-# print this to a pdf instead, so it formats properly
-# plot + layer1 + layer2 + co + scale_fill_gradient( low = muted( 'blue' ) , high = muted( 'red' ) )
-plot + layer1 + co + scale_fill_gradient( low = muted( 'blue' ) , high = muted( 'red' ) )
+# here's a layer with the continental united states borders
+sbo.layer <- geom_path( data = sbo , aes( x = long , y = lat , group = group ) )
 
+# print that result to the screen.
+the.plot + sbo.layer
+# okay if we stick with this one?
+the.plot <- the.plot + sbo.layer
+# good.  now it's part of the plot.
 
+# print all six
+the.plot + scale_fill_gradientn( colours = Greys.3.p( 100 ) )
+the.plot + scale_fill_gradientn( colours = YlGnBu.3.p( 100 ) )
+the.plot + scale_fill_gradientn( colours = YlGnBu.9.p( 100 ) )
 
-# raster plots
+the.plot + scale_fill_gradientn( colours = PRGn.11.p( 100 ) )
+the.plot + scale_fill_gradientn( colours = RdYlBu.3.p( 100 ) )
+the.plot + scale_fill_gradientn( colours = RdYlBu.11.p( 100 ) )
 
-coordinates(krig.grd) <- coordinates(gam.grd) <- c("intptlon", "intptlat")
-gridded(krig.grd) <- gridded(gam.grd) <- TRUE
-krig.r <- raster(krig.grd)
-gam.r <- raster(gam.grd)
+# ooh i like that one mom, can we keep it can we keep it?
+final.plot <- the.plot + scale_fill_gradientn( colours = RdYlBu.11.p( 100 ) )
 
-colRamp <- colorRampPalette(c(muted("blue"),muted("red")))
-plot(krig.r, axes=FALSE, col=colRamp(100), main="Krig")
-plot(ct.shp.diff, add=TRUE, col="white", border="white", lwd=5)
-degAxis(1)
-degAxis(2)
-box()
+final.plot
 
-plot(gam.r, axes=FALSE, col=colRamp(100), main="GAM")
-plot(ct.shp.diff, add=TRUE, col="white", border="white", lwd=5)
-degAxis(1)
-degAxis(2)
-box()
+# would you like to save this game?
 
+# use cairo-png as your bitmap type
+options( bitmapType = "cairo" )
 
-stop( 'test this out on your personal 8gb laptop?' )
+# save the file to your current working directory
+ggsave( 
+	"2013 transportation spending as a share of total spending.png" ,
+	plot = final.plot ,
+	type = "cairo-png" ,
+	scale = 3
+)
+
+# # end of step ten # #
+# # # # # # # # # # # #
