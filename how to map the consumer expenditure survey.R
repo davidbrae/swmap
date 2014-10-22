@@ -593,13 +593,13 @@ RdYlBu.3.p <- colorRampPalette( rev( brewer.pal( 3 , "RdYlBu" ) ) )
 RdYlBu.11.p <- colorRampPalette( rev( brewer.pal( 11 , "RdYlBu" ) ) )
 
 # print all six
-us.map + scale_fill_gradientn( colours = Greys.3.p( 100 ) )
-us.map + scale_fill_gradientn( colours = YlGnBu.3.p( 100 ) )
-us.map + scale_fill_gradientn( colours = YlGnBu.9.p( 100 ) )
+us.map + scale_colour_gradientn( colours = Greys.3.p( 100 ) )
+us.map + scale_colour_gradientn( colours = YlGnBu.3.p( 100 ) )
+us.map + scale_colour_gradientn( colours = YlGnBu.9.p( 100 ) )
 
-us.map + scale_fill_gradientn( colours = PRGn.11.p( 100 ) )
-us.map + scale_fill_gradientn( colours = RdYlBu.3.p( 100 ) )
-us.map + scale_fill_gradientn( colours = RdYlBu.11.p( 100 ) )
+us.map + scale_colour_gradientn( colours = PRGn.11.p( 100 ) )
+us.map + scale_colour_gradientn( colours = RdYlBu.3.p( 100 ) )
+us.map + scale_colour_gradientn( colours = RdYlBu.11.p( 100 ) )
 
 # clear up RAM
 rm( us.map ) ; gc()
