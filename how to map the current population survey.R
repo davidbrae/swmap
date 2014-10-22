@@ -902,7 +902,7 @@ options( bitmapType = "cairo" )
 ggsave( 
 	"2012 connecticut poverty rate.png" ,
 	plot = final.plot ,
-	scale = 5 ,
+	scale = 2 ,
 	type = "cairo-png" 
 )
 
