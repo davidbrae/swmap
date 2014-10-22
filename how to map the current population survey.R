@@ -894,10 +894,16 @@ final.plot <- the.plot + scale_fill_gradient( low = 'green' , high = 'red' )
 final.plot
 
 # would you like to save this game?
+
+# use cairo-png as your bitmap type
+options( bitmapType = "cairo" )
+
+# save the file to your current working directory
 ggsave( 
-	plot = final.plot , 
-	"2012 connecticut poverty rate.pdf" ,
-	units = 'in' , w = 10.5 , h = 8
+	"2012 connecticut poverty rate.png" ,
+	plot = final.plot ,
+	scale = 5 ,
+	type = "cairo-png" 
 )
 
 # # end of step ten # #
