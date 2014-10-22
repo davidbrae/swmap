@@ -580,10 +580,10 @@ x <-
 nrow( ct.knots )
 # that's more like it.
 
-# you can look at the weighted centroids of those remaining tracts
+# you can look at the weighted centroids of those county subdivisions
 plot( ct.knots$intptlon , ct.knots$intptlat )
 # and look at that, bits of long island will be influencing our results
-# since it's within a 15% range of the state of connecticut box
+# since it's within a 5% range of the state of connecticut box
 
 # clear up RAM
 rm( sf1.stack , sf1s ) ; gc()
