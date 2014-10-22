@@ -788,7 +788,7 @@ smoout <-
 			marks = x$share
 		) ,
 		# here's a good starting point for sigma, but screw around with this value.
-		sigma = ( max( x$share ) - min( x$share ) ) ,
+		sigma = 1 ,
 		weights = x$weight
 	)
 
