@@ -309,6 +309,107 @@ x <- x[ , c( 'pproom' , 'weight' , 'intptlat' , 'intptlon' ) ]
 # # step 5: outline # #
 
 library(maptools)
+library(ggplot2)
+
+
+shpny.tf <- tempfile()
+
+download.cache(
+	"http://www2.census.gov/geo/tiger/TIGER2010/COUNTY/2010/tl_2010_36_county10.zip" ,
+	shpny.tf ,
+	mode = 'wb'
+)
+# note: to re-download a file from scratch, add the parameter usecache = FALSE
+
+shpny.uz <- unzip( shpny.tf , exdir = tempdir() )
+
+ny.shp <- readShapePoly( shpny.uz[ grep( 'shp$' , shpny.uz ) ] )
+
+# sfname <- z[ grep( 'shp$' , z ) ]
+
+# ny.shp <- readOGR( sfname  , layer = gsub( "\\.shp" , "" , basename( sfname ) ) )
+
+
+download.cache( "http://www.nyc.gov/html/dpr/nycbigapps/DPR_Parks_001.zip" , tf )
+
+z <- unzip( tf , exdir = tempdir() )
+
+sfname <- z[ grep( 'shp$' , z ) ]
+
+parks.shp <- readOGR( sfname  , layer = gsub( "\\.shp" , "" , basename( sfname ) ) )
+
+# new.parks <- spTransform( parks.shp , ny.shp@proj4string )
+new.parks <- spTransform( parks.shp , CRS("+proj=longlat") )
+
+
+
+
+# ny2 <- spTransform( ny.shp , CRS("+proj=longlat") )
+
+# initiate the simple map
+nyc.map <- 
+	ggplot( data = x , aes( x = intptlon , y = intptlat ) ) +
+	geom_point( data = x , aes( colour = pproom ) )
+	
+xlim <- summary( x$intptlon )[ c( 1 , 6 ) ]
+ylim <- summary( x$intptlat )[ c( 1 , 6 ) ]
+
+nyc.map <-
+	nyc.map +
+	scale_x_continuous( limits = xlim ) +
+	scale_y_continuous( limits = ylim )
+	
+nyc.map + scale_colour_gradient( low = 'white' , high = 'black' )
+
+tf <- tempfile()
+
+parks <- fortify( new.parks )
+
+library(plyr)
+parks2 <- ddply( parks , .(piece) , function(x) rbind( x , parks[ 1 , ] ) )
+
+# blank out parks
+park.layer <- 
+	geom_polygon( 
+		data = parks2 , 
+		aes( x = long , y = lat , group = group ) , 
+		fill = 'darkgreen' 
+	)
+
+# closer, eh?
+nyc.map + park.layer
+
+nyc.map <- nyc.map + park.layer
+
+
+for ( this.county in nyc.counties ){
+
+	this.file <- 
+		paste0(
+			"http://www2.census.gov/geo/tiger/TIGER2013/AREAWATER/tl_2013_36" ,
+			this.county ,
+			"_areawater.zip"
+		)
+		
+	download.cache( this.file , tf )
+	
+	z <- unzip( tf , exdir = tempdir() )
+	
+	nyc.shp <- readShapePoly( z[ grep( 'shp$' , z ) ] )
+
+	water <- fortify( nyc.shp )
+	
+	this.layer <- geom_polygon( data = water , aes( x = long , y = lat , group = group ) , fill = 'lightblue' )
+	
+	nyc.map <- nyc.map + this.layer
+		
+}
+
+
+nyc.map + scale_colour_gradient( low = 'white' , high = 'black' )
+
+
+
 
 shpny.tf <- tempfile()
 
@@ -324,7 +425,39 @@ shpny.uz <- unzip( shpny.tf , exdir = tempdir() )
 ny.shp <- readShapePoly( shpny.uz[ grep( 'shp$' , shpny.uz ) ] )
 
 # limit the shapefile to only the five boroughs
-nyc.shp <- subset( ny.shp , as.numeric( as.character( COUNTYFP10 ) ) %in% c( 5 , 47 , 61 , 81 , 85 ) )
+borough.borders <- subset( ny.shp , as.numeric( as.character( COUNTYFP10 ) ) %in% as.numeric( nyc.counties ) )
+
+# prepare borough borders for ggplot2
+bbor <- fortify( borough.borders )
+
+nyc.map + geom_path( bbor , aes( x = long , y = lat , group = group ) )
+
+
++ coord_map( "newyorker" , r = 20 )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # go back to summary file #1 and
 # calculate the relative population in all five boroughs
