@@ -305,6 +305,209 @@ x <- x[ , c( 'pproom' , 'weight' , 'intptlat' , 'intptlon' ) ]
 # # # # # # # # # # #
 
 
+# # # # # # # # # # # #
+# # step 5: outline # #
+
+library(maptools)
+
+shpny.tf <- tempfile()
+
+download.cache(
+	"http://www2.census.gov/geo/tiger/TIGER2010/COUNTY/2010/tl_2010_36_county10.zip" ,
+	shpny.tf ,
+	mode = 'wb'
+)
+# note: to re-download a file from scratch, add the parameter usecache = FALSE
+
+shpny.uz <- unzip( shpny.tf , exdir = tempdir() )
+
+ny.shp <- readShapePoly( shpny.uz[ grep( 'shp$' , shpny.uz ) ] )
+
+# limit the shapefile to only the five boroughs
+nyc.shp <- subset( ny.shp , as.numeric( as.character( COUNTYFP10 ) ) %in% c( 5 , 47 , 61 , 81 , 85 ) )
+
+# go back to summary file #1 and
+# calculate the relative population in all five boroughs
+popb <- 
+	aggregate( 
+		sf1.bo$pop100 , 
+		by = list( sf1.bo[ , 'boroname' ] ) , 
+		sum 
+	)
+
+popb <- 
+	transform( 
+		popb , 
+		# convert borough names to county names
+		NAME10 = 
+			ifelse( Group.1 == 'Manhattan' , 'New York' ,
+			ifelse( Group.1 == 'Brooklyn' , 'Kings' ,
+			ifelse( Group.1 == 'Staten Island' , 'Richmond' , 
+				# the bronx and queens are the same
+				as.character( Group.1 ) ) ) )
+	)
+	
+# calculate each borough's relative share of the total city population
+popb$share.of.pop <- prop.table( popb$x )		
+
+# center these five numbers at one.
+popb$scale.by.pop <- popb$share.of.pop / mean( popb$share.of.pop )
+
+# look at that.  scaled by population alone..
+print( popb )
+# ..manhattan is much smaller than both brooklyn and queens
+
+# the shapefile already contains land area
+popb <- merge( nyc.shp@data[ , c( 'NAME10' , 'ALAND10' ) ]  , popb )
+# so pull that onto `popb`
+
+
+# the shapefiles include the land area, so
+# re-run the calculation above, but with population density instead.
+popb$pop.density <- popb$x / popb$ALAND10
+popb$relative.density <- prop.table( popb$pop.density )
+popb$scale.by.density <- popb$relative.density / mean( popb$relative.density )
+
+
+# alright!  now manhattan is as important as it thinks it is
+print( popb[ , c( 'NAME10' , 'scale.by.density' ) ] )
+
+# break all five boroughs into individual shapefiles
+boro.list <-
+	list( 
+		subset( nyc.shp , NAME10 == 'New York' ) ,
+		subset( nyc.shp , NAME10 == 'Bronx' ) ,
+		subset( nyc.shp , NAME10 == 'Kings' ) ,
+		subset( nyc.shp , NAME10 == 'Queens' ) ,
+		subset( nyc.shp , NAME10 == 'Richmond' )
+	)
+	
+# scale the five borough shapefiles by their relative population densities
+boro.list <- lapply( boro.list , function( z ) elide( z , scale = popb[ popb$NAME10 == z$NAME10 , 'scale.by.density' ] ) )
+
+# combine them back into a single shapefile
+nyc.scaled <- Reduce( 'spRbind' , boro.list )
+
+# well that looks like shit.
+plot( nyc.scaled )
+# we gotta do this by hand.
+
+# failed attempt at 
+# http://stackoverflow.com/questions/26493524/what-projections-in-r-will-fatten-a-city-map
+
+
+
+# break all five boroughs into individual shapefiles
+man.shp <- boro.list[[1]]
+bnx.shp <- boro.list[[2]]
+bln.shp <- boro.list[[3]]
+que.shp <- boro.list[[4]]
+si.shp <- boro.list[[5]]
+
+
+plot( Reduce( 'spRbind' , list( man.shp , bnx.shp , bln.shp , que.shp , si.shp ) ) )
+
+man.shp <- elide( man.shp , shift = c( 0 , 0 ) )
+bnx.shp <- elide( bnx.shp , shift = c( 1.5 , 1.5 ) )
+bln.shp <- elide( bln.shp , shift = c( 1 , 0 ) )
+que.shp <- elide( que.shp , shift = c( 2 , 0 ) )
+si.shp <- elide( si.shp , shift = c( -0.25 , -0.25 ) )
+
+plot( Reduce( 'spRbind' , list( man.shp , bnx.shp , bln.shp , que.shp , si.shp ) ) )
+
+
+
+# scale all five boroughs relative to their population 
+man.shp <- elide( man.shp , scale = popb[ popb$NAME10 == man.shp$NAME10 , 'scale.by.density' ] )
+bro.shp <- elide( bro.shp , scale = popb[ popb$NAME10 == bro.shp$NAME10 , 'scale.by.density' ] )
+kin.shp <- elide( kin.shp , scale = popb[ popb$NAME10 == kin.shp$NAME10 , 'scale.by.density' ] )
+que.shp <- elide( que.shp , scale = popb[ popb$NAME10 == que.shp$NAME10 , 'scale.by.density' ] )
+si.shp <- elide( si.shp , scale = popb[ popb$NAME10 == si.shp$NAME10 , 'scale.by.density' ] )
+
+boroughs.shp <- spRbind( man.shp , bro.shp )
+
+		kin.shp ,
+		que.shp ,
+		si.shp 
+	)
+		
+		nyc, others)
+
+
+
+	
+shp.list <- lapply( shp.list , function( z ) elide( z , scale = z@data$scale.by.density ) )
+
+bronx.shp <- elide( bronx.shp , scale = man.shp@data$scale )
+man.shp <- elide( man.shp , scale = man.shp@data$scale )
+man.shp <- elide( man.shp , scale = man.shp@data$scale )
+man.shp <- elide( man.shp , scale = man.shp@data$scale )
+
+
+nyc <- nyc.shp[nyc.shp$NAME10 == "New York",]
+others <- nyc.shp[nyc.shp$NAME10 != "New York",]
+
+nyc <- elide(nyc, scale=1.1)
+others <- elide(others, scale=1)
+boroughs.shp <- spRbind(nyc, others)
+
+# projection <- paste0( "+proj=albers +lat_0=" , min( x$intptlat ) , " +lat_1=" , max( x$intptlat ) )
+
+# proj4string( nyc.shp ) <- projection
+# nyc.shp <- spTransform( nyc.shp , CRS( projection ) )
+
+
+
+tf <- tempfile()
+for ( this.county in nyc.counties ){
+
+	this.file <- 
+		paste0(
+			"http://www2.census.gov/geo/tiger/TIGER2013/AREAWATER/tl_2013_36" ,
+			this.county ,
+			"_areawater.zip"
+		)
+		
+	download.file( this.file , tf )
+	
+	z <- unzip( tf , exdir = tempdir() )
+	
+	nyc.shp <- readShapePoly( z[ grep( 'shp$' , z ) ] )
+
+	water <- fortify( nyc.shp )
+	water <- geom_polygon(data = water , aes(x=long,y=lat,group=group), fill='white')
+	
+	myplot <- myplot + water
+	
+}
+
+
+
+# # end of step 7 # #
+# # # # # # # # # # #
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # # # # # # # # # # # # # # # # # # # # # # #
 # # step 5: decide on your map parameters # #
 
@@ -317,7 +520,7 @@ library(mapproj)
 # your map to look:  the projection and coloring
 
 # the options below simply use hadley wickham's ggplot2
-# with the census block-level poverty rates and centroids
+# with the census tract-level persons per room and centroids
 
 
 # initiate the simple map
@@ -330,6 +533,57 @@ nyc.map <-
 		xlab = NULL ,
 		ylab = NULL
 	)
+
+# remove all map crap.
+nyc.map <- 
+	nyc.map + 
+
+	scale_x_continuous( breaks = NULL ) +
+
+    scale_y_continuous( breaks = NULL ) +
+
+    theme(
+		legend.position = "none" ,
+		panel.grid.major = element_blank(),
+		panel.grid.minor = element_blank(),
+		panel.background = element_blank(),
+		panel.border = element_blank(),
+		axis.ticks = element_blank()
+	)
+
+
+# print the map without any projection
+nyc.map
+
+# print the map with an albers projection.
+nyc.map + coord_map( project = "albers" , lat0 = min( x$intptlat ) , lat1 = max( x$intptlat ) )
+# see ?mapproject for a zillion alternatives
+
+
+nyc.map + coord_map("gilbert")
+nyc.map + coord_map("lagrange")
+nyc.map + coord_map("orthographic")
+nyc.map + coord_map("stereographic")
+nyc.map + coord_map("conic", lat0 = 40.7127 )
+nyc.map + coord_map("bonne", lat0 = 40.7127 )
+
+
+
+# if you like that projection, store it in the map object.
+ct.map <- 
+	ct.map + 
+	coord_map( project = "albers" , lat0 = min( x$intptlat ) , lat1 = max( x$intptlat ) )
+
+
+# check out some purty colors.
+ct.map + scale_colour_gradient( low = 'green' , high = 'red' )
+
+ct.map + scale_colour_gradient( low = 'white' , high = 'blue' )
+
+ct.map + scale_colour_gradient( low = muted( 'blue' ) , high = muted( 'red' ) )
+
+
+
 
 # choose your coloring and severity from the midpoint
 nyc.map <- 
@@ -648,3 +902,8 @@ box()
 
 stop( "do you want to use the nyc specific projection for this?" )
 
+
+
+
+stop( "distort the maps and then plot with BASE plotting" )
+# http://stackoverflow.com/questions/26493524/what-projections-in-r-will-fatten-a-city-map/26524293#26524293
