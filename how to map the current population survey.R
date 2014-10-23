@@ -631,6 +631,8 @@ gam.fit <-
 # # # # # # # # # # # # # # # # # # # #
 # # step 8: make a grid and predict # #
 
+library(raster)
+
 x.range <- bbox( ct.shp.out )[ 1 , ]
 y.range <- bbox( ct.shp.out )[ 2 , ]
 
