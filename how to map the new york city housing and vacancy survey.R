@@ -158,10 +158,15 @@ sf1ny.uz <- unzip( sf1ny.tf , exdir = tempdir() )
 
 
 # file layout from http://www.census.gov/prod/cen2010/doc/sf1.pdf#page=18
-sf1ny <- read.fwf( sf1ny.uz[ grep( "nygeo2010" , sf1ny.uz ) ] , c( -8 , 3 , -16 , 2 , 3 , -22 , 6 , 1 , 4 , -253 , 9 , -9 , 11 , 12 ) )
+sf1ny <- 
+	read.fwf( 
+		sf1ny.uz[ grep( "nygeo2010" , sf1ny.uz ) ] , 
+		c( -8 , 3 , -16 , 2 , 3 , -4 , 5 , -4 , 5 , -4 , 6 , 1 , 4 , -106 , 5 , -142 , 9 , -9 , 11 , 12 ) 
+	)
 
 # add columns names matching the census bureau, so it's easy to read
-names( sf1ny ) <- c( "sumlev" , "state" , "county" , "tract" , "blkgrp" , "block" , "pop100" , "intptlat" , "intptlon" )
+names( sf1ny ) <- 
+	c( "sumlev" , "state" , "county" , "cousub" , "place" , "tract" , "blkgrp" , "block" , "zcta5" , "pop100" , "intptlat" , "intptlon" )
 
 # summary level 101 has census tracts and census blocks
 sf1ny.101 <- subset( sf1ny , sumlev == "101" )
@@ -305,30 +310,73 @@ x <- x[ , c( 'pproom' , 'weight' , 'intptlat' , 'intptlon' ) ]
 # # # # # # # # # # #
 
 
-# # # # # # # # # # # #
-# # step 5: outline # #
+# # # # # # # # # # # # # # # # # # # # # # #
+# # step 5: decide on your map parameters # #
 
 library(maptools)
 library(ggplot2)
+library(rgdal)
+library(RColorBrewer)
+
+# before you ever touch surface smoothing or kriging,
+# make some decisions about how you generally want
+# your map to look:  the projection and coloring
+
+# the options below simply use hadley wickham's ggplot2
+# with the census block-level poverty rates and centroids
 
 
-shpny.tf <- tempfile()
+# initiate a simple map
+nyc.map <- 
+	ggplot( data = x , aes( x = intptlon , y = intptlat ) ) +
+	geom_point( data = x , aes( colour = pproom ) )
 
-download.cache(
-	"http://www2.census.gov/geo/tiger/TIGER2010/COUNTY/2010/tl_2010_36_county10.zip" ,
-	shpny.tf ,
-	mode = 'wb'
-)
-# note: to re-download a file from scratch, add the parameter usecache = FALSE
+# remove all map crap.
+nyc.map <- 
+	nyc.map + 
+	
+	xlab( "" ) + ylab( "" ) +
 
-shpny.uz <- unzip( shpny.tf , exdir = tempdir() )
+	scale_x_continuous( breaks = NULL ) +
 
-ny.shp <- readShapePoly( shpny.uz[ grep( 'shp$' , shpny.uz ) ] )
+    scale_y_continuous( breaks = NULL ) +
 
-# sfname <- z[ grep( 'shp$' , z ) ]
+    theme(
+		legend.position = "none" ,
+		panel.grid.major = element_blank(),
+		panel.grid.minor = element_blank(),
+		panel.background = element_blank(),
+		panel.border = element_blank(),
+		axis.ticks = element_blank()
+	)
 
-# ny.shp <- readOGR( sfname  , layer = gsub( "\\.shp" , "" , basename( sfname ) ) )
+# print the map without any projection
+nyc.map
 
+
+# check out some purty colors.
+
+# from http://colorbrewer2.org/
+
+# three sequential color schemes
+YlOrBr.3.p <- colorRampPalette( brewer.pal( 3 , "YlOrBr" ) )
+YlOrBr.9.p <- colorRampPalette( brewer.pal( 9 , "YlOrBr" ) )
+Purples.9.p <- colorRampPalette( brewer.pal( 9 , "Purples" ) )
+
+# one diverging color schemes
+RdGy.11.p <- colorRampPalette( rev( brewer.pal( 11 , "RdGy" ) ) )
+
+# here's what the map looks like in black n white.
+nyc.map + scale_colour_gradient( low = 'white' , high = 'black' )
+
+# or one of the colorbrewer schemes
+nyc.map + scale_colour_gradientn( colours = YlOrBr.3.p( 100 ) )
+nyc.map + scale_colour_gradientn( colours = YlOrBr.9.p( 100 ) )
+nyc.map + scale_colour_gradientn( colours = RdGy.11.p( 100 ) )
+nyc.map + scale_colour_gradientn( colours = Purples.9.p( 100 ) )
+
+# download and read-in the new york city parks shapefile
+tf <- tempfile()
 
 download.cache( "http://www.nyc.gov/html/dpr/nycbigapps/DPR_Parks_001.zip" , tf )
 
@@ -336,464 +384,185 @@ z <- unzip( tf , exdir = tempdir() )
 
 sfname <- z[ grep( 'shp$' , z ) ]
 
+# new york city's shapefiles are not in longlat projection format, so
+# use `readOGR` instead of `readShapePoly` here to capture the map projection
 parks.shp <- readOGR( sfname  , layer = gsub( "\\.shp" , "" , basename( sfname ) ) )
 
-# new.parks <- spTransform( parks.shp , ny.shp@proj4string )
-new.parks <- spTransform( parks.shp , CRS("+proj=longlat") )
+# convert the shapefile to longlat (which matches the us census bureau's summary file #1)
+parks.shp <- spTransform( parks.shp , CRS( "+proj=longlat" ) )
+# now `parks.shp` will overlay properly with us census bureau files.
 
+# prepare the parks shapefile for ggplot2
+parks <- fortify( parks.shp )
 
+# the `parks.shp` has a weird circle in the upper-left.
+parks <- subset( parks , long > -75 )
+# hack it off by removing all points to the west of -75 longitude
 
-
-# ny2 <- spTransform( ny.shp , CRS("+proj=longlat") )
-
-# initiate the simple map
-nyc.map <- 
-	ggplot( data = x , aes( x = intptlon , y = intptlat ) ) +
-	geom_point( data = x , aes( colour = pproom ) )
-	
-xlim <- summary( x$intptlon )[ c( 1 , 6 ) ]
-ylim <- summary( x$intptlat )[ c( 1 , 6 ) ]
-
-nyc.map <-
-	nyc.map +
-	scale_x_continuous( limits = xlim ) +
-	scale_y_continuous( limits = ylim )
-	
-nyc.map + scale_colour_gradient( low = 'white' , high = 'black' )
-
-tf <- tempfile()
-
-parks <- fortify( new.parks )
-
-library(plyr)
-parks2 <- ddply( parks , .(piece) , function(x) rbind( x , parks[ 1 , ] ) )
-
-# blank out parks
+# create a dark green layer of parks in new york city
 park.layer <- 
 	geom_polygon( 
-		data = parks2 , 
+		data = parks , 
 		aes( x = long , y = lat , group = group ) , 
-		fill = 'darkgreen' 
+		fill = '#abdda4' 
 	)
 
-# closer, eh?
+# that's what the map looks like so far..
 nyc.map + park.layer
 
+# ..save it if you like.
 nyc.map <- nyc.map + park.layer
 
-
-for ( this.county in nyc.counties ){
-
-	this.file <- 
-		paste0(
-			"http://www2.census.gov/geo/tiger/TIGER2013/AREAWATER/tl_2013_36" ,
-			this.county ,
-			"_areawater.zip"
-		)
-		
-	download.cache( this.file , tf )
-	
-	z <- unzip( tf , exdir = tempdir() )
-	
-	nyc.shp <- readShapePoly( z[ grep( 'shp$' , z ) ] )
-
-	water <- fortify( nyc.shp )
-	
-	this.layer <- geom_polygon( data = water , aes( x = long , y = lat , group = group ) , fill = 'lightblue' )
-	
-	nyc.map <- nyc.map + this.layer
-		
-}
-
-
+# oh sorry, if you'd like black & white again, add this segment.
 nyc.map + scale_colour_gradient( low = 'white' , high = 'black' )
 
+# download and read-in the new york city clipped-to-shoreline borough map
+download.cache( "http://www.nyc.gov/html/dcp/download/bytes/nybb_14c.zip" , tf )
+# from http://www.nyc.gov/html/dcp/html/bytes/districts_download_metadata.shtml
+
+z <- unzip( tf , exdir = tempdir() )
+
+sfname <- z[ grep( 'shp$' , z ) ]
+
+# once again, new york city's shapefiles are not in longlat projection format, so
+# use `readOGR` instead of `readShapePoly` here to capture the map projection
+boro.shp <- readOGR( sfname  , layer = gsub( "\\.shp" , "" , basename( sfname ) ) )
+
+# convert the shapefile to longlat (which matches the us census bureau's summary file #1)
+boro.shp <- spTransform( boro.shp , CRS( "+proj=longlat" ) )
+# now `boro.shp` will overlay properly with us census bureau files.
+
+# prepare the boro shapefile for ggplot2
+boro <- fortify( boro.shp )
 
 
-
-shpny.tf <- tempfile()
-
-download.cache(
-	"http://www2.census.gov/geo/tiger/TIGER2010/COUNTY/2010/tl_2010_36_county10.zip" ,
-	shpny.tf ,
-	mode = 'wb'
-)
-# note: to re-download a file from scratch, add the parameter usecache = FALSE
-
-shpny.uz <- unzip( shpny.tf , exdir = tempdir() )
-
-ny.shp <- readShapePoly( shpny.uz[ grep( 'shp$' , shpny.uz ) ] )
-
-# limit the shapefile to only the five boroughs
-borough.borders <- subset( ny.shp , as.numeric( as.character( COUNTYFP10 ) ) %in% as.numeric( nyc.counties ) )
-
-# prepare borough borders for ggplot2
-bbor <- fortify( borough.borders )
-
-nyc.map + geom_path( bbor , aes( x = long , y = lat , group = group ) )
-
-
-+ coord_map( "newyorker" , r = 20 )
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# go back to summary file #1 and
-# calculate the relative population in all five boroughs
-popb <- 
-	aggregate( 
-		sf1.bo$pop100 , 
-		by = list( sf1.bo[ , 'boroname' ] ) , 
-		sum 
+# create a borough-border around the city
+boro.layer <- 
+	geom_path( 
+		data = boro , 
+		aes( x = long , y = lat , group = group ) 
 	)
 
-popb <- 
-	transform( 
-		popb , 
-		# convert borough names to county names
-		NAME10 = 
-			ifelse( Group.1 == 'Manhattan' , 'New York' ,
-			ifelse( Group.1 == 'Brooklyn' , 'Kings' ,
-			ifelse( Group.1 == 'Staten Island' , 'Richmond' , 
-				# the bronx and queens are the same
-				as.character( Group.1 ) ) ) )
-	)
-	
-# calculate each borough's relative share of the total city population
-popb$share.of.pop <- prop.table( popb$x )		
-
-# center these five numbers at one.
-popb$scale.by.pop <- popb$share.of.pop / mean( popb$share.of.pop )
-
-# look at that.  scaled by population alone..
-print( popb )
-# ..manhattan is much smaller than both brooklyn and queens
-
-# the shapefile already contains land area
-popb <- merge( nyc.shp@data[ , c( 'NAME10' , 'ALAND10' ) ]  , popb )
-# so pull that onto `popb`
-
-
-# the shapefiles include the land area, so
-# re-run the calculation above, but with population density instead.
-popb$pop.density <- popb$x / popb$ALAND10
-popb$relative.density <- prop.table( popb$pop.density )
-popb$scale.by.density <- popb$relative.density / mean( popb$relative.density )
-
-
-# alright!  now manhattan is as important as it thinks it is
-print( popb[ , c( 'NAME10' , 'scale.by.density' ) ] )
-
-# break all five boroughs into individual shapefiles
-boro.list <-
-	list( 
-		subset( nyc.shp , NAME10 == 'New York' ) ,
-		subset( nyc.shp , NAME10 == 'Bronx' ) ,
-		subset( nyc.shp , NAME10 == 'Kings' ) ,
-		subset( nyc.shp , NAME10 == 'Queens' ) ,
-		subset( nyc.shp , NAME10 == 'Richmond' )
-	)
-	
-# scale the five borough shapefiles by their relative population densities
-boro.list <- lapply( boro.list , function( z ) elide( z , scale = popb[ popb$NAME10 == z$NAME10 , 'scale.by.density' ] ) )
-
-# combine them back into a single shapefile
-nyc.scaled <- Reduce( 'spRbind' , boro.list )
-
-# well that looks like shit.
-plot( nyc.scaled )
-# we gotta do this by hand.
-
-# failed attempt at 
-# http://stackoverflow.com/questions/26493524/what-projections-in-r-will-fatten-a-city-map
-
-
-
-# break all five boroughs into individual shapefiles
-man.shp <- boro.list[[1]]
-bnx.shp <- boro.list[[2]]
-bln.shp <- boro.list[[3]]
-que.shp <- boro.list[[4]]
-si.shp <- boro.list[[5]]
-
-
-plot( Reduce( 'spRbind' , list( man.shp , bnx.shp , bln.shp , que.shp , si.shp ) ) )
-
-man.shp <- elide( man.shp , shift = c( 0 , 0 ) )
-bnx.shp <- elide( bnx.shp , shift = c( 1.5 , 1.5 ) )
-bln.shp <- elide( bln.shp , shift = c( 1 , 0 ) )
-que.shp <- elide( que.shp , shift = c( 2 , 0 ) )
-si.shp <- elide( si.shp , shift = c( -0.25 , -0.25 ) )
-
-plot( Reduce( 'spRbind' , list( man.shp , bnx.shp , bln.shp , que.shp , si.shp ) ) )
-
-
-
-# scale all five boroughs relative to their population 
-man.shp <- elide( man.shp , scale = popb[ popb$NAME10 == man.shp$NAME10 , 'scale.by.density' ] )
-bro.shp <- elide( bro.shp , scale = popb[ popb$NAME10 == bro.shp$NAME10 , 'scale.by.density' ] )
-kin.shp <- elide( kin.shp , scale = popb[ popb$NAME10 == kin.shp$NAME10 , 'scale.by.density' ] )
-que.shp <- elide( que.shp , scale = popb[ popb$NAME10 == que.shp$NAME10 , 'scale.by.density' ] )
-si.shp <- elide( si.shp , scale = popb[ popb$NAME10 == si.shp$NAME10 , 'scale.by.density' ] )
-
-boroughs.shp <- spRbind( man.shp , bro.shp )
-
-		kin.shp ,
-		que.shp ,
-		si.shp 
-	)
-		
-		nyc, others)
-
-
-
-	
-shp.list <- lapply( shp.list , function( z ) elide( z , scale = z@data$scale.by.density ) )
-
-bronx.shp <- elide( bronx.shp , scale = man.shp@data$scale )
-man.shp <- elide( man.shp , scale = man.shp@data$scale )
-man.shp <- elide( man.shp , scale = man.shp@data$scale )
-man.shp <- elide( man.shp , scale = man.shp@data$scale )
-
-
-nyc <- nyc.shp[nyc.shp$NAME10 == "New York",]
-others <- nyc.shp[nyc.shp$NAME10 != "New York",]
-
-nyc <- elide(nyc, scale=1.1)
-others <- elide(others, scale=1)
-boroughs.shp <- spRbind(nyc, others)
-
-# projection <- paste0( "+proj=albers +lat_0=" , min( x$intptlat ) , " +lat_1=" , max( x$intptlat ) )
-
-# proj4string( nyc.shp ) <- projection
-# nyc.shp <- spTransform( nyc.shp , CRS( projection ) )
-
-
-
-tf <- tempfile()
-for ( this.county in nyc.counties ){
-
-	this.file <- 
-		paste0(
-			"http://www2.census.gov/geo/tiger/TIGER2013/AREAWATER/tl_2013_36" ,
-			this.county ,
-			"_areawater.zip"
-		)
-		
-	download.file( this.file , tf )
-	
-	z <- unzip( tf , exdir = tempdir() )
-	
-	nyc.shp <- readShapePoly( z[ grep( 'shp$' , z ) ] )
-
-	water <- fortify( nyc.shp )
-	water <- geom_polygon(data = water , aes(x=long,y=lat,group=group), fill='white')
-	
-	myplot <- myplot + water
-	
-}
-
-
-
-# # end of step 7 # #
-# # # # # # # # # # #
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# # # # # # # # # # # # # # # # # # # # # # #
-# # step 5: decide on your map parameters # #
-
-library(ggplot2)
-library(scales)
-library(mapproj)
-
-# before you ever touch surface smoothing or kriging,
-# make some decisions about how you generally want
-# your map to look:  the projection and coloring
-
-# the options below simply use hadley wickham's ggplot2
-# with the census tract-level persons per room and centroids
-
-
-# initiate the simple map
-nyc.map <- 
-	qplot( 
-		intptlon , 
-		intptlat , 
-		data = x , 
-		colour = pproom ,
-		xlab = NULL ,
-		ylab = NULL
-	)
-
-# remove all map crap.
-nyc.map <- 
-	nyc.map + 
-
-	scale_x_continuous( breaks = NULL ) +
-
-    scale_y_continuous( breaks = NULL ) +
-
-    theme(
-		legend.position = "none" ,
-		panel.grid.major = element_blank(),
-		panel.grid.minor = element_blank(),
-		panel.background = element_blank(),
-		panel.border = element_blank(),
-		axis.ticks = element_blank()
-	)
-
-
-# print the map without any projection
-nyc.map
-
-# print the map with an albers projection.
-nyc.map + coord_map( project = "albers" , lat0 = min( x$intptlat ) , lat1 = max( x$intptlat ) )
-# see ?mapproject for a zillion alternatives
-
-
-nyc.map + coord_map("gilbert")
-nyc.map + coord_map("lagrange")
-nyc.map + coord_map("orthographic")
-nyc.map + coord_map("stereographic")
-nyc.map + coord_map("conic", lat0 = 40.7127 )
-nyc.map + coord_map("bonne", lat0 = 40.7127 )
-
-
-
-# if you like that projection, store it in the map object.
-ct.map <- 
-	ct.map + 
-	coord_map( project = "albers" , lat0 = min( x$intptlat ) , lat1 = max( x$intptlat ) )
-
-
-# check out some purty colors.
-ct.map + scale_colour_gradient( low = 'green' , high = 'red' )
-
-ct.map + scale_colour_gradient( low = 'white' , high = 'blue' )
-
-ct.map + scale_colour_gradient( low = muted( 'blue' ) , high = muted( 'red' ) )
-
-
-
-
-# choose your coloring and severity from the midpoint
-nyc.map <- 
-	nyc.map + 
-
-	scale_colour_gradient2( 
-	
-		# low person per room rates are good
-		low = muted( "blue" ) , 
-		# so invert the default colors
-		high = muted( "red" ) , 
-		
-		# shows the most severe difference in coloring
-		midpoint = mean( unique( x$pproom ) )
-		
-		# shows the population-weighted difference in coloring
-		# midpoint = weighted.mean( x$pproom , x$weight )
-	)
-
-	
-# remove all map crap.
-
-nyc.map <- 
-	nyc.map + 
-
-	scale_x_continuous( breaks = NULL ) +
-
-    scale_y_continuous( breaks = NULL ) +
-
-    theme(
-		legend.position = "none" ,
-		panel.grid.major = element_blank(),
-		panel.grid.minor = element_blank(),
-		panel.background = element_blank(),
-		panel.border = element_blank(),
-		axis.ticks = element_blank()
-	)
-
-
-# print the map without any projection
-nyc.map
-
-# print the map with an albers projection.
-nyc.map + coord_map( project = "albers" , lat0 = min( x$intptlat ) , lat1 = max( x$intptlat ) )
-# see ?mapproject for a zillion alternatives
+# and would you look at that?
+nyc.map + boro.layer
+# some of the city parks are in the ocean.  we'll have to snip off those later.
+
+# let's save all of those attributes, including the coloring
+nyc.map <- nyc.map + boro.layer + scale_colour_gradient( low = 'white' , high = 'black' )
+
+# and finally, try some projections!
+
+# which of these do you prefer?
+nyc.map + coord_map( "newyorker" , r = 0 )
+nyc.map + coord_map( "newyorker" , r = 10 )
+nyc.map + coord_map( "newyorker" , r = 20 )
+nyc.map + coord_map( "newyorker" , r = 30 )
+nyc.map + coord_map( "newyorker" , r = 40 )
+
+nyc.map <- nyc.map + coord_map( "newyorker" , r = 20 )
 
 # # end of step 5 # #
 # # # # # # # # # # #
 
 
+# # # # # # # # # # # #
+# # step 6: outline # #
+
+library(raster)
+
+# new york city has lots of water areas within the city limits
+# instead of the regular census bureau tiger shapefiles,
+# the city government provides the cleanest clipped shapefile.
+
+# draw a rectangle 5% bigger than the city limits
+boro.shp.out <- as( 1.1 * extent( boro.shp ), "SpatialPolygons" )
+
+# # end of step 6 # #
+# # # # # # # # # # #
+
 
 # # # # # # # # # # # # # # # # # #
-# # step 6: tie knots and krige # #
+# # step 7: tie knots and krige # #
 
+library(sqldf)
+
+# how many knots should you make? #
+
+# knots are the computationally-intensive part of this process,
+# choose as many as your computer and your patience can handle.
+
+# you should aim for between 100 - 999 knots,
+# but numbers closer to 1,000 will overload smaller computers
+
+# with census microdata, you've often already got easy access to a relevant geographic grouping
+# however for new york city, most of the groupings are either too big to be useful as knots,
+# or too small that they'll overload smaller computers.
+
+
+# the city of new york contains
+nrow( unique( sf1.bo[ , c( 'boroname' , 'neighborhood' ) ] ) )
+# subboro areas, which is too small of a number of knots.
+
+# the city also has
+nrow( unique( sf1.bo[ , c( 'boroname' , 'tract' ) ] ) )
+# census tracts, which will overload most computers
+
+# county subdivision and place codes do not exist within the city limits.
+nrow( unique( sf1.bo[ , c( 'boroname' , 'cousub' , 'place' ) ] ) )
+
+# so be creative.  take another look at the summary file #1 documentation
+# http://www.census.gov/prod/cen2010/doc/sf1.pdf#page=18
+# oh hayyyy how about zip code tabulation areas?  that could work.
+nrow( unique( sf1.bo[ , c( 'boroname' , 'zcta5' ) ] ) )
+# nope, too many for a computer with 3gb of ram.
+
+# if you have a powerful computer, you might try tying knots at the census tract-level
+# otherwise, the neighborhods defined by the new york city housing and vacancy survey work.
+
+# `sqldf` does not like periods in the data.frame name
+# # sf1_bo <- sf1.bo
+
+# within each borough x zcta5,
+# calculate the population-weighted mean of the coordinates
+# and (for smoothing) the weighted share at each borough-zcta5 centroid
+# # nyc.knots <- 
+	# # sqldf( 
+		# # "select 
+			# # boroname , zcta5 ,
+			# # sum( pop100 ) as pop100 , 
+			# # sum( pop100 * intptlon ) / sum( pop100 ) as intptlon ,
+			# # sum( pop100 * intptlat ) / sum( pop100 ) as intptlat
+		# # from sf1_bo
+		# # group by
+			# # boroname , zcta5"
+	# # )
+# note: this screws up coordinates that cross the international date line
+# or the equator.  in the united states, only alaska's aleutian islands do this
+# and those geographies will be thrown out later.  so it doesn't matter.
+
+# clear up RAM
+rm( sf1.bo ) ; gc()
+
+
+# interpolation option one #
 library(fields)
 
-# how many knots should you make?
+# instead, we can let the `fields` package attempt to guess knots for you,
+xknots <- cover.design( cbind( x$intptlon , x$intptlat ) , 200 )$design
+# # # # note: tying 200 knots instead of 100 knots takes about an hour longer
+# # # # but the final map looks a bit better.  if you're just passing through, use 100.
 
-# cannot be more than `nrow( x )`
-# but one hundred is okay.
-# if you've got a powerful computer,
-# you can increase this
-number.of.knots <- min( 100 , nrow( x ) )
-# number.of.knots <- min( 250 , nrow( x ) )
-
-
-stop( "stop using knots!  use population-weighted centroids instead" )
-xknots <- cover.design( cbind( x$intptlon , x$intptlat ) , number.of.knots )$design
-
+# you can look at the estimated knots
+plot( xknots )
 
 krig.fit <-
 	Krig(
 		cbind( x$intptlon , x$intptlat ) ,
 		x$pproom ,
 		weights = x$weight ,
-		knots = xknots # ,
-		# Covariance = "Matern"
+		knots = xknots
+		# if you computed the knots yourself, you'll need this knots= line instead:
+		# knots = cbind( nyc.knots$intptlon , nyc.knots$intptlat )
 	)
 
 # that is: what is the (weighted) relationship between
@@ -804,7 +573,8 @@ krig.fit <-
 surface( krig.fit )
 # you're almost there!
 
-# and here's an alternate approach using the `gam` function
+
+# interpolation option two #
 library(mgcv)
 
 gam.fit <- 
@@ -814,38 +584,10 @@ gam.fit <-
 		data = x
 	)
 	
-# # end of step 6 # #
-# # # # # # # # # # #
 
-
-# # # # # # # # # # # #
-# # step 7: outline # #
-
-library(maptools)
-
-shpny.tf <- tempfile()
-
-download.cache(
-	"http://www2.census.gov/geo/tiger/TIGER2010/COUNTY/2010/tl_2010_36_county10.zip" ,
-	shpny.tf ,
-	mode = 'wb'
-)
-# note: to re-download a file from scratch, add the parameter usecache = FALSE
-
-shpny.uz <- unzip( shpny.tf , exdir = tempdir() )
-
-ny.shp <- readShapePoly( shpny.uz[ grep( 'shp$' , shpny.uz ) ] )
-
-# limit the shapefile to only the five boroughs
-nyc.shp <- subset( ny.shp , as.numeric( as.character( COUNTYFP10 ) ) %in% c( 5 , 47 , 61 , 81 , 85 ) )
-
-
-
-# projection <- paste0( "+proj=albers +lat_0=" , min( x$intptlat ) , " +lat_1=" , max( x$intptlat ) )
-
-# proj4string( nyc.shp ) <- projection
-# nyc.shp <- spTransform( nyc.shp , CRS( projection ) )
-
+# for the third alternative, keep reading.
+	
+	
 # # end of step 7 # #
 # # # # # # # # # # #
 
@@ -853,9 +595,10 @@ nyc.shp <- subset( ny.shp , as.numeric( as.character( COUNTYFP10 ) ) %in% c( 5 ,
 # # # # # # # # # # # # # # # # # # # #
 # # step 8: make a grid and predict # #
 
+library(raster)
 
-x.range <- summary( x$intptlon )[ c( 1 , 6 ) ]
-y.range <- summary( x$intptlat )[ c( 1 , 6 ) ]
+x.range <- bbox( boro.shp.out )[ 1 , ]
+y.range <- bbox( boro.shp.out )[ 2 , ]
 
 # add five percent on each side
 x.diff <- abs( x.range[ 2 ] - x.range[ 1 ] ) * 0.05
@@ -866,177 +609,251 @@ x.range[ 2 ] <- x.range[ 2 ] + x.diff
 y.range[ 1 ] <- y.range[ 1 ] - y.diff
 y.range[ 2 ] <- y.range[ 2 ] + y.diff
 
+# choose the number of ticks (in each direction) on your grid
+grid.length <- 500
 
-
-# this is a small map, so using a very fine grid does not take much time
-grid.length <- 1000
-
-
-# create three identical grid objects
-grd <- gam.grd <- krig.grd <- 
+# create some grid data.frame objects, one for each interpolation type
+grd <- gam.grd <- krig.grd <-
 	expand.grid(
-		intptlon = seq( from = bbox( nyc.shp )[1,1] , to = bbox( nyc.shp )[1,2] , length = grid.length ) , 
-		intptlat = seq( from = bbox( nyc.shp )[2,1] , to = bbox( nyc.shp )[2,2] , length = grid.length )
-	)
-
-outer.grd <- 
-	data.frame(
-		intptlon = c( x.range[1] - x.diff , x.range[2] + x.diff ) , 
-		intptlat = c( y.range[1] - y.diff , y.range[2] + y.diff )
+		intptlon = seq( from = x.range[1] , to = x.range[2] , length = grid.length ) , 
+		intptlat = seq( from = y.range[1] , to = y.range[2] , length = grid.length )
 	)
 
 
 # along your rectangular grid,
 # what are the predicted values of
-# the poverty rate?
+# the number of persons per room?
 krig.grd$kout <- predict( krig.fit , krig.grd )
 
 # alternate grid using gam.fit
 gam.grd$gamout <- predict( gam.fit , gam.grd )
 
+# interpolation option three #
+library(spatstat)
+
+smoout <- 
+	Smooth(
+		ppp( 
+			x$intptlon , 
+			x$intptlat , 
+			x.range ,
+			y.range ,
+			marks = x$pproom
+		) ,
+		# here's a good starting point for sigma, but screw around with this value.
+		sigma = 0.05 ,
+		weights = x$weight
+	)
+
+smoo.grd <-	
+	expand.grid(
+		intptlon = seq( from = smoout$xrange[1] , to = smoout$xrange[2] , length = smoout$dim[1] ) , 
+        intptlat = seq( from = smoout$yrange[1] , to = smoout$yrange[2] , length = smoout$dim[2] )
+	)
+
+smoo.grd$smoout <- as.numeric( t( smoout$v ) )
+
 # # end of step 8 # #
 # # # # # # # # # # #
 
 
+# # # # # # # # # # # # # # # # # # # # #
+# # step 9: ggplot and choose options # #
 
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-# # step 9: create a polygon to cover everything outside the boundary # #
-
-library(rgeos)
-
-# convert grd to SpatialPoints object
-coordinates( outer.grd ) <- c( "intptlon" , "intptlat" )
-
-# draw a rectangle around the grd
-nyc.shp.diff <- gEnvelope( outer.grd )
-nyc.shp.out <- gEnvelope( nyc.shp )
+library(ggplot2)
+library(mapproj)
 
 
-# Create a bounding box 10% bigger than the bounding box of connecticut
-# x_excess = (nyc.shp@bbox['x','max'] - nyc.shp@bbox['x','min'])*0.1
-# y_excess = (nyc.shp@bbox['y','max'] - nyc.shp@bbox['y','min'])*0.1
-# x_min = nyc.shp@bbox['x','min'] - x_excess
-# x_max = nyc.shp@bbox['x','max'] + x_excess
-# y_min = nyc.shp@bbox['y','min'] - y_excess
-# y_max = nyc.shp@bbox['y','max'] + y_excess
-# bbox = matrix(c(x_min,x_max,x_max,x_min,x_min,
-                # y_min,y_min,y_max,y_max,y_min),
-              # nrow = 5, ncol =2)
-# bbox = Polygon(bbox, hole=FALSE)
-# bbox = Polygons(list(bbox), "bbox")
-# nyc.shp.out = SpatialPolygons(Srl=list(bbox), pO=1:1, proj4string=nyc.shp@proj4string)
+# # # psa # # # 
+# capping your outliers might drastically change your map.
+# if you find the 25th percentile and 75th percentile with
+# summary( krig.grd$kout )
+# and then replace all `kout` values below the 25th or above the 75th
+# with those capped percentile endpoints, i promise promise promise
+# your maps will appear quite different.  you could cap at the 25th and 75th with..
+# grd.sum <- summary( krig.grd$kout )
+# krig.grd[ krig.grd$kout > grd.sum[ 5 ] , 'kout' ] <- grd.sum[ 5 ]
+# krig.grd[ krig.grd$kout < grd.sum[ 2 ] , 'kout' ] <- grd.sum[ 2 ]
+# # # end # # # 
 
 
+# you don't want to cap at the 25th and 75th?
+# well consider one other idea: at least cap at the 5th and 95th of the nation
+# this will also increase the visible gradient ultimately plotted.
 
+# for example, the lowest krigged value is negative.
+summary( krig.grd$kout )
+# that's obviously not right.
 
-# proj4string( nyc.shp.diff ) <- projection
-# nyc.shp.diff <- spTransform( nyc.shp.diff , CRS( projection ) )
+# if a numeric vector has values below the 5th percentile or above the 75th percentile, cap 'em
+minnmax.at.0595 <- 
+	function( z ){ 
+		q0595 <- quantile( z , c( 0.05 , 0.95 ) )
+		z[ z < q0595[ 1 ] ] <- q0595[ 1 ]
+		z[ z > q0595[ 2 ] ] <- q0595[ 2 ]
+		z
+	}
 
-# get the difference between your boundary and the rectangle
-# nyc.shp.diff <- gDifference( bbox , nyc.shp )
-nyc.shp.diff <- gDifference( nyc.shp.out , nyc.shp )
+# min and max all numeric values.
+# krig.grd$kout <- minnmax.at.0595( krig.grd$kout )
+# gam.grd$gamout <- minnmax.at.0595( gam.grd$gamout )
+# smoo.grd$smoout <- minnmax.at.0595( smoo.grd$smoout )
+# sometimes this makes the gradient much more visible.
+# but for this statistic, it doesn't do much.
+
+# initiate the krige-based plot
+krg.plot <- 
+	ggplot( data = krig.grd , aes( x = intptlon , y = intptlat ) ) +
+	geom_tile( data = krig.grd , aes( fill = kout ) )
+	
+# initiate the gam-based plot
+gam.plot <- 
+	ggplot( data = gam.grd , aes( x = intptlon , y = intptlat ) ) +
+	geom_tile( data = gam.grd , aes( fill = gamout ) )
+
+# initiate the smooth-based plot
+smooth.plot <- 
+	ggplot( data = smoo.grd , aes( x = intptlon , y = intptlat ) ) +
+	geom_tile( data = smoo.grd , aes( fill = smoout ) )
+
+# view all three grids!
+krg.plot
+gam.plot
+smooth.plot
+
+# choose a projection.  here's one just for new york.
+co <- coord_map( "newyorker" , r = 20 )
+
+# force this projection to work on all object types
+# co2 <- co
+# class(co2) <- c( "hoge" , class( co2 ) )
+# is.linear.hoge <- function(coord) TRUE
+
+# initiate the entire plot
+the.plot <-
+
+	# choose only one of the three interpolation grids
+	krg.plot +
+	# gam.plot +
+	# smooth.plot +
+	
+	# leave include the projection requirements till the end
+	# co2 + 
+	# coord_fixed() +
+	# because they are slow as mercy mercy
+	
+	# blank out the legend and axis labels
+	theme(
+		legend.position = "none" ,
+		axis.title.x = element_blank() ,
+		axis.title.y = element_blank()		
+	) + 
+	
+	# blank out other plot elements
+	scale_x_continuous(breaks = NULL) +
+    scale_y_continuous(breaks = NULL) +
+	theme(
+		panel.grid.major = element_blank(),
+		panel.grid.minor = element_blank(),
+		panel.background = element_blank(),
+		panel.border = element_blank(),
+		axis.ticks = element_blank()
+	)
+
+# print the plot to the screen
+the.plot
+
+# and don't forget about the park layer!
+the.plot + park.layer
+
+# are you alright with saving that?  save it.
+the.plot <- the.plot + park.layer
 
 # # end of step 9 # #
 # # # # # # # # # # #
 
 
-
-stop( "capping your outliers is critically important.  the scale is much more visible if they are maxxed and minned" )
-
-
+# # # # # # # # # # # # # # # # # #
+# # step 10: blank, color, save # #
 
 library(ggplot2)
 library(scales)
-library(mapproj)
+library(raster)
+library(plyr)
+library(rgeos)
+
+# draw a rectangle 15% bigger than the original city
+boro.shp.blank <- as( 1.3 * extent( boro.shp ), "SpatialPolygons" )
+
+# compute the difference between new york city and the rectangle 15% beyond the borders
+boro.shp.diff <- gDifference( boro.shp.blank , boro.shp )
+
+# prepare the difference layer for ggplot2
+outside <- fortify( boro.shp.diff )
+
+# fix any weird island polygons
+outside2 <- ddply( outside , .(piece) , function(x) rbind( x , outside[ 1 , ] ) )
+
+# blank out waterways and coastal areas
+blank.layer <- 
+	geom_polygon( 
+		data = outside2 , 
+		aes( x = long , y = lat , group = id ) , 
+		fill = 'white' 
+	)
+
+# closer, eh?
+the.plot + blank.layer
+
+# store this plot
+the.plot <- the.plot + blank.layer	
+
+# plus the borough outlines.  do you want to outline the boroughs?
+the.plot + boro.layer
+
+# store this layer on top of everything.
+the.plot <- the.plot + boro.layer
+
+# print with the same purty colors
+the.plot + scale_fill_gradient( low = 'white' , high = 'black' )
+the.plot + scale_fill_gradientn( colours = YlOrBr.3.p( 100 ) )
+the.plot + scale_fill_gradientn( colours = YlOrBr.9.p( 100 ) )
+the.plot + scale_fill_gradientn( colours = RdGy.11.p( 100 ) )
+the.plot + scale_fill_gradientn( colours = Purples.9.p( 100 ) )
+
+# ooh i like that one mom, can we keep it can we keep it?
+final.plot <- the.plot + scale_fill_gradientn( colours = Purples.9.p( 100 ) )
+
+# here's the un-projected final plot
+final.plot
+
+# would you like to save this game?
+
+# use cairo-png as your bitmap type
+options( bitmapType = "cairo" )
+
+# save the unprojected file to your current working directory
+ggsave( 
+	"2011 new york city number of persons per room - unprojected.png" ,
+	plot = final.plot ,
+	scale = 2 ,
+	type = "cairo-png" 
+)
+
+# the projection of this map takes a while,
+# so don't waste time printing to the screen.
+
+final.projected.plot <- final.plot + co
+
+# save the unprojected file to your current working directory
+ggsave( 
+	"2011 new york city number of persons per room - projected.png" ,
+	plot = final.projected.plot ,
+	scale = 2 ,
+	type = "cairo-png" 
+)
+# happy?
 
 
-outside <- fortify( nyc.shp.diff )
-# outside <- nyc.shp.diff
-
-# weighted.
-plot <- ggplot(data = krig.grd, aes(x = intptlon, y = intptlat))  #start with the base-plot 
-layer1 <- geom_tile(data = krig.grd, aes(fill = kout ))  #then create a tile layer and fill with predicted values
-layer2 <- geom_polygon(data=outside, aes(x=long,y=lat,group=group), fill='white')
-co <- coord_map( project = "albers" , lat0 = min( x$intptlat ) , lat1 = max( x$intptlat ) )
-# print this to a pdf instead, so it formats properly
-# plot + layer1 + layer2 + co + scale_fill_gradient( low = muted( 'blue' ) , high = muted( 'red' ) )
-# plot + layer1 + layer2 + scale_fill_gradient( low = muted( 'blue' ) , high = muted( 'red' ) )
-layer3 <- geom_path( data = nyc.shp , aes( x=long , y=lat , group = group ) )
-
-co <- coord_map( project = "newyorker" , r = 0 )
-
-myplot <-
-	plot + layer1 + layer2 + layer3 + scale_fill_gradient( low = 'white' , high = muted( 'red' ) )
-
-
-# plot + layer1 + layer2 + co + scale_fill_gradient( low = muted( 'blue' ) , high = muted( 'red' ) ) + coord_equal()
-
-tf <- tempfile()
-for ( this.county in nyc.counties ){
-
-	this.file <- 
-		paste0(
-			"http://www2.census.gov/geo/tiger/TIGER2013/AREAWATER/tl_2013_36" ,
-			this.county ,
-			"_areawater.zip"
-		)
-		
-	download.file( this.file , tf )
-	
-	z <- unzip( tf , exdir = tempdir() )
-	
-	nyc.shp <- readShapePoly( z[ grep( 'shp$' , z ) ] )
-
-	water <- fortify( nyc.shp )
-	water <- geom_polygon(data = water , aes(x=long,y=lat,group=group), fill='white')
-	
-	myplot <- myplot + water
-	
-}
-
-
-
-
-
-
-
-# weighted.
-plot <- ggplot(data = gam.grd, aes(x = intptlon, y = intptlat))  #start with the base-plot 
-layer1 <- geom_tile(data = gam.grd, aes(fill = kout ))  #then create a tile layer and fill with predicted values
-# sol <- fortify( ct.shp )
-# layer2 <- geom_path(data = sol, aes(long, lat), colour = "grey40", size = 1)
-co <- coord_map( project = "albers" , lat0 = min( x$intptlat ) , lat1 = max( x$intptlat ) )
-# print this to a pdf instead, so it formats properly
-# plot + layer1 + layer2 + co + scale_fill_gradient( low = muted( 'blue' ) , high = muted( 'red' ) )
-plot + layer1 + co + scale_fill_gradient( low = muted( 'blue' ) , high = muted( 'red' ) )
-
-
-
-# raster plots
-
-coordinates(krig.grd) <- coordinates(gam.grd) <- c("intptlon", "intptlat")
-gridded(krig.grd) <- gridded(gam.grd) <- TRUE
-krig.r <- raster(krig.grd)
-gam.r <- raster(gam.grd)
-
-colRamp <- colorRampPalette(c(muted("blue"),muted("red")))
-plot(krig.r, axes=FALSE, col=colRamp(100), main="Krig")
-plot(ct.shp.diff, add=TRUE, col="white", border="white", lwd=5)
-degAxis(1)
-degAxis(2)
-box()
-
-plot(gam.r, axes=FALSE, col=colRamp(100), main="GAM")
-plot(ct.shp.diff, add=TRUE, col="white", border="white", lwd=5)
-degAxis(1)
-degAxis(2)
-box()
-
-
-stop( "do you want to use the nyc specific projection for this?" )
-
-
-
-
-stop( "distort the maps and then plot with BASE plotting" )
-# http://stackoverflow.com/questions/26493524/what-projections-in-r-will-fatten-a-city-map/26524293#26524293
+# # end of step ten # #
+# # # # # # # # # # # #
