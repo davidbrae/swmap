@@ -812,6 +812,7 @@ library(ggplot2)
 library(scales)
 library(raster)
 library(plyr)
+library(rgeos)
 
 # draw a rectangle 15% bigger than the original state
 ct.shp.blank <- as( 1.3 * extent( ct.shp ), "SpatialPolygons" )

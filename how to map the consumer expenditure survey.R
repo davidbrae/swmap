@@ -921,6 +921,7 @@ library(scales)
 library(raster)
 library(plyr)
 library(RColorBrewer)
+library(rgeos)
 
 
 # draw a rectangle 15% bigger than the original state
