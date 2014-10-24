@@ -337,9 +337,10 @@ nyc.map <-
 	
 	xlab( "" ) + ylab( "" ) +
 
-	scale_x_continuous( breaks = NULL ) +
-
-    scale_y_continuous( breaks = NULL ) +
+	# force the x and y axis limits at the shape of the city and don't do anything special for off-map values
+	scale_x_continuous( limits = c( min( x$intptlon ) , max( x$intptlon ) ) , breaks = NULL , oob = squish ) +
+	# since we're going to add lots of surrounding-area detail!
+    scale_y_continuous( limits = c( min( x$intptlat ) , max( x$intptlat ) ) , breaks = NULL , oob = squish ) +
 
     theme(
 		legend.position = "none" ,
@@ -435,7 +436,6 @@ boro.shp <- spTransform( boro.shp , CRS( "+proj=longlat" ) )
 # prepare the boro shapefile for ggplot2
 boro <- fortify( boro.shp )
 
-
 # create a borough-border around the city
 boro.layer <- 
 	geom_path( 
@@ -469,6 +469,8 @@ nyc.map <- nyc.map + coord_map( "newyorker" , r = 20 )
 # # step 6: outline # #
 
 library(raster)
+library(rgdal)
+library(RCurl)
 
 # new york city has lots of water areas within the city limits
 # instead of the regular census bureau tiger shapefiles,
@@ -477,6 +479,129 @@ library(raster)
 # draw a rectangle 5% bigger than the city limits
 boro.shp.out <- as( 1.1 * extent( boro.shp ), "SpatialPolygons" )
 
+# get the directory listing of the folder with all water layers from census
+water.ftp <- 'ftp://ftp2.census.gov/geo/tiger/TIGER2013/AREAWATER/'
+
+water.files <- 
+	paste0(
+		water.ftp , 
+		strsplit( 
+		getURL( 
+			water.ftp , 
+			ftp.use.epsv = FALSE , 
+			ftplistonly = TRUE
+		) , 
+		'\\s+' )[[ 1 ]]
+	)
+
+# limit these files to new york, new jersey, and connecticut
+# you can get more counties than you need, the program will just run a bit slower.
+nynjct.water <- 
+	water.files[ 
+		# bergen, hudson, essex, passaic, morris, somerset, union, middlesex, monmouth in new jersey, or
+		substr( water.files , 61 , 65 ) %in% c( '34003' , '34017' , '34013' , '34031' , '34027' , '34035' , '34039' , '34023' , '34025' ) |
+		
+		# rockland, westchester, nassau, suffolk, orange, putnam in new york state
+		substr( water.files , 61 , 65 ) %in% c( '36087' , '36119' , '36059' , '36103' , '36071' , '36079' ) |
+		
+		# fairfield in connecticut
+		substr( water.files , 61 , 65 ) %in% c( '09001' )
+	]
+
+# download and extract to a temporary directory
+invisible( sapply( nynjct.water , function( x ) {
+	path <- file.path( tempdir() , basename( x ) )
+	download.cache( x , destfile = path , mode = 'wb' )
+	unzip( path , exdir = file.path( tempdir() , 'watershps' ) )
+} ) )
+
+# read in all shps, and prepend shapefile name to identifiers
+shps <- lapply( sub( '\\.zip' , '' , basename( nynjct.water ) ) , function( x ) {
+	shp <- readOGR( file.path( tempdir() , 'watershps' ) , x )
+	shp <- spChFIDs( shp , paste0( x , '_' , sapply( slot( shp , "polygons" ) , slot , "ID" ) ) )
+	shp
+})
+# this step above removes potential duplicate identifiers
+
+# rbind to a single object
+water.shp <- do.call( rbind , as.list( shps ) )
+
+# want to see all of the little waters of the region that can now be blanked out?
+plot( water.shp )
+# these water layers do not come with the city's shapefile, so construct them independently.
+
+# prepare the surrounding region shapefile for ggplot2
+water <- fortify( water.shp )
+
+
+lightblue.water.layer <-
+	geom_polygon( 
+		data = water , 
+		aes( x = long , y = lat , group = group ) , 
+		fill = 'lightblue' 
+	)
+
+# here's the surrounding area water in light blue so you can see it..
+nyc.map + lightblue.water.layer
+
+# ..but we actually want to blank this on the final map,
+# so make it white on the layer that gets saved
+water.layer <- 
+	geom_polygon( 
+		data = water , 
+		aes( x = long , y = lat , group = group ) , 
+		fill = 'white' 
+	)
+
+	
+# outline the surrounding landmasses as well
+ccbf.tf <- tempfile()
+
+# new york city borders the ocean,
+# so use the census bureau's cartographic boundary files
+# instead of the regular tiger shapefiles
+
+download.cache( 
+	"http://www2.census.gov/geo/tiger/GENZ2013/cb_2013_us_county_500k.zip" ,
+	ccbf.tf ,
+	mode = 'wb'
+)
+
+ccbf.uz <- unzip( ccbf.tf , exdir = tempdir() )
+
+ccbf.shp <- readShapePoly( ccbf.uz[ grep( 'shp$' , ccbf.uz ) ] )
+
+nynjct.shp <- 
+	subset( 
+		ccbf.shp , 
+		GEOID %in% 
+			c( '34003' , '34017' , '34013' , '34031' , '34027' , '34035' , '34039' , '34023' , '34025' ,
+				'36087' , '36119' , '36059' , '36103' , '36071' , '36079' ,
+				'09001'
+			)
+	)
+	
+# prepare the surrounding region shapefile for ggplot2
+nynjct <- fortify( nynjct.shp )
+
+# gray out surrounding landmasses
+nynjct.layer <- 
+	geom_polygon( 
+		data = nynjct , 
+		aes( x = long , y = lat , group = group ) , 
+		fill = 'lightgray' 
+	)
+
+# and would you look at that?
+nyc.map + nynjct.layer
+# no?  we will re-order the layers later.
+# but now you've got a blank-gray of the surrounding areas.
+
+# put it all together, what have you got?
+nyc.map + nynjct.layer + lightblue.water.layer
+# hey okay.  that looks like crap but we can work with it.
+
+	
 # # end of step 6 # #
 # # # # # # # # # # #
 
@@ -728,6 +853,10 @@ co <- coord_map( "newyorker" , r = 20 )
 # co2 <- co
 # class(co2) <- c( "hoge" , class( co2 ) )
 # is.linear.hoge <- function(coord) TRUE
+# this fix (co2 instead of co) is not necessary for this map
+# if you find that this fix is necessary for another map
+# that you're working on, also try it with ` + coord_fixed()`
+
 
 # initiate the entire plot
 the.plot <-
@@ -738,8 +867,7 @@ the.plot <-
 	# smooth.plot +
 	
 	# leave include the projection requirements till the end
-	# co2 + 
-	# coord_fixed() +
+	# co + 
 	# because they are slow as mercy mercy
 	
 	# blank out the legend and axis labels
@@ -749,9 +877,13 @@ the.plot <-
 		axis.title.y = element_blank()		
 	) + 
 	
-	# blank out other plot elements
-	scale_x_continuous(breaks = NULL) +
-    scale_y_continuous(breaks = NULL) +
+	xlab( "" ) + ylab( "" ) +
+
+	# force the x and y axis limits at the shape of the city and don't do anything special for off-map values
+	scale_x_continuous( limits = c( min( grd$intptlon ) , max( grd$intptlon ) ) , breaks = NULL , oob = squish ) +
+	# since we're going to add lots of surrounding-area detail!
+    scale_y_continuous( limits = c( min( grd$intptlat ) , max( grd$intptlat ) ) , breaks = NULL , oob = squish ) +
+
 	theme(
 		panel.grid.major = element_blank(),
 		panel.grid.minor = element_blank(),
@@ -762,8 +894,9 @@ the.plot <-
 
 # print the plot to the screen
 the.plot
+# this is the bottom layer.
 
-# and don't forget about the park layer!
+# next the park layer, don't forget about the park layer!
 the.plot + park.layer
 
 # are you alright with saving that?  save it.
@@ -804,9 +937,16 @@ blank.layer <-
 
 # closer, eh?
 the.plot + blank.layer
+# that blanks out absolutely everything outside of the city limits
 
 # store this plot
 the.plot <- the.plot + blank.layer	
+
+# but actually, we should add back in the landmasses.  like this.
+the.plot + nynjct.layer + water.layer
+
+# store this plot
+the.plot <- the.plot + nynjct.layer + water.layer
 
 # plus the borough outlines.  do you want to outline the boroughs?
 the.plot + boro.layer
@@ -816,13 +956,13 @@ the.plot <- the.plot + boro.layer
 
 # print with the same purty colors
 the.plot + scale_fill_gradient( low = 'white' , high = 'black' )
-the.plot + scale_fill_gradientn( colours = YlOrBr.3.p( 100 ) )
-the.plot + scale_fill_gradientn( colours = YlOrBr.9.p( 100 ) )
 the.plot + scale_fill_gradientn( colours = RdGy.11.p( 100 ) )
 the.plot + scale_fill_gradientn( colours = Purples.9.p( 100 ) )
+the.plot + scale_fill_gradientn( colours = YlOrBr.3.p( 100 ) )
+the.plot + scale_fill_gradientn( colours = YlOrBr.9.p( 100 ) )
 
 # ooh i like that one mom, can we keep it can we keep it?
-final.plot <- the.plot + scale_fill_gradientn( colours = Purples.9.p( 100 ) )
+final.plot <- the.plot + scale_fill_gradientn( colours = YlOrBr.9.p( 100 ) )
 
 # here's the un-projected final plot
 final.plot
@@ -840,10 +980,21 @@ ggsave(
 	type = "cairo-png" 
 )
 
-# the projection of this map takes a while,
+# # # # warning warning warning # # # #
+
+# the projection of this map takes a few hours
 # so don't waste time printing to the screen.
 
+# # # # warning warning warning # # # #
+
 final.projected.plot <- final.plot + co
+
+# # # # warning warning warning # # # #
+
+# this save command takes a few hours.
+# so let it run overnight alright?
+
+# # # # warning warning warning # # # #
 
 # save the unprojected file to your current working directory
 ggsave( 
