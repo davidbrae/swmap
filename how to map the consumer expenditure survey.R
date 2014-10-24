@@ -870,11 +870,8 @@ smooth.plot
 
 # choose a projection.  here's one using albers on the continental united states borders
 co <- coord_map( project = "albers" , lat0 = min( x$intptlat ) , lat1 = max( x$intptlat ) )
-
-# force this projection to work on all object types
-co2 <- co
-class(co2) <- c( "hoge" , class( co2 ) )
-is.linear.hoge <- function(coord) TRUE
+# but save this puppy for laytur
+# because printing the projected plot takes much more time than printing the unprojected one
 
 # initiate the entire plot
 the.plot <-
@@ -883,10 +880,6 @@ the.plot <-
 	krg.plot +
 	# gam.plot +
 	# smooth.plot +
-	
-	# include the projection requirements
-	co2 + 
-	coord_fixed() +
 	
 	# blank out the legend and axis labels
 	theme(
@@ -983,8 +976,28 @@ options( bitmapType = "cairo" )
 
 # save the file to your current working directory
 ggsave( 
-	"2013 transportation spending as a share of total spending.png" ,
+	"2013 transportation spending as a share of total spending - unprojected.png" ,
 	plot = final.plot ,
+	type = "cairo-png" ,
+	scale = 3
+)
+
+# add the projection
+projected.plot <- final.plot + co
+
+# # # # # # # # # # # # # #
+# warning warning warning #
+
+# this next save-line takes a few hours.
+# leave it running overnight
+
+# warning warning warning #
+# # # # # # # # # # # # # #
+
+# save the file to your current working directory
+ggsave( 
+	"2013 transportation spending as a share of total spending - projected.png" ,
+	plot = projected.plot ,
 	type = "cairo-png" ,
 	scale = 3
 )
