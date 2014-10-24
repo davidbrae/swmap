@@ -317,6 +317,7 @@ library(maptools)
 library(ggplot2)
 library(rgdal)
 library(RColorBrewer)
+library(scales)
 
 # before you ever touch surface smoothing or kriging,
 # make some decisions about how you generally want
@@ -787,6 +788,7 @@ smoo.grd$smoout <- as.numeric( t( smoout$v ) )
 
 library(ggplot2)
 library(mapproj)
+library(scales)
 
 
 # # # psa # # # 
