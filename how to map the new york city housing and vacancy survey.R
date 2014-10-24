@@ -460,7 +460,8 @@ nyc.map + coord_map( "newyorker" , r = 20 )
 nyc.map + coord_map( "newyorker" , r = 30 )
 nyc.map + coord_map( "newyorker" , r = 40 )
 
-nyc.map <- nyc.map + coord_map( "newyorker" , r = 20 )
+# meh, i like the map better without any.
+nyc.map
 
 # # end of step 5 # #
 # # # # # # # # # # #
@@ -848,17 +849,6 @@ krg.plot
 gam.plot
 smooth.plot
 
-# choose a projection.  here's one just for new york.
-co <- coord_map( "newyorker" , r = 20 )
-
-# force this projection to work on all object types
-# co2 <- co
-# class(co2) <- c( "hoge" , class( co2 ) )
-# is.linear.hoge <- function(coord) TRUE
-# this fix (co2 instead of co) is not necessary for this map
-# if you find that this fix is necessary for another map
-# that you're working on, also try it with ` + coord_fixed()`
-
 
 # initiate the entire plot
 the.plot <-
@@ -867,10 +857,6 @@ the.plot <-
 	krg.plot +
 	# gam.plot +
 	# smooth.plot +
-	
-	# leave include the projection requirements till the end
-	# co + 
-	# because they are slow as mercy mercy
 	
 	# blank out the legend and axis labels
 	theme(
@@ -966,7 +952,7 @@ the.plot + scale_fill_gradientn( colours = YlOrBr.9.p( 100 ) )
 # ooh i like that one mom, can we keep it can we keep it?
 final.plot <- the.plot + scale_fill_gradientn( colours = YlOrBr.9.p( 100 ) )
 
-# here's the un-projected final plot
+# here's the final plot
 final.plot
 
 # would you like to save this game?
@@ -974,39 +960,14 @@ final.plot
 # use cairo-png as your bitmap type
 options( bitmapType = "cairo" )
 
-# save the unprojected file to your current working directory
+# save the file to your current working directory
 ggsave( 
-	"2011 new york city number of persons per room - unprojected.png" ,
+	"2011 new york city number of persons per room.png" ,
 	plot = final.plot ,
 	scale = 2 ,
 	type = "cairo-png" 
 )
-
-# # # # warning warning warning # # # #
-
-# the projection of this map takes a few hours
-# so don't waste time printing to the screen.
-
-# # # # warning warning warning # # # #
-
-final.projected.plot <- final.plot + co
-
-# # # # warning warning warning # # # #
-
-# this save command takes a few hours.
-# so let it run overnight alright?
-
-# # # # warning warning warning # # # #
-
-# save the unprojected file to your current working directory
-ggsave( 
-	"2011 new york city number of persons per room - projected.png" ,
-	plot = final.projected.plot ,
-	scale = 2 ,
-	type = "cairo-png" 
-)
 # happy?
-
 
 # # end of step ten # #
 # # # # # # # # # # # #
