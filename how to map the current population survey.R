@@ -535,7 +535,6 @@ sf1s <- sf1.stack
 
 # within each county x county subdivision,
 # calculate the population-weighted mean of the coordinates
-# and (for smoothing) the weighted poverty rate at each county-sub centroid
 ct.knots <- 
 	sqldf( 
 		"select 
