@@ -377,28 +377,77 @@ x <- transform( x , intptlon = ifelse( intptlon > 0 , intptlon - 360 , intptlon 
 library(maptools)
 library(raster)
 library(rgeos)
+library(rgdal)
+library(ggplot2)
 
-shpak.tf <- tempfile()
+# make a character vector containing the shapefiles to download
+shftd <- 
+	c( 
+		# download the clipped alaska public use microdata area map, described
+		# https://www.census.gov/geo/maps-data/maps/2010puma/st02_ak.html
+		'http://www2.census.gov/geo/tiger/GENZ2013/cb_2013_02_puma10_500k.zip' ,
 
-# use the clipped alaska public use microdata area map, described
-# https://www.census.gov/geo/maps-data/maps/2010puma/st02_ak.html
-download.cache( 
-	'http://www2.census.gov/geo/tiger/GENZ2013/cb_2013_02_puma10_500k.zip' ,
-	shpak.tf ,
-	mode = 'wb'
-)
-# note: to re-download a file from scratch, add the parameter usecache = FALSE
+		# download the clipped nationwide state outlines
+		'http://www2.census.gov/geo/tiger/GENZ2013/cb_2013_us_state_500k.zip' ,
 
-shpak.uz <- unzip( shpak.tf , exdir = tempdir() )
+		# download the roads in alaska
+		'http://www2.census.gov/geo/tiger/TIGER2013/PRISECROADS/tl_2013_02_prisecroads.zip'
+	)
 
-ak.shp <- readShapePoly( shpak.uz[ grep( 'shp$' , shpak.uz ) ] )
+# initiate a function to download and import all census bureau shapefiles
+daiacbsf <-
+	function( fn , myproj = "+init=epsg:2163" ){
+		tf <- tempfile()
+
+		# # note: to re-download a file from scratch, add the parameter usecache = FALSE # #
+		download.cache( fn , tf , mode = 'wb' )
+
+		# unzip the downloaded file to a temporary directory
+		shp.uz <- unzip( tf , exdir = tempdir() )
+
+		# figure out which filename ends with "shp"
+		sfname <- grep( 'shp$' , shp.uz , value = TRUE )
+		
+		# read in the shapefile, using the correct layer
+		sf <- readOGR( sfname  , layer = gsub( "\\.shp" , "" , basename( sfname ) ) )
+
+		# project this shapefile immediately
+		# this projection (and a few others) keeps
+		# the aleutian islands that cross the
+		# international date line easy to work with.
+		spTransform( sf , CRS( myproj ) )
+	}
+
+# run all downloads at once, store the result in a list.
+asf <- sapply( shftd , daiacbsf )
+
+# pull out the clipped state borders of alaska only
+alaska.borders <- subset( asf[[2]] , STATEFP == '02' )
+
+# plot as-is.  see how the aleutians screw up the map?
+plot( alaska.borders )
+
+# add puma boundaries
+plot( asf[[1]] ), add = TRUE )
+
+# refresh the map with state borders only
+plot( alaska.borders )
+
+# add roads
+plot( asf[[3]] , add = TRUE , col = 'red' )
+
+# draw a rectangle 2.5% bigger than the original state
+ak.shp.out <- as( 1.05 * extent( alaska.borders ) , "SpatialPolygons" )
 
 # draw a rectangle 5% bigger than the original state
-ak.shp.out <- as( 1.1 * extent( ak.shp ), "SpatialPolygons" )
+ak.shp.blank <- as( 1.1 * extent( alaska.borders ) , "SpatialPolygons" )
 
 # calculate the difference between the rectangle and the actual shape
-ak.shp.diff <- gDifference( ak.shp.out , ak.shp )
+ak.shp.diff <- gDifference( ak.shp.blank , alaska.borders )
 # this will be used to cover up points outside of alaska's state borders
+
+# this box will later blank out the surrounding area
+plot( ak.shp.diff )
 
 # # end of step 5 # #
 # # # # # # # # # # #
@@ -529,10 +578,10 @@ gam.other <-
 # # step 7: make a grid and predict # #
 
 # use as fine of a grid as your computer can handle
-grid.length <- 500
+grid.length <- 750
 
-x.range <- bbox( ak.shp.out )[ 1 , ]
-y.range <- bbox( ak.shp.out )[ 2 , ]
+x.range <- c( min( x$intptlon ) , max( x$intptlon ) )
+y.range <- c( min( x$intptlat ) , max( x$intptlat ) )
 
 # add five percent on each side
 x.diff <- abs( x.range[ 2 ] - x.range[ 1 ] ) * 0.05
@@ -543,18 +592,14 @@ x.range[ 2 ] <- x.range[ 2 ] + x.diff
 y.range[ 1 ] <- y.range[ 1 ] - y.diff
 y.range[ 2 ] <- y.range[ 2 ] + y.diff
 
-# again, adjust for the aleutian islands over the international date line
-bb <- bbox( ak.shp )
-
-bb[ 1 , 2 ] <- bb[ 1 , 2 ] - 360
-# adjustment over.
 
 grd <- krig.grd <- gam.grd <- 
 	expand.grid(
-		intptlon = c( bb[1,1] , unique( ct.knots$intptlon ) , bb[1,2] ) , 
-		intptlat = c( bb[2,1] , unique( ct.knots$intptlat ) , bb[2,2] )
+		intptlon = seq( x.range[ 1 ] , x.range[ 2 ] , length = grid.length ) , 
+		intptlat = seq( y.range[ 1 ] , y.range[ 2 ] , length = grid.length )
 	)
 
+	
 # along your rectangular grid,
 # what are the predicted values of
 # each veteran era category
@@ -569,6 +614,7 @@ gam.grd$gulf <- predict( gam.gulf , gam.grd[ , 1:2 ] )
 gam.grd$vietnam <- predict( gam.vietnam , gam.grd[ , 1:2 ] )
 
 gam.grd$other <- predict( gam.other , gam.grd[ , 1:2 ] )
+
 
 
 # remember that these values have been re-scaled
@@ -592,6 +638,19 @@ summary( rowSums( gam.grd[ , 3:5 ] ) )
 # # # # # # # # # # # # # # # # # # # # # #
 # # step 8: limit information and color # #
 
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# # # warning # # # warning # # # # # # warning # # # # # # warning # # # # # # warning # #
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# if your data is are not binomial, then by mapping with a single image, you lose clarity #
+# if you have three levels of information and you generate two maps, you can get an idea  #
+# about the entire distribution of the variable.  if you attempt encoding three levels or #
+# more into a single map, you will explode. just kidding rofl lmao but you will lose info #
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# # # warning # # # warning # # # # # # warning # # # # # # warning # # # # # # warning # #
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+
 library(scales)
 
 # from among the three categories, find the maximum disproportionate share
@@ -606,7 +665,7 @@ krig.grd <- krig.grd[ , c( 'intptlon' , 'intptlat' , 'statistic' , 'svccat' ) ]
 # do any points not make sense?
 summary( krig.grd$statistic )
 
-# yup, the minimum is zero.
+# yup, the minimum is below zero.
 krig.grd$statistic <- pmax( 0 , krig.grd$statistic )
 
 
@@ -619,10 +678,10 @@ gam.grd$statistic <- apply( gam.grd[ , 3:5 ] , 1 , max )
 # it's important to note that i've thrown out a lot of information here
 gam.grd <- gam.grd[ , c( 'intptlon' , 'intptlat' , 'statistic' , 'svccat' ) ]
 
-# do any points not make sense?
+# again, do any points not make sense?
 summary( gam.grd$statistic )
 
-# yup, the minimum is zero.
+# another point below zero.
 gam.grd$statistic <- pmax( 0 , gam.grd$statistic )
 
 # our complex sample survey-computed statistics rely on categories,
@@ -682,8 +741,20 @@ tg <-
 # check out each of these three colors, mapped from opaque to intense.
 plot( rep( 0:100 , 3 ) , rep( c( -1 , 0 , 1 ) , each = 101 ) , col = unlist( tg ) , pch = 16 , cex = 3 )
 
+# draw an alternate three gradients
+# that start at ~20% ( that is: 25 / 125 )
+# and also use a different palette from colorbrewer2.org
+tag <-
+	lapply( 
+		brewer.pal( 3 , 'Dark2' ) , 
+		function( z ) colorRampPalette( c( 'white' , z ) )( 125 )[ 25:125 ]
+	)
 
-# # rescale both grids
+# check out each of these three colors, mapped from opaque to intense.
+plot( rep( 0:100 , 3 ) , rep( c( -1 , 0 , 1 ) , each = 101 ) , col = unlist( tag ) , pch = 16 , cex = 3 )
+
+
+# # rescale both of the interpolated grids
 krig.grd$statistic <- krig.grd$statistic * ( 1 / max( krig.grd$statistic ) )
 gam.grd$statistic <- gam.grd$statistic * ( 1 / max( gam.grd$statistic ) )
 # note that the re-scaling gets done across all categories,
@@ -699,6 +770,187 @@ krig.grd$color.value <-
 # awwwwwwww yeah, something's happening now.
 plot( krig.grd$intptlon , krig.grd$intptlat , col = krig.grd$color.value , pch = 16 , cex = 3 )
 
+# add the alternate hex color identifier
+krig.grd$alt.color <- 
+		ifelse( krig.grd$svccat == 'gulf' , tag[[1]][ round( krig.grd$statistic * 100 ) ] ,
+		ifelse( krig.grd$svccat == 'vietnam' , tag[[2]][ round( krig.grd$statistic * 100) ] ,
+		ifelse( krig.grd$svccat == 'other' , tag[[3]][ round( krig.grd$statistic * 100 ) ] , 
+			NA ) ) )
+
+# that looks a bit better to me
+plot( krig.grd$intptlon , krig.grd$intptlat , col = krig.grd$alt.color , pch = 16 , cex = 3 )
+
+
+# lower-bound the alternate color to remove the white lines
+krig.grd$bound.color <- 
+		ifelse( krig.grd$svccat == 'gulf' , tag[[1]][ pmax( 5 , round( krig.grd$statistic * 100 ) ) ] ,
+		ifelse( krig.grd$svccat == 'vietnam' , tag[[2]][ pmax( 5 , round( krig.grd$statistic * 100) ) ] ,
+		ifelse( krig.grd$svccat == 'other' , tag[[3]][ pmax( 5 , round( krig.grd$statistic * 100 ) ) ] , 
+			NA ) ) )
+
+# that's smoothing by hand for you.
+plot( krig.grd$intptlon , krig.grd$intptlat , col = krig.grd$bound.color , pch = 16 , cex = 3 )
+
+
+# # end of step 8 # #
+# # # # # # # # # # #
+
+
+
+
+
+
+plot <- ggplot( data = krig.grd , aes( x = intptlon , y = intptlat ) )
+
+krig.grd$color.column <- as.factor( krig.grd$bound.color )
+
+layer1 <- geom_point(shape=15,colour=krig.grd$color.column)
+
+p <- plot + layer1 + scale_fill_manual( values = unique( krig.grd$alt.color ) )
+
+s360 <- function( z ){ z[ z$long > 0 , 'long' ] <- z[ z$long > 0 , 'long' ] - 360 ; z }
+
+ab <- spTransform( alaska.borders , CRS( "+proj=longlat" ) )
+akpts <- fortify( ab )
+akpts <- s360( akpts )
+
+layer2 <- geom_path( data = akpts , aes( x = long , y = lat , group=group ) )
+
+p+layer2
+
+roads <- spTransform( asf[[3]] , CRS( "+proj=longlat" ) )
+akroads <- fortify( roads )
+akroads <- s360( akroads )
+layer3 <- geom_path( data = akroads , aes( x = long , y = lat , group=group ) , colour = 'darkgray' )
+
+p+layer2+layer3
+
+
+library(plyr)
+blank <- spTransform( ak.shp.diff , CRS( "+proj=longlat" ) )
+outside <- fortify( blank )
+outside <- s360( outside )
+
+# five points need to change so we have a real bounding box.
+subset( outside , lat < 45 | lat > 75 | long < -190 | long > -125 )
+
+# move all of them counter-clockwise
+outside[ round( outside$long , 4 ) == -160.1909 , 'lat' ] <- 50
+outside[ round( outside$long , 4 ) == -160.1909 , 'long' ] <- -120
+outside[ round( outside$long , 4 ) == -190.4537 , 'lat' ] <- 50
+outside[ round( outside$lat , 5 ) == 76.14976 , 'long' ] <- -195
+outside[ round( outside$long , 4 ) == -121.9465 , 'lat' ] <- 76.14976
+
+outside2 <- ddply( outside , .( piece ) , function( x ) rbind( x , outside[ 1 , ] ) )
+
+
+
+layer4 <- geom_polygon( data = outside2 , aes( x = long , y = lat , group = id ) , fill = 'white' )
+
+
+# p+layer3+layer4+layer2
+# ak.map <- p+layer4+layer2
+ak.map <- p+layer4
+# got it.
+
+ak.map
+
+# exclude outer alaska if you hate the wilderness or something
+ak.map + coord_cartesian( xlim = c( -155 , max( x$intptlon ) ) , ylim = c( min( x$intptlat ) , 70 ) )
+
+# distort the map with simple latitude/longitude scaling
+ak.map + coord_fixed( 2.5 )
+
+# this looks crappy
+ak.map + coord_equal()
+
+# check out a bunch of other options #
+ak.map + coord_map( project = "cylequalarea" , mean( x$intptlat ) )
+
+ak.map + coord_map( project = "conic" , mean( x$intptlat ) , orientation = c( 90 , 0 , -141 ) )
+
+# see ?mapproject and the ?coord_* functions for a zillion alternatives
+
+
+
+
+
+
+
+proj4string( ak.shp.diff ) <- proj4string( asf[[3]] )
+asfill <- spTransform( ak.shp.diff , CRS( "+proj=longlat" ) )
+asfi <- fortify( asfill )
+layer4 <- geom_polygon( data = asfi , aes( x = long , y = lat , group=group ) , fill = 'white' )
+
+
+p+layer4 + coord_cartesian( xlim = c( -155 , max( x$intptlon ) ) , ylim = c( min( x$intptlat ) , 70 ) )
+
+
+
+	
+	
+layer2 <- geom_path( data = akpts , aes( x = long , y = lat , group=group ) )
+
+gam.grd$color.column <- as.factor( gam.grd$alt.color )
+
+plot <- ggplot( data = gam.grd , aes( x = intptlon , y = intptlat ) )
+layer1 <- geom_point(shape=15,colour=gam.grd$color.column)
+plot+layer1+  scale_fill_manual( values = unique( gam.grd$alt.color ) )+layer2
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+library(plyr)
+outside <- fortify( ak.shp.diff )
+outside2 <- ddply( outside , .( piece ) , function( x ) rbind( x , outside[ 1 , ] ) )
+layer2 <- geom_polygon( data = outside2 , aes( x = long , y = lat , group = id ) , fill = 'white' )
+
+krig.grd$color.column <- as.factor( krig.grd$bound.color )
+plot <- ggplot( data = krig.grd , aes( x = intptlon , y = intptlat ) )
+layer1 <- geom_point(shape=15,colour=krig.grd$color.column)
+plot+layer1+  scale_fill_manual( values = unique( krig.grd$bound.color ) )+layer2
+
+
+# that's it.
+
+# add some city names.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # add the hex color identifier
 gam.grd$color.value <- 
@@ -711,11 +963,126 @@ gam.grd$color.value <-
 plot( gam.grd$intptlon , gam.grd$intptlat , col = gam.grd$color.value , pch = 16 , cex = 3 )
 
 
+# # # # # # alternative coloring that starts at 25% # # # # # #
+
+# add the hex color identifier
+gam.grd$alt.color <- 
+		ifelse( gam.grd$svccat == 'gulf' , tg[[1]][ pmax( 10 , round( gam.grd$statistic * 100 ) ) ] ,
+		ifelse( gam.grd$svccat == 'vietnam' , tg[[2]][ pmax( 10 , round( gam.grd$statistic * 100) ) ] ,
+		ifelse( gam.grd$svccat == 'other' , tg[[3]][ pmax( 10 , round( gam.grd$statistic * 100 ) ) ] , 
+			NA ) ) )
+
+# awwwwwwww yeah, something's happening now.
+plot( gam.grd$intptlon , gam.grd$intptlat , col = gam.grd$alt.color , pch = 16 , cex = 3 )
+
+
 # # end of step 8 # #
 # # # # # # # # # # #
 
 
 
+
+akpts <- fortify( ak.shp )
+akpts[ akpts$long > 0 , 'long' ] <- 
+	akpts[ akpts$long > 0 , 'long' ] - 360
+
+	
+
+# example of points alone
+	
+y <- x
+
+y$statistic <- apply( y[ , 1:3 ] , 1 , max )
+
+y$svccat <- c( 'gulf' , 'vietnam' , 'other' )[ apply( y[ , 1:3 ] , 1 , which.max ) ]
+
+y$statistic <- y$statistic * ( 1 / max( y$statistic ) )
+# y<-subset(y,statistic<.5)
+# add the hex color identifier
+y$color.value <- 
+		ifelse( y$svccat == 'gulf' , tg[[1]][ round( y$statistic * 100 ) ] ,
+		ifelse( y$svccat == 'vietnam' , tg[[2]][ round( y$statistic * 100) ] ,
+		ifelse( y$svccat == 'other' , tg[[3]][ round( y$statistic * 100 ) ] , 
+			NA ) ) )
+
+# awwwwwwww yeah, something's happening now.
+plot( y$intptlon , y$intptlat , col = y$color.value , pch = 16 )
+
+
+
+
+# best below
+
+layer2 <- geom_path( data = akpts , aes( x = long , y = lat , group=group ) )
+
+gam.grd$color.column <- as.factor( gam.grd$alt.color )
+
+plot <- ggplot( data = gam.grd , aes( x = intptlon , y = intptlat ) )
+layer1 <- geom_point(shape=15,colour=gam.grd$color.column)
+plot+layer1+  scale_fill_manual( values = unique( gam.grd$alt.color ) )+layer2
+
+
+krig.grd$color.column <- as.factor( krig.grd$alt.color )
+plot <- ggplot( data = krig.grd , aes( x = intptlon , y = intptlat ) )
+layer1 <- geom_point(shape=15,colour=krig.grd$color.column)
+plot+layer1+  scale_fill_manual( values = unique( krig.grd$alt.color ) )+layer2
+
+# # # # best above.
+
+
+
+# best below
+
+layer2 <- geom_path( data = akpts , aes( x = long , y = lat , group=group ) )
+
+plot <- ggplot( data = gam.grd , aes( x = intptlon , y = intptlat ) )
+layer1 <- geom_point(shape=15,colour=gam.grd$color.column)
+plot+layer1+  scale_fill_manual( values = unique( gam.grd$color.value ) )+layer2
+
+plot <- ggplot( data = krig.grd , aes( x = intptlon , y = intptlat ) )
+layer1 <- geom_point(shape=15,colour=krig.grd$color.column)
+plot+layer1+  scale_fill_manual( values = unique( krig.grd$color.value ) )+layer2
+
+# # # # best above.
+
+
+
+
+
+
+
+
+plot <- ggplot( data = krig.grd , aes( x = intptlon , y = intptlat ) )
+layer1 <- geom_point(shape=15,colour=krig.grd$color.column)
+plot+layer1+  scale_fill_manual( values = unique( krig.grd$color.value ) )+layer2+coord_equal()
+
+
+	
+gam.grd$color.column <- as.factor( gam.grd$color.value )
+
+plot <- ggplot( data = gam.grd , aes( x = intptlon , y = intptlat ) )
+layer1 <- geom_tile( aes( fill = gam.grd$color.column ) )
+layer2 <- geom_path( data = akpts , aes( x = long , y = lat , group = group ) , colour = 'black' )
+plot + layer1 + layer2 + scale_fill_manual( values = unique( gam.grd$color.value ) )
+
+
+
+krig.grd$color.column <- as.factor( krig.grd$color.value )
+
+plot <- ggplot( data = krig.grd , aes( x = intptlon , y = intptlat ) )
+layer1 <- geom_tile( aes( fill = krig.grd$color.column ) )
+layer2 <- geom_path( data = akpts , aes( x = long , y = lat , group = group ) , colour = 'black' )
+plot + layer1 + layer2 + scale_fill_manual( values = unique( krig.grd$color.value ) )
+
+
+
+# this one???
+krig.grd$color.column <- as.factor( krig.grd$color.value )
+
+plot <- ggplot( data = krig.grd , aes( x = intptlon , y = intptlat ) )
+layer1 <- geom_tile( aes( fill = krig.grd$color.column ) )
+layer2 <- geom_path( data = akpts , aes( x = long , y = lat , group = group ) , colour = 'black' )
+plot + layer1 + layer2 + scale_fill_manual( values = unique( krig.grd$color.value ) )
 
 
 
@@ -748,7 +1115,9 @@ layer1 <- geom_tile( aes( fill = as.numeric( krig.gulf$statistic ) ) ) + scale_f
 
 
 # add a unique color-identifier to the data.frame
-krig.grd$color.column <- as.factor( krig.grd$color.value )
+
+
+
 
 plot <- ggplot( data = krig.grd , aes( x = intptlon , y = intptlat ) )
 layer1 <- geom_tile( aes( fill = krig.grd$color.column ) )
@@ -773,13 +1142,6 @@ plot <- ggplot( data = krig.grd , aes( x = intptlon , y = intptlat ) )
 layer1 <- geom_tile( aes( col = krig.grd$color.value ) )
 
 plot + layer1 + scale_fill_identity( values =  )
-
-
-plot <- ggplot( data = gam.grd , aes( x = intptlon , y = intptlat ) )
-layer1 <- geom_point( aes( fill = gam.grd$color.column ) )
-plot + layer1 + scale_colour_manual( values = unique( gam.grd$color.value ) ) 
-
-
 
 
 
