@@ -585,7 +585,7 @@ sum( sapply( gam.grd , summary )[ 4 , 3:5 ] )
 summary( rowSums( krig.grd[ , 3:5 ] ) )
 summary( rowSums( gam.grd[ , 3:5 ] ) )
 
-# # end of step 6 # #
+# # end of step 7 # #
 # # # # # # # # # # #
 
 
@@ -718,8 +718,42 @@ plot( gam.grd$intptlon , gam.grd$intptlat , col = gam.grd$color.value , pch = 16
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+max.colors <- 
+	mapply( 
+		function( y , z ){ y[ round( z * 100 ) ] } , 
+		tg , 
+		tapply( krig.grd$statistic , krig.grd$svccat , max )
+	)
+
+krig.gulf <- subset( krig.grd , svccat == 'gulf' )
+krig.vietnam <- subset( krig.grd , svccat == 'vietnam' )
+krig.other <- subset( krig.grd , svccat == 'other' )
+	
+plot <- ggplot( data = krig.grd , aes( x = intptlon , y = intptlat ) )
+layer1 <- geom_tile( aes( fill = as.numeric( krig.gulf$statistic ) ) ) + scale_fill_gradient( low = "#FFFFFF" , high = max.colors[ 1 ] )
+
+
+
 # add a unique color-identifier to the data.frame
-krig.grd$color.column <- factor( krig.grd$color.value )
+krig.grd$color.column <- as.factor( krig.grd$color.value )
+
+plot <- ggplot( data = krig.grd , aes( x = intptlon , y = intptlat ) )
+layer1 <- geom_tile( aes( fill = krig.grd$color.column ) )
+plot + layer1 + scale_fill_manual( values = unique( krig.grd$color.value ) ) 
+
 
 
 ak.map <-
@@ -727,8 +761,7 @@ ak.map <-
 		intptlon , 
 		intptlat , 
 		data = krig.grd , 
-		colour = color.column ,
-		geom = 'tile'
+		colour = color.column
 	)
 
 
