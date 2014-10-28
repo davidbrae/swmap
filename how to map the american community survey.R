@@ -983,15 +983,11 @@ final.plot <- the.plot + outside.layer
 # you can airbrush the outside blue border
 # in microsoft paint if you want, right?
 
-# use cairo-png as your bitmap type
-options( bitmapType = "cairo" )
-
 # save the file to your current working directory
 ggsave( 
 	"2013 alaskan veteran service eras.png" ,
 	plot = final.plot ,
-	scale = 2 ,
-	type = "cairo-png" 
+	scale = 3
 )
 # happy?
 
