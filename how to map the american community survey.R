@@ -848,9 +848,9 @@ the.plot <-
 	xlab( "" ) + ylab( "" ) +
 
 	# force the x and y axis limits at the shape of the city and don't do anything special for off-map values
-	scale_x_continuous( limits = c( -187.5 , -130 ) , breaks = NULL , oob = squish ) +
+	scale_x_continuous( limits = c( -191 , -127 ) , breaks = NULL , oob = squish ) +
 	# since we're going to add lots of surrounding-area detail!
-    scale_y_continuous( limits = c( 51.22 , 71.35 ) , breaks = NULL , oob = squish ) +
+    scale_y_continuous( limits = c( 50 , 73 ) , breaks = NULL , oob = squish ) +
 
 	theme(
 		panel.grid.major = element_blank(),
@@ -938,8 +938,11 @@ proj4string( ak.shp.diff ) <- "+init=epsg:2163"
 # initiate the outside blanking layer
 outside <- s360( fortify( spTransform( ak.shp.diff , CRS( "+proj=longlat" ) ) ) )
 
+# fix islands piecing together
+outside2 <- ddply( outside , .( piece ) , function( x ) rbind( x , outside[ 1 , ] ) )
+
 # convert this fortified object to a ggplot layer
-outside.layer <- geom_polygon( data = outside , aes( x = long , y = lat , group = id ) , fill = 'white' )
+outside.layer <- geom_polygon( data = outside2 , aes( x = long , y = lat , group = id ) , fill = 'white' )
 
 # plot this -- the layer doesn't work, does it?
 the.plot + outside.layer
@@ -948,17 +951,17 @@ the.plot + outside.layer
 subset( outside , lat < 45 | lat > 75 | long < -190 | long > -125 )
 
 # move all of them counter-clockwise by hand
-outside[ outside$order %in% c( 1 , 5 ) , 'long' ] <- -100
-outside[ outside$order %in% c( 1 , 5 ) , 'lat' ] <- 20
+outside[ outside$order %in% c( 1 , 5 ) , 'long' ] <- -116.6568
+# outside[ outside$order %in% c( 1 , 5 ) , 'lat' ] <- 20
 
-outside[ outside$order %in% 4 , 'long' ] <- -220
-outside[ outside$order %in% 4 , 'lat' ] <- 20
+# outside[ outside$order %in% 4 , 'long' ] <- -220
+outside[ outside$order %in% 4 , 'lat' ] <- 37.56767
 
-outside[ outside$order %in% 3 , 'long' ] <- -220
-outside[ outside$order %in% 3 , 'lat' ] <- 100
+outside[ outside$order %in% 3 , 'long' ] <- -195.4295
+# outside[ outside$order %in% 3 , 'lat' ] <- 100
 
-outside[ outside$order %in% 2 , 'long' ] <- -100
-outside[ outside$order %in% 2 , 'lat' ] <- 100
+# outside[ outside$order %in% 2 , 'long' ] <- -100
+outside[ outside$order %in% 2 , 'lat' ] <- 79.36447
 
 
 # fix islands piecing together
@@ -969,9 +972,16 @@ outside.layer <- geom_polygon( data = outside2 , aes( x = long , y = lat , group
 
 # plot this. 
 the.plot + outside.layer
+# that's not so bad, i guess.
 
-# that's okay i guess
+# i don't care for the state border layer,
+# but if you want the state border layer,
+# use this save line:
+# final.plot <- the.plot + outside.layer + state.border.layer
+# otherwise use this save line:
 final.plot <- the.plot + outside.layer
+# you can airbrush the outside blue border
+# in microsoft paint if you want, right?
 
 # use cairo-png as your bitmap type
 options( bitmapType = "cairo" )
