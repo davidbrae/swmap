@@ -969,5 +969,14 @@ ggsave(
 )
 # happy?
 
+# save a globular-projected file to your current working directory,
+ggsave( 
+	"2011 new york city number of persons per room - globular.png" ,
+	plot = final.plot + coord_map( "globular" , orientation = c( 40.757 , -73.954 , -22 ) ) ,
+	scale = 2 ,
+	type = "cairo-png" 
+)
+# in case you're into that kinda stuff.
+
 # # end of step ten # #
 # # # # # # # # # # # #
