@@ -436,11 +436,8 @@ plot( alaska.borders )
 # add roads
 plot( asf[[3]] , add = TRUE , col = 'red' )
 
-# draw a rectangle 2.5% bigger than the original state
-ak.shp.out <- as( 1.05 * extent( alaska.borders ) , "SpatialPolygons" )
-
-# draw a rectangle 5% bigger than the original state
-ak.shp.blank <- as( 1.1 * extent( alaska.borders ) , "SpatialPolygons" )
+# draw a rectangle 15% bigger than the original state
+ak.shp.blank <- as( 1.3 * extent( alaska.borders ) , "SpatialPolygons" )
 
 # calculate the difference between the rectangle and the actual shape
 ak.shp.diff <- gDifference( ak.shp.blank , alaska.borders )
@@ -584,8 +581,8 @@ x.range <- c( min( x$intptlon ) , max( x$intptlon ) )
 y.range <- c( min( x$intptlat ) , max( x$intptlat ) )
 
 # add five percent on each side
-x.diff <- abs( x.range[ 2 ] - x.range[ 1 ] ) * 0.05
-y.diff <- abs( y.range[ 2 ] - y.range[ 1 ] ) * 0.05
+x.diff <- abs( x.range[ 2 ] - x.range[ 1 ] ) * 0.2
+y.diff <- abs( y.range[ 2 ] - y.range[ 1 ] ) * 0.2
 
 x.range[ 1 ] <- x.range[ 1 ] - x.diff
 x.range[ 2 ] <- x.range[ 2 ] + x.diff
@@ -792,438 +789,70 @@ krig.grd$bound.color <-
 plot( krig.grd$intptlon , krig.grd$intptlat , col = krig.grd$bound.color , pch = 16 , cex = 3 )
 
 
-# # end of step 8 # #
-# # # # # # # # # # #
-
-
-
-
-
-
-plot <- ggplot( data = krig.grd , aes( x = intptlon , y = intptlat ) )
-
-krig.grd$color.column <- as.factor( krig.grd$bound.color )
-
-layer1 <- geom_point(shape=15,colour=krig.grd$color.column)
-
-p <- plot + layer1 + scale_fill_manual( values = unique( krig.grd$alt.color ) )
-
-s360 <- function( z ){ z[ z$long > 0 , 'long' ] <- z[ z$long > 0 , 'long' ] - 360 ; z }
-
-ab <- spTransform( alaska.borders , CRS( "+proj=longlat" ) )
-akpts <- fortify( ab )
-akpts <- s360( akpts )
-
-layer2 <- geom_path( data = akpts , aes( x = long , y = lat , group=group ) )
-
-p+layer2
-
-roads <- spTransform( asf[[3]] , CRS( "+proj=longlat" ) )
-akroads <- fortify( roads )
-akroads <- s360( akroads )
-layer3 <- geom_path( data = akroads , aes( x = long , y = lat , group=group ) , colour = 'darkgray' )
-
-p+layer2+layer3
-
-
-library(plyr)
-blank <- spTransform( ak.shp.diff , CRS( "+proj=longlat" ) )
-outside <- fortify( blank )
-outside <- s360( outside )
-
-# five points need to change so we have a real bounding box.
-subset( outside , lat < 45 | lat > 75 | long < -190 | long > -125 )
-
-# move all of them counter-clockwise
-outside[ round( outside$long , 4 ) == -160.1909 , 'lat' ] <- 50
-outside[ round( outside$long , 4 ) == -160.1909 , 'long' ] <- -120
-outside[ round( outside$long , 4 ) == -190.4537 , 'lat' ] <- 50
-outside[ round( outside$lat , 5 ) == 76.14976 , 'long' ] <- -195
-outside[ round( outside$long , 4 ) == -121.9465 , 'lat' ] <- 76.14976
-
-outside2 <- ddply( outside , .( piece ) , function( x ) rbind( x , outside[ 1 , ] ) )
-
-
-
-layer4 <- geom_polygon( data = outside2 , aes( x = long , y = lat , group = id ) , fill = 'white' )
-
-
-# p+layer3+layer4+layer2
-# ak.map <- p+layer4+layer2
-ak.map <- p+layer4
-# got it.
-
-ak.map
-
-# exclude outer alaska if you hate the wilderness or something
-ak.map + coord_cartesian( xlim = c( -155 , max( x$intptlon ) ) , ylim = c( min( x$intptlat ) , 70 ) )
-
-# distort the map with simple latitude/longitude scaling
-ak.map + coord_fixed( 2.5 )
-
-# this looks crappy
-ak.map + coord_equal()
-
-# check out a bunch of other options #
-ak.map + coord_map( project = "cylequalarea" , mean( x$intptlat ) )
-
-ak.map + coord_map( project = "conic" , mean( x$intptlat ) , orientation = c( 90 , 0 , -141 ) )
-
-# see ?mapproject and the ?coord_* functions for a zillion alternatives
-
-
-
-
-
-
-
-proj4string( ak.shp.diff ) <- proj4string( asf[[3]] )
-asfill <- spTransform( ak.shp.diff , CRS( "+proj=longlat" ) )
-asfi <- fortify( asfill )
-layer4 <- geom_polygon( data = asfi , aes( x = long , y = lat , group=group ) , fill = 'white' )
-
-
-p+layer4 + coord_cartesian( xlim = c( -155 , max( x$intptlon ) ) , ylim = c( min( x$intptlat ) , 70 ) )
-
-
-
-	
-	
-layer2 <- geom_path( data = akpts , aes( x = long , y = lat , group=group ) )
-
-gam.grd$color.column <- as.factor( gam.grd$alt.color )
-
-plot <- ggplot( data = gam.grd , aes( x = intptlon , y = intptlat ) )
-layer1 <- geom_point(shape=15,colour=gam.grd$color.column)
-plot+layer1+  scale_fill_manual( values = unique( gam.grd$alt.color ) )+layer2
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-library(plyr)
-outside <- fortify( ak.shp.diff )
-outside2 <- ddply( outside , .( piece ) , function( x ) rbind( x , outside[ 1 , ] ) )
-layer2 <- geom_polygon( data = outside2 , aes( x = long , y = lat , group = id ) , fill = 'white' )
-
-krig.grd$color.column <- as.factor( krig.grd$bound.color )
-plot <- ggplot( data = krig.grd , aes( x = intptlon , y = intptlat ) )
-layer1 <- geom_point(shape=15,colour=krig.grd$color.column)
-plot+layer1+  scale_fill_manual( values = unique( krig.grd$bound.color ) )+layer2
-
-
-# that's it.
-
-# add some city names.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# add the hex color identifier
-gam.grd$color.value <- 
-		ifelse( gam.grd$svccat == 'gulf' , tg[[1]][ round( gam.grd$statistic * 100 ) ] ,
-		ifelse( gam.grd$svccat == 'vietnam' , tg[[2]][ round( gam.grd$statistic * 100) ] ,
-		ifelse( gam.grd$svccat == 'other' , tg[[3]][ round( gam.grd$statistic * 100 ) ] , 
+# put that color band on the `gam.grd` data.frame as well
+gam.grd$bound.color <- 
+		ifelse( gam.grd$svccat == 'gulf' , tag[[1]][ pmax( 5 , round( gam.grd$statistic * 100 ) ) ] ,
+		ifelse( gam.grd$svccat == 'vietnam' , tag[[2]][ pmax( 5 , round( gam.grd$statistic * 100) ) ] ,
+		ifelse( gam.grd$svccat == 'other' , tag[[3]][ pmax( 5 , round( gam.grd$statistic * 100 ) ) ] , 
 			NA ) ) )
-
-# awwwwwwww yeah, something's happening now.
-plot( gam.grd$intptlon , gam.grd$intptlat , col = gam.grd$color.value , pch = 16 , cex = 3 )
-
-
-# # # # # # alternative coloring that starts at 25% # # # # # #
-
-# add the hex color identifier
-gam.grd$alt.color <- 
-		ifelse( gam.grd$svccat == 'gulf' , tg[[1]][ pmax( 10 , round( gam.grd$statistic * 100 ) ) ] ,
-		ifelse( gam.grd$svccat == 'vietnam' , tg[[2]][ pmax( 10 , round( gam.grd$statistic * 100) ) ] ,
-		ifelse( gam.grd$svccat == 'other' , tg[[3]][ pmax( 10 , round( gam.grd$statistic * 100 ) ) ] , 
-			NA ) ) )
-
-# awwwwwwww yeah, something's happening now.
-plot( gam.grd$intptlon , gam.grd$intptlat , col = gam.grd$alt.color , pch = 16 , cex = 3 )
 
 
 # # end of step 8 # #
 # # # # # # # # # # #
 
 
-
-
-akpts <- fortify( ak.shp )
-akpts[ akpts$long > 0 , 'long' ] <- 
-	akpts[ akpts$long > 0 , 'long' ] - 360
-
-	
-
-# example of points alone
-	
-y <- x
-
-y$statistic <- apply( y[ , 1:3 ] , 1 , max )
-
-y$svccat <- c( 'gulf' , 'vietnam' , 'other' )[ apply( y[ , 1:3 ] , 1 , which.max ) ]
-
-y$statistic <- y$statistic * ( 1 / max( y$statistic ) )
-# y<-subset(y,statistic<.5)
-# add the hex color identifier
-y$color.value <- 
-		ifelse( y$svccat == 'gulf' , tg[[1]][ round( y$statistic * 100 ) ] ,
-		ifelse( y$svccat == 'vietnam' , tg[[2]][ round( y$statistic * 100) ] ,
-		ifelse( y$svccat == 'other' , tg[[3]][ round( y$statistic * 100 ) ] , 
-			NA ) ) )
-
-# awwwwwwww yeah, something's happening now.
-plot( y$intptlon , y$intptlat , col = y$color.value , pch = 16 )
-
-
-
-
-# best below
-
-layer2 <- geom_path( data = akpts , aes( x = long , y = lat , group=group ) )
-
-gam.grd$color.column <- as.factor( gam.grd$alt.color )
-
-plot <- ggplot( data = gam.grd , aes( x = intptlon , y = intptlat ) )
-layer1 <- geom_point(shape=15,colour=gam.grd$color.column)
-plot+layer1+  scale_fill_manual( values = unique( gam.grd$alt.color ) )+layer2
-
-
-krig.grd$color.column <- as.factor( krig.grd$alt.color )
-plot <- ggplot( data = krig.grd , aes( x = intptlon , y = intptlat ) )
-layer1 <- geom_point(shape=15,colour=krig.grd$color.column)
-plot+layer1+  scale_fill_manual( values = unique( krig.grd$alt.color ) )+layer2
-
-# # # # best above.
-
-
-
-# best below
-
-layer2 <- geom_path( data = akpts , aes( x = long , y = lat , group=group ) )
-
-plot <- ggplot( data = gam.grd , aes( x = intptlon , y = intptlat ) )
-layer1 <- geom_point(shape=15,colour=gam.grd$color.column)
-plot+layer1+  scale_fill_manual( values = unique( gam.grd$color.value ) )+layer2
-
-plot <- ggplot( data = krig.grd , aes( x = intptlon , y = intptlat ) )
-layer1 <- geom_point(shape=15,colour=krig.grd$color.column)
-plot+layer1+  scale_fill_manual( values = unique( krig.grd$color.value ) )+layer2
-
-# # # # best above.
-
-
-
-
-
-
-
-
-plot <- ggplot( data = krig.grd , aes( x = intptlon , y = intptlat ) )
-layer1 <- geom_point(shape=15,colour=krig.grd$color.column)
-plot+layer1+  scale_fill_manual( values = unique( krig.grd$color.value ) )+layer2+coord_equal()
-
-
-	
-gam.grd$color.column <- as.factor( gam.grd$color.value )
-
-plot <- ggplot( data = gam.grd , aes( x = intptlon , y = intptlat ) )
-layer1 <- geom_tile( aes( fill = gam.grd$color.column ) )
-layer2 <- geom_path( data = akpts , aes( x = long , y = lat , group = group ) , colour = 'black' )
-plot + layer1 + layer2 + scale_fill_manual( values = unique( gam.grd$color.value ) )
-
-
-
-krig.grd$color.column <- as.factor( krig.grd$color.value )
-
-plot <- ggplot( data = krig.grd , aes( x = intptlon , y = intptlat ) )
-layer1 <- geom_tile( aes( fill = krig.grd$color.column ) )
-layer2 <- geom_path( data = akpts , aes( x = long , y = lat , group = group ) , colour = 'black' )
-plot + layer1 + layer2 + scale_fill_manual( values = unique( krig.grd$color.value ) )
-
-
-
-# this one???
-krig.grd$color.column <- as.factor( krig.grd$color.value )
-
-plot <- ggplot( data = krig.grd , aes( x = intptlon , y = intptlat ) )
-layer1 <- geom_tile( aes( fill = krig.grd$color.column ) )
-layer2 <- geom_path( data = akpts , aes( x = long , y = lat , group = group ) , colour = 'black' )
-plot + layer1 + layer2 + scale_fill_manual( values = unique( krig.grd$color.value ) )
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-max.colors <- 
-	mapply( 
-		function( y , z ){ y[ round( z * 100 ) ] } , 
-		tg , 
-		tapply( krig.grd$statistic , krig.grd$svccat , max )
-	)
-
-krig.gulf <- subset( krig.grd , svccat == 'gulf' )
-krig.vietnam <- subset( krig.grd , svccat == 'vietnam' )
-krig.other <- subset( krig.grd , svccat == 'other' )
-	
-plot <- ggplot( data = krig.grd , aes( x = intptlon , y = intptlat ) )
-layer1 <- geom_tile( aes( fill = as.numeric( krig.gulf$statistic ) ) ) + scale_fill_gradient( low = "#FFFFFF" , high = max.colors[ 1 ] )
-
-
-
-# add a unique color-identifier to the data.frame
-
-
-
-
-plot <- ggplot( data = krig.grd , aes( x = intptlon , y = intptlat ) )
-layer1 <- geom_tile( aes( fill = krig.grd$color.column ) )
-plot + layer1 + scale_fill_manual( values = unique( krig.grd$color.value ) ) 
-
-
-
-ak.map <-
-	qplot( 
-		intptlon , 
-		intptlat , 
-		data = krig.grd , 
-		colour = color.column
-	)
-
-
-# manually add the hex colors to the map
-ak.map <- ak.map + scale_fill_manual( values = unique( krig.grd$color.value ) )
-
-plot <- ggplot( data = krig.grd , aes( x = intptlon , y = intptlat ) )
-
-layer1 <- geom_tile( aes( col = krig.grd$color.value ) )
-
-plot + layer1 + scale_fill_identity( values =  )
-
-
-
-
-
-
-outside <- fortify( ak.shp.diff )
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# # # # # # # # # # # # # # # # # # # # # # #
-# # step 5: decide on your map parameters # #
+# # # # # # # # # # # # # # # # # # # # #
+# # step 9: ggplot and choose options # #
 
 library(ggplot2)
-library(scales)
 library(mapproj)
+library(scales)
 
-# before you ever touch surface smoothing or kriging,
-# make some decisions about how you generally want
-# your map to look:  the projection and coloring
 
-# the options below simply use hadley wickham's ggplot2
-# with the census block-level race/ethnicity shares and centroids
+# initiate the krige-based plot
+krig.grd$color.column <- as.factor( krig.grd$bound.color )
 
-# re-scale the statistic column into another column
-x$rsstat <- rescale( x$stat , from = c( 0 , max( x$stat ) ) )
+krg.plot <- 
+	ggplot( data = krig.grd , aes( x = intptlon , y = intptlat ) ) +
+	geom_point( shape = 15 , colour = krig.grd$color.column ) +
+	scale_fill_manual( values = unique( krig.grd$bound.color ) )
 
-# add the hex color identifier
-x$color.value <- 
-	rgb( 
-		ifelse( x$svccat == 'gulf/vet' , x$rsstat , 0 ) ,
-		ifelse( x$svccat == 'vietnam/vet' , x$rsstat , 0 ) ,
-		ifelse( x$svccat == 'other/vet' , x$rsstat , 0 )
-	)
 
-x$color.column <- factor( x$color.value )
+# initiate the gam-based plot
+gam.grd$color.column <- as.factor( gam.grd$bound.color )
+
+gam.plot <- 
+	ggplot( data = gam.grd , aes( x = intptlon , y = intptlat ) ) +
+	geom_point( shape = 15 , colour = gam.grd$color.column ) +
+	scale_fill_manual( values = unique( gam.grd$bound.color ) )
+
+# view both grids!
+krg.plot
+gam.plot
+
+
+# initiate the entire plot
+the.plot <-
+
+	# choose only one of the two interpolation grids
+	krg.plot +
+	# gam.plot +
 	
-# initiate the simple map
-ak.map <- 
-	qplot( 
-		intptlon , 
-		intptlat , 
-		data = x , 
-		colour = color.column ,
-		xlab = NULL ,
-		ylab = NULL
-	)
-
-
-# manually add the hex colors to the map
-ak.map <- ak.map + scale_color_manual( values = unique( x$color.value ) )
-
-# see those brown dots?  those are just values lower on the red scale.
-plot( 1:10 , rep( 1 , 10 ) , col = colorRampPalette( c( 'black' , 'red' ) )( 10 ) , cex = 3 , pch = 16 )
-# on the gradient between black (no color) to red (its own primary color).
-# yet another reason that coloring the multi-dimensional distributions of categorical variables
-# is hard.
-
-# remove all map crap.
-
-ak.map <- 
-	ak.map + 
-
-	scale_x_continuous( breaks = NULL ) +
-
-    scale_y_continuous( breaks = NULL ) +
-
-    theme(
+	# blank out the legend and axis labels
+	theme(
 		legend.position = "none" ,
+		axis.title.x = element_blank() ,
+		axis.title.y = element_blank()		
+	) + 
+	
+	xlab( "" ) + ylab( "" ) +
+
+	# force the x and y axis limits at the shape of the city and don't do anything special for off-map values
+	scale_x_continuous( limits = c( -187.5 , -130 ) , breaks = NULL , oob = squish ) +
+	# since we're going to add lots of surrounding-area detail!
+    scale_y_continuous( limits = c( 51.22 , 71.35 ) , breaks = NULL , oob = squish ) +
+
+	theme(
 		panel.grid.major = element_blank(),
 		panel.grid.minor = element_blank(),
 		panel.background = element_blank(),
@@ -1231,414 +860,130 @@ ak.map <-
 		axis.ticks = element_blank()
 	)
 
+# print the plot to the screen
+the.plot
+# this is the bottom layer.
 
-# print the map without any projection
-ak.map
 
-# exclude outer alaska if you hate the wilderness or something
-ak.map + coord_cartesian( xlim = c( -155 , max( x$intptlon ) ) , ylim = c( min( x$intptlat ) , 70 ) )
+# initiate an aleutian islands-focused wrap-around function
+s360 <- function( z ){ z[ z$long > 0 , 'long' ] <- z[ z$long > 0 , 'long' ] - 360 ; z }
 
-# distort the map with simple latitude/longitude scaling
-ak.map + coord_fixed( 2.5 )
 
-# this looks crappy
-ak.map + coord_equal()
+# # alaskan state borders # #
 
-# check out a bunch of other options #
-ak.map + coord_map( project = "mercator" )
+# convert the alaskan borders to longlat,
+# prepare for ggplot2 with `fortify`
+# wrap edge points around
+ab <- s360( fortify( spTransform( alaska.borders , CRS( "+proj=longlat" ) ) ) )
 
-ak.map + coord_map( project = "cylequalarea" , mean( x$intptlat ) )
+# store this information in a layer
+state.border.layer <- geom_path( data = ab , aes( x = long , y = lat , group = group ) )
 
-ak.map + coord_map( project = "conic" , mean( x$intptlat ) )
+# plot the result
+the.plot + state.border.layer
 
-# see ?mapproject and the ?coord_* functions for a zillion alternatives
 
-# # end of step 5 # #
-# # # # # # # # # # #
+# # alaskan main roads # #
 
+# convert the alaskan borders to longlat,
+# prepare for ggplot2 with `fortify`
+# wrap edge points around
+akr <- s360( fortify( spTransform( asf[[3]] , CRS( "+proj=longlat" ) ) ) )
 
+# store this information in a layer
+state.roads.layer <- geom_path( data = akr , aes( x = long , y = lat , group=group ) , colour = 'darkred' )
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-alaska.vps <- subset( alaska.design , vps > 0 )
-
-# statewide distribution
-sw <- svyratio( ~ vetcat + one , acs.m.alaska.vps , se = TRUE )
-
-# puma-specific distributions
-ps <- svytotal( ~ vetcat + one , acs.m.alaska.vps , byvar = ~ puma , se = TRUE )
-
-ratio.estimates <- ps[ 1:15 ] / rep( ps[ 16:20 ] , each = 3 )
-
-
-# disproportionate shares of veteran eras by puma
-
-# # recode the variable using the "variable recode examples" script
-
-# denominator: all military
-# calculate the statewide ratios
-
-# standard error solution!
-# the square root of the variance for the state is the same for all comparisons
-# it might draw the ire of a snotty academic statistician, but it's probably
-# reasonably safe to only use the standard errors computed from the pumas
-# since each gets compared to the same statewide value.
-
-
-# # # # # # # # # # # # # # #
-# ratio calculation example #
-# # # # # # # # # # # # # # #
-# calculate both the numerator and denominator of poverty, but not by state
-num_den <- svytotal( ~ mult_nmorpob1 + dom_count_pes , valid.dom , se = TRUE )
-# this gets computationally-intensive very fast. either write a loop to perform one state at a time,
-# or leave your computer running for a week, or buy a bigger computer. ;)
-# calculate the ratio estimate
-ratio.estimate <- coef( num_den )[ 1 ] / coef( num_den )[ 2 ]
-# print the ratio estimate to the screen
-ratio.estimate
-# calculate the variance of the ratio
-vcov.num_den <- vcov( num_den )
-variance.pob1 <-
-( 1 / coef( num_den )[ 2 ] ^ 2 ) *
-(
-vcov.num_den[ 1 , 1 ] -
-2 * coef( num_den )[ 1 ] / coef( num_den )[ 2 ] * vcov.num_den[ 1 , 2 ] +
-( coef( num_den )[ 1 ] / coef( num_den )[ 2 ]) ^ 2 * vcov.num_den[ 2 , 2 ]
-)
-# print the standard error of the ratio to the screen
-sqrt( variance.pob1 )
-# since R's sqlsurvey package does not yet have `svyratio` capabilities
-# this brute-force approach calculates a ratio and accompanying standard error
-
-
-
-
-
-
-
-
-
-
-
-# september 2001 or later
-svymean( ~I( mlpa == 1 ) , acs.m.alaska.mil , byvar = ~ puma )
-# 1990 to august 2001 (including persian gulf war)
-svymean( ~I( mlpb == 1 ) , acs.m.alaska.mil , byvar = ~ puma )
-# august 1964 to april 1975 (vietnam era)
-svymean( ~I( mlpe == 1 ) , acs.m.alaska.mil , byvar = ~ puma )
-
-
-
-
-# # # after you compute the four categories,
-# the colorings for this will be based on which areas
-# have disproportionate shares.
-
-
-
-
-
-
-
-
-library(RColorBrewer)
-
-# three categories
-# red, blue, green
-
-# use multiple diverging palettes,
-# *not* a qualitative palette.
-
-# play with this number.
-pl <- 7
-# it can be three through eleven.
-
-# combine the red-yellow-green and the red-yellow-blue palettes
-twopal <- c( rev( brewer.pal( pl , "RdYlGn" ) ) , brewer.pal( pl  , "RdYlBu" ) )
-
-# red is in the middle twice, so remove it
-twopal <- twopal[ -round( length( twopal ) / 2 ) ]
-
-# green is a 0.00
-# red is 0.5
-# blue is 1.00
-
-# ultimately, we'll have to coerce our analysis results into a single linear variable
-
-# initiate a color ramp palette function.
-crp <- colorRampPalette( twopal )
-
-# here's what the gradient looks like across one dot per color
-plot( 1:( pl * 2 - 1 ) , rep( 1 , ( pl * 2 - 1 ) ) , col = crp( ( pl * 2 - 1 ) ) , pch = 16 , cex = 3 )
-
-# here's what it looks like as a gradient
-plot( 1:( 100 * ( pl * 2 - 1 ) ) , rep( 1 , 100 * ( pl * 2 - 1 ) ) , col = crp( 100 * ( pl * 2 - 1 ) ) , pch = 16 , cex = 3 )
-
-# no reason this cannot be expanded to four or five categories.
-# your map will start to get busy
-# and not the good kind of getting busy
-
-
-
-
-
-library(sqldf)
-ctk <- sf1ak.101
-ctk[ ctk$intptlon > 0 , 'intptlon' ] <-
-	ctk[ ctk$intptlon > 0 , 'intptlon' ] - 360
-
-ctract.knots <- 
-	sqldf( 
-		"select 
-			county , tract ,
-			sum( pop100 ) as pop100 , 
-			sum( pop100 * intptlon ) / sum( pop100 ) as intptlon ,
-			sum( pop100 * intptlat ) / sum( pop100 ) as intptlat
-		from ctk
-		group by
-			county , tract"
-	)
-library(RANN)
-a <- nn2( x[ , 1:3 ] )
-
-# # # # # # # # # # # # # # # # # # # #
-# # step 8: make a grid and predict # #
-
-# use as fine of a grid as your computer can handle
-grid.length <- 500
-
-# again, adjust for the aleutian islands over the international date line
-bb <- bbox( ak.shp )
-
-bb[ 1 , 2 ] <- bb[ 1 , 2 ] - 360
-# adjustment over.
-
-# create two identical grid objects
-# grd <- gam.grd <- 
-	# expand.grid(
-		# intptlon = seq( from = bb[1,1] , to = bb[1,2] , length = grid.length ) , 
-		# intptlat = seq( from = bb[2,1] , to = bb[2,2] , length = grid.length )
-	# )
-
-grd <- gam.grd <- 
-	expand.grid(
-		intptlon = c( bb[1,1] , unique( ctract.knots$intptlon ) , bb[1,2] ) , 
-		intptlat = c( bb[2,1] , unique( ctract.knots$intptlat ) , bb[2,2] )
-	)
-
-# along your rectangular grid,
-# what are the predicted values of
-# each race/ethnicity category?
-gam.grd$aian <- predict( gam.aian , gam.grd[ , 1:2 ] )
-
-gam.grd$white.nh <- predict( gam.white.nh , gam.grd[ , 1:2 ] )
-
-gam.grd$all.others <- predict( gam.all.others , gam.grd[ , 1:2 ] )
-
-# the gam() function occasionally predicts impossible values.
-# confirm that did not happen.
-sapply( gam.grd , summary )
-# whoops, it did.
-
-# note that some predictions are below zero or above one.  min and max these out
-gam.grd[ c( 'aian' , 'white.nh' , 'all.others' ) ] <-
-	sapply( 
-		gam.grd[ c( 'aian' , 'white.nh' , 'all.others' ) ] ,
-		function( z ) pmax( pmin( z , 1 ) , 0 )
-	)
-	
-			
-
-# since these predicted values do not sum to one (they need to!)
-# calculate an expansion/contraction factor for each record
-gam.grd$factor <- 1 / rowSums( gam.grd[ , c( 'aian' , 'white.nh' , 'all.others' ) ] )
-
-# scale each predicted categorical share up or down, proportionally
-gam.grd[ , c( 'aian' , 'white.nh' , 'all.others' ) ] <-
-	sapply( 
-		gam.grd[ , c( 'aian' , 'white.nh' , 'all.others' ) ] ,
-		function( z ){ z * gam.grd$factor }
-	)
-
-# confirm that each row sums to one.
-stopifnot( 
-	all.equal( 
-		rowSums( gam.grd[ , c( 'aian' , 'white.nh' , 'all.others' ) ] ) , 
-		rep( 1 , nrow( gam.grd ) ) 
-	) 
-)
-
-# # # # # 
-kmc <- kmeans( gam.grd[ , c( 'aian' , 'white.nh' , 'all.others' ) ] , 99 )
-gam.grd$kmc <- factor( kmc$cluster )
-
-# centers of your clusters
-kmc$centers
-
-# three of each color, plus one white separator
-# ( 3 x number of categories ) + ( number of categories minus one )
-
-# which categories make the most sense?
-# looking at the row.names
-
-# order by aian
-aian.33 <- row.names( kmc$centers[ order( -kmc$centers[,1] ) ,] )[ 1:50 ]
-# top 33
-
-# order by white non-hispanic
-wnh.33 <- row.names( kmc$centers[ order( -kmc$centers[,2] ) ,] )[ 1:50 ]
-
-# order by all others
-ao.33 <- row.names( kmc$centers[ order( -kmc$centers[,3] ) ,] )[ 1:50 ]
-
-aian.ni <- aian.33[ !( aian.33 %in% c( wnh.33 , ao.33 ) ) ]
-wnh.ni <- wnh.33[ !( wnh.33 %in% c( aian.33 , ao.33 ) ) ]
-ao.ni <- ao.33[ !( ao.33 %in% c( wnh.33 , aian.33 ) ) ]
-
-
-# overlaps.. 9, 12
-# not included.. 3, 11
-
-
-
-# blue to white: 
-# green to white: 
-
-# # end of step 8 # #
-# # # # # # # # # # #
-
-
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-# # step 9: create a polygon to cover everything outside the boundary # #
-
-library(rgeos)
-
-# convert grd to SpatialPoints object
-# coordinates( outer.grd ) <- c( "intptlon" , "intptlat" )
-
-# draw a rectangle around the grd
-# ak.shp.diff <- gEnvelope( outer.grd )
-ak.shp.out <- gEnvelope( ak.shp )
-
-
-# Create a bounding box 10% bigger than the bounding box of connecticut
-# x_excess = (ak.shp@bbox['x','max'] - ak.shp@bbox['x','min'])*0.1
-# y_excess = (ak.shp@bbox['y','max'] - ak.shp@bbox['y','min'])*0.1
-# x_min = ak.shp@bbox['x','min'] - x_excess
-# x_max = ak.shp@bbox['x','max'] + x_excess
-# y_min = ak.shp@bbox['y','min'] - y_excess
-# y_max = ak.shp@bbox['y','max'] + y_excess
-# bbox = matrix(c(x_min,x_max,x_max,x_min,x_min,
-                # y_min,y_min,y_max,y_max,y_min),
-              # nrow = 5, ncol =2)
-# bbox = Polygon(bbox, hole=FALSE)
-# bbox = Polygons(list(bbox), "bbox")
-# ak.shp.out = SpatialPolygons(Srl=list(bbox), pO=1:1, proj4string=ak.shp@proj4string)
-
-
-
-
-# proj4string( ak.shp.diff ) <- projection
-# ak.shp.diff <- spTransform( ak.shp.diff , CRS( projection ) )
-
-# get the difference between your boundary and the rectangle
-# ak.shp.diff <- gDifference( bbox , ak.shp )
-ak.shp.diff <- gDifference( ak.shp.out , ak.shp )
+# plot the result
+the.plot + state.border.layer + state.roads.layer
 
 # # end of step 9 # #
 # # # # # # # # # # #
 
 
-
-stop( "can you use scale_fill_gradientn() for this?  isn't that its purpose?  why aren't you using it?" )
-
-
-stop( "capping your outliers is critically important.  the scale is much more visible if they are maxxed and minned" )
-
-
+# # # # # # # # # # # # # # # # # # # # #
+# # step 10: project, blank, and save # #
 
 library(ggplot2)
 library(scales)
-library(mapproj)
+library(raster)
+library(plyr)
+library(rgeos)
 
 
+# exclude outer alaska if you hate the wilderness or something
+the.plot + state.border.layer + coord_cartesian( xlim = c( -155 , max( x$intptlon ) ) , ylim = c( min( x$intptlat ) , 70 ) )
 
-# add the hex color identifier
-gam.grd$color.value <- rgb( gam.grd$aian , gam.grd$white.nh , gam.grd$all.others )
+# distort the map with simple latitude/longitude scaling
+the.plot + state.border.layer + coord_fixed( 2.5 )
 
-# add a unique color-identifier to the data.frame
-gam.grd$color.column <- factor( gam.grd$color.value )
+# this looks crappy, who knows what it is
+the.plot + state.border.layer + coord_equal()
 
-outside <- fortify( ak.shp.diff )
+# check out a bunch of other options #
+the.plot + state.border.layer + coord_map( project = "cylequalarea" , mean( x$intptlat ) )
 
+# here's the one that makes the most sense for alaska
+the.plot + state.border.layer + coord_map( project = "conic" , mean( x$intptlat ) , orientation = c( 90 , 0 , -141 ) )
 
-# this one works for manual color filling.
+# see ?mapproject and the ?coord_* functions for a zillion alternatives
 
-stop( "i swore this worked before.  now it does not work." )
-
-
-plot <- ggplot( data = gam.grd , aes( x = intptlon , y = intptlat ) )
-
-plot <-
-	plot + 
-
-	scale_x_continuous( breaks = NULL ) +
-
-    scale_y_continuous( breaks = NULL ) +
-
-    theme(
-		legend.position = "none" ,
-		panel.grid.major = element_blank(),
-		panel.grid.minor = element_blank(),
-		panel.background = element_blank(),
-		panel.border = element_blank(),
-		axis.ticks = element_blank()
-	)
+# store this projection, but not the state border
+the.plot <- the.plot + coord_map( project = "conic" , mean( x$intptlat ) , orientation = c( 90 , 0 , -141 ) )
+# into `the.plot`
 
 
-layer1 <- geom_tile( aes( fill = color.column ) )
+# force the difference shapefile's projection
+proj4string( ak.shp.diff ) <- "+init=epsg:2163"
 
-plot + layer1 + scale_fill_manual( values = gam.grd$color.value ) 
+# initiate the outside blanking layer
+outside <- s360( fortify( spTransform( ak.shp.diff , CRS( "+proj=longlat" ) ) ) )
 
-layer1.clu <- geom_tile( aes( fill = kmc ) )
+# convert this fortified object to a ggplot layer
+outside.layer <- geom_polygon( data = outside , aes( x = long , y = lat , group = id ) , fill = 'white' )
 
-library(RColorBrewer)
-# one qualitative color scheme
-RdGy.11.p <- colorRampPalette( rev( brewer.pal( 8 , "Set1" ) ) )
+# plot this -- the layer doesn't work, does it?
+the.plot + outside.layer
 
-plot + layer1 + scale_fill_gradientn( 
+# five points need to change so we have a real bounding box.
+subset( outside , lat < 45 | lat > 75 | long < -190 | long > -125 )
 
+# move all of them counter-clockwise by hand
+outside[ outside$order %in% c( 1 , 5 ) , 'long' ] <- -100
+outside[ outside$order %in% c( 1 , 5 ) , 'lat' ] <- 20
 
-# + layer2
+outside[ outside$order %in% 4 , 'long' ] <- -220
+outside[ outside$order %in% 4 , 'lat' ] <- 20
 
-# layer2 <- geom_polygon(data=outside, aes(x=long,y=lat,group=group), fill='white')
+outside[ outside$order %in% 3 , 'long' ] <- -220
+outside[ outside$order %in% 3 , 'lat' ] <- 100
 
-
-
-stop( "don't forget about your promise in the early notes:" )
-
-# i'll show an alternative using the rgb() function,
-# but it looks like crap
-
-
-
-
-
-
+outside[ outside$order %in% 2 , 'long' ] <- -100
+outside[ outside$order %in% 2 , 'lat' ] <- 100
 
 
+# fix islands piecing together
+outside2 <- ddply( outside , .( piece ) , function( x ) rbind( x , outside[ 1 , ] ) )
 
+# convert this fortified object to a ggplot layer
+outside.layer <- geom_polygon( data = outside2 , aes( x = long , y = lat , group = id ) , fill = 'white' )
 
+# plot this. 
+the.plot + outside.layer
+
+# that's okay i guess
+final.plot <- the.plot + outside.layer
+
+# use cairo-png as your bitmap type
+options( bitmapType = "cairo" )
+
+# save the file to your current working directory
+ggsave( 
+	"2013 alaskan veteran service eras.png" ,
+	plot = final.plot ,
+	scale = 2 ,
+	type = "cairo-png" 
+)
+# happy?
+
+# # end of step ten # #
+# # # # # # # # # # # #
