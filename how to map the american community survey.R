@@ -428,7 +428,7 @@ alaska.borders <- subset( asf[[2]] , STATEFP == '02' )
 plot( alaska.borders )
 
 # add puma boundaries
-plot( asf[[1]] ), add = TRUE )
+plot( asf[[1]] , add = TRUE )
 
 # refresh the map with state borders only
 plot( alaska.borders )
