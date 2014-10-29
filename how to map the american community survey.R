@@ -877,7 +877,7 @@ s360 <- function( z ){ z[ z$long > 0 , 'long' ] <- z[ z$long > 0 , 'long' ] - 36
 ab <- s360( fortify( spTransform( alaska.borders , CRS( "+proj=longlat" ) ) ) )
 
 # store this information in a layer
-state.border.layer <- geom_path( data = ab , aes( x = long , y = lat , group = group ) )
+state.border.layer <- geom_path( data = ab , aes( x = long , y = lat , group = group ) , colour = 'darkgrey' )
 
 # plot the result
 the.plot + state.border.layer
@@ -977,11 +977,13 @@ the.plot + outside.layer
 # i don't care for the state border layer,
 # but if you want the state border layer,
 # use this save line:
-# final.plot <- the.plot + outside.layer + state.border.layer
+final.plot <- the.plot + outside.layer + state.border.layer
 # otherwise use this save line:
-final.plot <- the.plot + outside.layer
+# final.plot <- the.plot + outside.layer
 # you can airbrush the outside blue border
-# in microsoft paint if you want, right?
+# in microsoft paint or something
+# if you want, right? like a boss.
+
 
 # save the file to your current working directory
 ggsave( 
