@@ -12,6 +12,14 @@
 # american community survey
 
 
+# # # # # # # # # # # # # # # # # # # # #
+# # different from other maps because # #
+# # # # # # # # # # # # # # # # # # # # #
+
+# displays a categorical variable
+# crosses the international date line
+
+
 # # # # # # # # # # # # # # # # # #
 # # smallest level of geography # #
 # # # # # # # # # # # # # # # # # #

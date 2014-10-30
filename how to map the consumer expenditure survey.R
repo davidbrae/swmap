@@ -12,6 +12,14 @@
 # consumer expenditure survey
 
 
+# # # # # # # # # # # # # # # # # # # # #
+# # different from other maps because # #
+# # # # # # # # # # # # # # # # # # # # #
+
+# this is a good starting point, probably
+# the simplest map you can make with survey data
+
+
 # # # # # # # # # # # # # # # # # #
 # # smallest level of geography # #
 # # # # # # # # # # # # # # # # # #

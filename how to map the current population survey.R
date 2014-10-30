@@ -12,6 +12,14 @@
 # current population survey, march supplement
 
 
+# # # # # # # # # # # # # # # # # # # # #
+# # different from other maps because # #
+# # # # # # # # # # # # # # # # # # # # #
+
+# values outside of the displayed geography influence the coloring
+# overlays multiple water layers (no longer shapefiles) to blank out water areas
+
+
 # # # # # # # # # # # # # # # # # #
 # # smallest level of geography # #
 # # # # # # # # # # # # # # # # # #

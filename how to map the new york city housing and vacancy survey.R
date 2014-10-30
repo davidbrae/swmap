@@ -12,6 +12,14 @@
 # new york city housing and vacancy survey
 
 
+# # # # # # # # # # # # # # # # # # # # #
+# # different from other maps because # #
+# # # # # # # # # # # # # # # # # # # # #
+
+# incorporates shapefiles with more than one starting projection
+# binds multiple shapefiles (not layers) to blank out water areas
+
+
 # # # # # # # # # # # # # # # # # #
 # # smallest level of geography # #
 # # # # # # # # # # # # # # # # # #
