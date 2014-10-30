@@ -767,7 +767,7 @@ y.range[ 1 ] <- y.range[ 1 ] - y.diff
 y.range[ 2 ] <- y.range[ 2 ] + y.diff
 
 # choose the number of ticks (in each direction) on your grid
-grid.length <- 500
+grid.length <- 600
 
 # create some grid data.frame objects, one for each interpolation type
 grd <- gam.grd <- krig.grd <-
