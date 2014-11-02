@@ -1,0 +1,89 @@
+region,NAME_1,ID_1
+RU17 ,Altay,2513
+RU18 ,Amur,2514
+RU12 ,Arkhangel'sk,2515
+RU14 ,Astrakhan',2516
+RU11 ,Belgorod,2518
+RU11 ,Bryansk,2519
+RU15 ,Chechnya,2521
+RU16 ,Chelyabinsk,2522
+RU18 ,Chukot,2524
+RU13 ,Chuvash,2525
+RU18 ,Evenk,2528
+RU17 ,Irkutsk,2531
+RU11 ,Ivanovo,2532
+RU15 ,Kabardin-Balkar,2533
+RU12 ,Kaliningrad,2534
+RU11 ,Kaluga,2536
+RU18 ,Kamchatka,2537
+RU18 ,Koryak,2547
+RU15 ,Karachay-Cherkess,2538
+RU17 ,Kemerovo,2540
+RU18 ,Khabarovsk,2541
+RU13 ,Kirov,2544
+RU11 ,Kostroma,2548
+RU14 ,Krasnodar,2549
+RU17 ,Krasnoyarsk,2550
+RU16 ,Kurgan,2551
+RU11 ,Kursk,2552
+RU12 ,Leningrad,2553
+RU11 ,Lipetsk,2554
+RU18 ,Maga Buryatdan,2555
+RU11 ,Moskva,2558
+RU12 ,Murmansk,2559
+RU13 ,Nizhegorod,2561
+RU12 ,Novgorod,2563
+RU17 ,Novosibirsk,2564
+RU17 ,Omsk,2565
+RU13 ,Orenburg,2567
+RU11 ,Orel,2566
+RU13 ,Penza,2568
+RU13 ,Perm',2569
+RU13 ,Komi-Permyak,2546
+RU18 ,Primor'ye,2570
+RU12 ,Pskov,2571
+RU14 ,Adygey,2511
+RU17 ,Gorno-Altay,2529
+RU13 ,Bashkortostan,2517
+RU17 ,Buryat,2520
+RU15 ,Dagestan,2527
+RU15 ,Ingush,2530
+RU14 ,Kalmyk,2535
+RU12 ,Karelia,2539
+RU17 ,Khakass,2542
+RU12 ,Komi,2545
+RU13 ,Mariy-El,2556
+RU13 ,Mordovia,2557
+RU18 ,Sakha,2574
+RU13 ,Tatarstan,2582
+RU17 ,Tuva,2586
+RU14 ,Rostov,2572
+RU11 ,Ryazan',2573
+RU18 ,Sakhalin,2575
+RU13 ,Samara,2576
+RU13 ,Saratov,2577
+RU15 ,North Ossetia,2562
+RU11 ,Smolensk,2578
+RU12 ,City of St. Petersburg,2526
+RU15 ,Stavropol',2579
+RU16 ,Sverdlovsk,2580
+RU11 ,Tambov,2581
+RU17 ,Tomsk,2584
+RU11 ,Tula,2585
+RU11 ,Tver',2587
+RU16 ,Tyumen',2588
+RU13 ,Udmurt,2589
+RU13 ,Ul'yanovsk,2590
+RU11 ,Vladimir,2592
+RU14 ,Volgograd,2593
+RU12 ,Vologda,2594
+RU11 ,Voronezh,2595
+RU11 ,Yaroslavl',2597
+RU17 ,Chita,2523
+RU17 ,Aga Buryat,2512
+RU17,Khanty-Mansiy,2543
+RU17,Yamal-Nenets,2596
+RU17,Taymyr,2583
+RU17 ,Ust-Orda Buryat,2591
+RU18 ,Yevrey,2598
+RU17,Nenets,2560
