@@ -147,10 +147,12 @@ sas$NUTS_ID <- str_trim( sas$region )
 # # # # # # # # # # #
 
 
-# # # # # # # # # # # #
-# # step 3: outline # #
+# # # # # # # # # # # # # # # #
+# # step 3: choose outlines # #
 
 library(rgdal)
+library(maptools)
+library(downloader)
 
 source_url(
 	"https://raw.github.com/ajdamico/usgsd/master/Download%20Cache/download%20cache.R" ,
@@ -225,6 +227,7 @@ plot( subset( matches.shp , NUTS_ID != 'ES70' ) , col = 'red' )
 
 # store this shapefile
 matnci.shp <- subset( matches.shp , NUTS_ID != 'ES70' )
+# matches with no canary islands.
 
 # plot the international borders on top of 
 plot( world.shp , add = TRUE )
@@ -275,7 +278,7 @@ alb@data$NUTS_ID <- paste0( 'AL' , c( '01' , '09' , '02' , '03' , '04' , '05' , 
 
 # re-map everything, suddenly we've got a reddened albania
 # (across the adriatic sea from the bootheel of italy)
-plot( matches.shp , col = 'red' )
+plot( matnci.shp , col = 'red' )
 plot( world.shp , add = TRUE )
 plot( alb , add = TRUE , col = 'red' )
 
@@ -304,7 +307,6 @@ kos@data$NUTS_ID <- paste0( 'XK' , c( 4 , 5 , 2 , 6 , 1 , 3 , 7 ) )
 # still have your map loaded?
 # make kosovo (northeast of albania) red.
 plot( kos , add = TRUE , col = 'red' )
-
 
 
 # ukraine #
@@ -337,6 +339,7 @@ ukr <- subset( ukr , !is.na( NUTS_ID ) )
 
 # look at what you've got
 plot( ukr , add = TRUE , col = 'red' )
+
 
 # russia #
 
@@ -385,8 +388,69 @@ for ( i in 1:8 ) plot( subset( rus , str_trim( NUTS_ID ) == paste0( 'RU1' , i ) 
 # # exploration end # #
 
 # re-map everything, suddenly we've got lot more available geographies
-plot( matches.shp , col = 'red' )
+plot( matnci.shp , col = 'red' )
 plot( world.shp , add = TRUE )
+plot( alb , add = TRUE , col = 'red' )
+plot( kos , add = TRUE , col = 'red' )
+plot( ukr , add = TRUE , col = 'red' )
+plot( rus , add = TRUE , col = 'red' )
+# but it's still not as tight of a map as it could be
+
+
+# # here's the goal # #
+# russia is going to be off the map, no question
+# but all of the other countries should be visible entirely.
+# using the current bounding box of this shape,
+plot( 1 ,
+	type = 'n' , axes = FALSE , xlab = "" , ylab = "" ,
+	xlim = bbox( matnci.shp )[ 1 , ] , 
+	ylim = bbox( matnci.shp )[ 2 , ]
+)
+
+# ukraine gets cut off.
+plot( ukr , add = TRUE , col = 'red' )
+# yes, russia gets cut off too, but we probably have to live with that
+plot( rus , add = TRUE , col = 'red' )
+# let's re-calculate the bounding box with ukraine
+# so that it's not cut off.
+
+# we can skip this for kosovo and albania
+# because they are both *within* the bounding box
+# created by including cyprus.
+
+# start with the main europe map,
+# transform its projection to standard longlat
+ess.shp <- spTransform( matnci.shp , CRS( "+proj=longlat" ) )
+# repeat this conversion for ukraine
+ukr.ll <- spTransform( ukr , CRS( "+proj=longlat" ) )
+
+# keep only the NUTS identifier in both shapefiles
+ess.shp@data <- ess.shp@data[ "NUTS_ID" ]
+ukr.ll@data <- ukr.ll@data[ "NUTS_ID" ]
+
+# merge both shapes
+ess.shp <- rbind( ess.shp , ukr.ll )
+
+# now you could plot it on its own..
+plot( ess.shp )
+# ..but the purpose of this was to determine
+( bb <- bbox( ess.shp ) )
+# the latitude and longitude limits that make sense.
+
+# initiate the plot using that new ukranian-extended bounding box
+plot( 1 ,
+	type = 'n' , axes = FALSE , xlab = "" , ylab = "" ,
+	xlim = bb[ 1 , ] , 
+	ylim = bb[ 2 , ]
+)
+
+# add in every shape, one by one.
+
+# no color for the world map
+plot( world.shp , add = TRUE )
+
+# then add red to all regions with ess microdata.
+plot( matnci.shp , col = 'red' , add = TRUE )
 plot( alb , add = TRUE , col = 'red' )
 plot( kos , add = TRUE , col = 'red' )
 plot( ukr , add = TRUE , col = 'red' )
@@ -397,53 +461,411 @@ plot( rus , add = TRUE , col = 'red' )
 # # # # # # # # # # #
 
 
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# # step 4: merge the results of your survey analysis with the small-area geography # #
 
+library(rgeos)
+library(sqldf)
 
+# # note: this uses the unweighted centroid,
+# # rather than the population-weighted centroid.
+# # population-weighted centroids aren't too difficult
+# # to calculate (see the other mapping scripts for examples)
+# # but require that you merge on the smallest possible area
+# # and then distribute the small area statistics to even smaller geographies.
+# # the population estimates *within* each of these regions
+# # would mostly be the NUTS3 estimate from
+# # each country's most recent decennial census.
+# # but it's a lot of work with relatively little payoff for a
+# # continent-wide map, so this map works around it.
+# # it's not perfect, though.  you do experience issues like
+# # the centroid of norway's northernmost province is in sweden.
 
+# calculate the centroids of each administrative boundary
+matnci.cen <- gCentroid( matnci.shp , byid = TRUE )
 
+# you can have a little detour to see what these look like
+plot( matnci.cen )
+plot( matnci.shp , add = TRUE )
+# those look pretty central, huh?
 
-
-
-
-# calculate the centroids
+# additionally calculate the centroids
+# of albania, kosovo, and ukraine
 alb.cen <- gCentroid( alb , byid = TRUE )
-plot( alb.cen , add = TRUE )
-
-
 kos.cen <- gCentroid( kos , byid = TRUE )
-
-# calculate the centroids
 ukr.cen <- gCentroid( ukr , byid = TRUE )
 
-plot( ukr )
-plot( ukr.cen , add = TRUE )
-
-
+# now russia is different from the others.
 rus.cen <- gCentroid( rus , byid = TRUE )
-plot(rus)
+# for each of the previous centroid calculations,
+# you had one centroid per small area statistic
+# but with russia, you have about ten.
+# we'll have to deal with this later.
 
 
+# # # construct the object containing values at every point # # #
 
-# not sure if you want to do this? #
+# initiate a function that combines centroids with `tvtot` and `se`
+# but also calculates the number of instances of each NUTS_ID
+cte <- 
+	function( cen , shp ){
+		out <- data.frame( cen )
+		out$NUTS_ID <- shp@data$NUTS_ID
+		out$tvtot <- sas[ match( shp@data$NUTS_ID , sas$NUTS_ID ) , 'tvtot' ]
+		out$se <- sas[ match( shp@data$NUTS_ID , sas$NUTS_ID ) , 'se' ]
+		nc <- sqldf( "select NUTS_ID , count(*) as nc from out group by NUTS_ID" )
+		out <- merge( out , nc )
+		
+		out
+	}
 
-# it would be a lot easier to just distribute the 1/se = weight across the centroids of each small administrative region
-# so kaliningrad gets 1/8th of the north-west russia province
+matnci.vals <- cte( matnci.cen , matnci.shp )
+alb.vals <- cte( alb.cen , alb )
+kos.vals <- cte( kos.cen , kos )
+ukr.vals <- cte( ukr.cen , ukr )
+rus.vals <- cte( rus.cen , rus )
+
+# note that *only* russia has multiple centroids per NUTS_ID
+head( rus.vals )
+# all of the other data.frame objects have a `nc` field of one
+unique( c( matnci.vals$nc , alb.vals$nc , kos.vals$nc , ukr.vals$nc ) )	
+# see?  seeeee?  i told you.
+
+# stack each of these values data.frame objects together
+x <- rbind( matnci.vals , alb.vals , kos.vals , ukr.vals , rus.vals )
+
+# alright.  remember that the standard error (the `se` field) is a measure of precision.
+print( x )
+# the smaller the standard error, the more confident you should be
+# that the estimate at a particular geography is correct.
 
 
+# so invert it.  you heard me.  invert it.
+x$invse <- 1 / x$se
+# a smaller standard error indicates more precision.
 
-# regional populations by nuts3 #
+# for our purposes, precision can be considered weight! #
 
-# http://epp.eurostat.ec.europa.eu/portal/page/portal/population/data/database
-# shows the tablename, and then the "bulk download" feature makes it easy to download
-download.cache( "http://epp.eurostat.ec.europa.eu/NavTree_prod/everybody/BulkDownloadListing?sort=1&file=data%2Fdemo_r_pjanaggr3.tsv.gz" , tf )
+# we also blankly distributed our values and standard errors
+# across the multi-province regions in russia without
+# accounting for multiple regions per province.  let's do that now.
+x$weight <- x$invse / x$nc
+# so we have quite a few more russian centroids,
+# but each of them has far lower weight than other points on our map
 
-tf2 <- tempfile()
-library(R.utils)
-gunzip( tf , tf2 )
-z <- read.table( tf2 , sep = '\t' , h = TRUE , stringsAsFactors = FALSE )
-z$a <- sapply( strsplit( z[ , 1 ] , "," ) , '[[' , 1 )
-z$b <- sapply( strsplit( z[ , 1 ] , "," ) , '[[' , 2 )
-z$d <- sapply( strsplit( z[ , 1 ] , "," ) , '[[' , 3 )
-z <- subset( z , a == "T" & b == "TOTAL" )
 
-sum( as.numeric( as.character( z$X2013 ) ) , na.rm = TRUE ) / 4
+# as mentioned before, this isn't as ideal.  for example:
+# st. petersburg gets exactly one eleventh of the total
+# "north-western" weight because there are eleven
+# administrative regions in the north west.
+# that's a rough cut.  this effect might be even more biased
+# for kaliningrad (the russian enclave west of lithuania)
+# which is also in the north-western region
+
+
+# if you'd like to calculate population-weighted centroids
+# for all of these countries, it's just a lot of manual labor
+
+
+# note that this distributed weight sums to
+# the `invse` on the original analysis file
+stopifnot( all.equal( sum( x$weight ) , sum( 1 / sas$se ) ) )
+
+# scale all weights so that they average to one
+x$weight <- x$weight / mean( x$weight )
+
+# you're done preparing your data.
+# keep only the columns you need.
+x <- x[ , c( 'x' , 'y' , 'tvtot' , 'weight' ) ]
+
+
+# # end of step 4 # #
+# # # # # # # # # # #
+
+
+# # # # # # # # # # # # # # # # # # # # # # #
+# # step 5: decide on your map parameters # #
+
+library(ggplot2)
+library(scales)
+library(mapproj)
+
+
+# before you ever touch surface smoothing or kriging,
+# make some decisions about how you generally want
+# your map to look:  the projection and coloring
+
+# the options below simply use hadley wickham's ggplot2
+# with the region-level television viewing rates and centroids
+
+
+# initiate the simple map
+eu.map <- 
+	qplot( 
+		x , 
+		y , 
+		data = x , 
+		colour = tvtot ,
+		xlab = NULL ,
+		ylab = NULL
+	)
+
+# look at that.. russia is still throwing things off
+eu.map
+
+# set the bounding box limits that
+# you and i agreed to earlier in the script
+# oh, also, remove all map crap
+eu.map <- 
+	eu.map + 
+
+	scale_x_continuous( limits = bb[ 1 , ] , breaks = NULL ) +
+
+    scale_y_continuous( limits = bb[ 2 , ] , breaks = NULL ) +
+
+    theme(
+		legend.position = "none" ,
+		panel.grid.major = element_blank(),
+		panel.grid.minor = element_blank(),
+		panel.background = element_blank(),
+		panel.border = element_blank(),
+		axis.ticks = element_blank()
+	)
+
+# the asian part of russia has now been cut off
+eu.map
+
+# print the map with an albers projection.
+eu.map + coord_map( project = "albers" , lat0 = min( x$y ) , lat1 = max( x$y ) )
+# see ?mapproject for a zillion alternatives
+
+# if you like that projection, store it in the map object.
+eu.map <- 
+	eu.map + coord_map( project = "albers" , lat0 = min( x$y ) , lat1 = max( x$y ) )
+
+
+# check out some purty colors.
+eu.map + scale_colour_gradient( low = 'green' , high = 'red' )
+
+eu.map + scale_colour_gradient( low = 'white' , high = 'blue' )
+
+eu.map + scale_colour_gradient( low = muted( 'blue' ) , high = muted( 'red' ) )
+
+# clear up RAM
+rm( eu.map ) ; gc()
+
+# # end of step 5 # #
+# # # # # # # # # # #
+
+
+# # # # # # # # # # #
+# # step 6: krige # #
+
+# note that because there are less than five hundred points
+# that we're kriging across, smaller computers can handle
+# this particular kriged regression without knot tying
+nrow( x )
+
+
+# interpolation option one #
+library(fields)
+
+krig.fit <-
+	Krig(
+		cbind( x$x , x$y ) ,
+		x$tvtot ,
+		weights = x$weight
+	)
+
+# that is: what is the (weighted) relationship between
+# your variable of interest (hours of television) and
+# the x/y points on a grid?
+
+# check this out!
+surface( krig.fit )
+# lookin' good.  but this includes siberia
+
+
+# interpolation option two #
+library(mgcv)
+
+gam.fit <- 
+	gam( 
+		tvtot ~ s( x , y ) , 
+		weights = weight , 
+		data = x
+	)
+	
+
+# for the third alternative, keep reading.
+	
+	
+# # end of step 6 # #
+# # # # # # # # # # #
+
+
+# # # # # # # # # # # # # # # # # # # #
+# # step 7: make a grid and predict # #
+
+library(raster)
+
+x.range <- bb[ 1 , ]
+y.range <- bb[ 2 , ]
+
+# add five percent on each side
+x.diff <- abs( x.range[ 2 ] - x.range[ 1 ] ) * 0.05
+y.diff <- abs( y.range[ 2 ] - y.range[ 1 ] ) * 0.05
+
+x.range[ 1 ] <- x.range[ 1 ] - x.diff
+x.range[ 2 ] <- x.range[ 2 ] + x.diff
+y.range[ 1 ] <- y.range[ 1 ] - y.diff
+y.range[ 2 ] <- y.range[ 2 ] + y.diff
+
+# choose the number of ticks (in each direction) on your grid
+grid.length <- 450
+
+# create some grid data.frame objects, one for each interpolation type
+grd <- gam.grd <- krig.grd <-
+	expand.grid(
+		x = seq( from = x.range[1] , to = x.range[2] , length = grid.length ) , 
+		y = seq( from = y.range[1] , to = y.range[2] , length = grid.length )
+	)
+
+
+# along your rectangular grid,
+# what are the predicted values of
+# television viewership hours?
+krig.grd$kout <- predict( krig.fit , krig.grd )
+
+# alternate grid using gam.fit
+gam.grd$gamout <- predict( gam.fit , gam.grd )
+
+# interpolation option three #
+library(spatstat)
+
+# the spatstat Smooth function
+# cannot easily handle points outside of the specified window
+# so delete the siberian points
+x.sub <- subset( x , x > bb[ 1 , 1 ] & x < bb[ 1 , 2 ] & y > bb[ 2 , 1 ] & y < bb[ 2 , 2 ] )
+
+smoout <- 
+	Smooth(
+		ppp( 
+			x.sub$x , 
+			x.sub$y , 
+			x.range ,
+			y.range ,
+			marks = x.sub$tvtot
+		) ,
+		# here's a good starting point for sigma, but screw around with this value.
+		sigma = ( max( x.sub$tvtot ) - min( x.sub$tvtot ) ) / 2 ,
+		weights = x.sub$weight
+	)
+
+smoo.grd <-	
+	expand.grid(
+		x = seq( from = smoout$xrange[1] , to = smoout$xrange[2] , length = smoout$dim[1] ) , 
+        y = seq( from = smoout$yrange[1] , to = smoout$yrange[2] , length = smoout$dim[2] )
+	)
+
+smoo.grd$smoout <- as.numeric( t( smoout$v ) )
+
+# # end of step 7 # #
+# # # # # # # # # # #
+
+
+# # # # # # # # # # # # # # # # # # # # #
+# # step 8: ggplot and choose options # #
+
+library(ggplot2)
+library(mapproj)
+
+
+# # # psa # # # 
+# capping your outliers might drastically change your map.
+# if you find the 25th percentile and 75th percentile with
+# summary( krig.grd$kout )
+# and then replace all `kout` values below the 25th or above the 75th
+# with those capped percentile endpoints, i promise promise promise
+# your maps will appear quite different.  you could cap at the 25th and 75th with..
+# grd.sum <- summary( krig.grd$kout )
+# krig.grd[ krig.grd$kout > grd.sum[ 5 ] , 'kout' ] <- grd.sum[ 5 ]
+# krig.grd[ krig.grd$kout < grd.sum[ 2 ] , 'kout' ] <- grd.sum[ 2 ]
+# # # end # # # 
+
+# you don't want to cap at the 25th and 75th?
+# well consider one other idea: at least cap at the 5th and 95th
+# this will also increase the visible gradient ultimately plotted.
+
+# if a numeric vector has values below the 5th percentile or above the 95th percentile, cap 'em
+minnmax.at.0595 <- 
+	function( z ){ 
+		q0595 <- quantile( z , c( 0.05 , 0.95 ) )
+		z[ z < q0595[ 1 ] ] <- q0595[ 1 ]
+		z[ z > q0595[ 2 ] ] <- q0595[ 2 ]
+		z
+	}
+
+# min and max all numeric values.  this makes the gradient much more visible.
+krig.grd$kout <- minnmax.at.0595( krig.grd$kout )
+gam.grd$gamout <- minnmax.at.0595( gam.grd$gamout )
+smoo.grd$smoout <- minnmax.at.0595( smoo.grd$smoout )
+
+
+# initiate the krige-based plot
+krg.plot <- 
+	ggplot( data = krig.grd , aes( x = x , y = y ) ) +
+	geom_tile( data = krig.grd , aes( fill = kout ) )
+	
+# initiate the gam-based plot
+gam.plot <- 
+	ggplot( data = gam.grd , aes( x = x , y = y ) ) +
+	geom_tile( data = gam.grd , aes( fill = gamout ) )
+
+# initiate the smooth-based plot
+smooth.plot <- 
+	ggplot( data = smoo.grd , aes( x = x , y = y ) ) +
+	geom_tile( data = smoo.grd , aes( fill = smoout ) )
+
+# view all three grids!
+krg.plot
+gam.plot
+smooth.plot
+
+# choose a projection.  here's one using albers on current bounding box's borders
+co <- coord_map( project = "albers" , lat0 = bb[ 2 , 1 ] , lat1 = bb[ 2 , 2 ] )
+# but save this puppy for laytur
+# because printing the projected plot takes much more time than printing the unprojected one
+
+# initiate the entire plot
+the.plot <-
+
+	# choose only one of the three interpolation grids
+	krg.plot +
+	# gam.plot +
+	# smooth.plot +
+	
+	# blank out the legend and axis labels
+	theme(
+		legend.position = "none" ,
+		axis.title.x = element_blank() ,
+		axis.title.y = element_blank()		
+	) + 
+	
+	# blank out other plot elements
+	scale_x_continuous( limits = bb[ 1 , ] , breaks = NULL ) +
+    scale_y_continuous( limits = bb[ 2 , ] , breaks = NULL ) +
+	theme(
+		panel.grid.major = element_blank(),
+		panel.grid.minor = element_blank(),
+		panel.background = element_blank(),
+		panel.border = element_blank(),
+		axis.ticks = element_blank()
+	)
+
+# print the plot to the screen
+the.plot
+
+# # end of step 8 # #
+# # # # # # # # # # #
+
