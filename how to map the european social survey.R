@@ -743,6 +743,35 @@ krig.grd$kout <- predict( krig.fit , krig.grd )
 
 library(ggplot2)
 
+# # # psa # # # 
+# capping your outliers might drastically change your map.
+# if you find the 25th percentile and 75th percentile with
+summary( krig.grd$kout )
+# and then replace all `kout` values below the 25th or above the 75th
+# with those capped percentile endpoints, i promise promise promise
+# your maps will appear quite different.  you could cap at the 25th and 75th with..
+# grd.sum <- summary( krig.grd$kout )
+# krig.grd[ krig.grd$kout > grd.sum[ 5 ] , 'kout' ] <- grd.sum[ 5 ]
+# krig.grd[ krig.grd$kout < grd.sum[ 2 ] , 'kout' ] <- grd.sum[ 2 ]
+# # # end # # # 
+
+# you don't want to cap at the 25th and 75th?
+# well consider one other idea: at least cap at the 5th and 95th
+# this will also increase the visible gradient ultimately plotted.
+
+# if a numeric vector has values below the 5th percentile or above the 95th percentile, cap 'em
+minnmax.at.0595 <- 
+	function( z ){ 
+		q0595 <- quantile( z , c( 0.05 , 0.95 ) )
+		z[ z < q0595[ 1 ] ] <- q0595[ 1 ]
+		z[ z > q0595[ 2 ] ] <- q0595[ 2 ]
+		z
+	}
+
+# min and max all numeric values.  this makes the gradient much more visible.
+krig.grd$kout <- minnmax.at.0595( krig.grd$kout )
+# it also (unfairly perhaps) amplifies the differences between points
+
 
 # initiate the krige-based plot
 krg.plot <- 
