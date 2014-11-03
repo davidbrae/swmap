@@ -841,7 +841,7 @@ library(mapproj)
 summary( krig.grd$kout )
 # that's obviously not right.
 
-# if a numeric vector has values below the 5th percentile or above the 75th percentile, cap 'em
+# if a numeric vector has values below the 5th percentile or above the 95th percentile, cap 'em
 minnmax.at.0595 <- 
 	function( z ){ 
 		q0595 <- quantile( z , c( 0.05 , 0.95 ) )
