@@ -692,20 +692,6 @@ surface( krig.fit )
 # lookin' good.  but this includes siberia
 
 
-# interpolation option two #
-library(mgcv)
-
-gam.fit <- 
-	gam( 
-		tvtot ~ s( x , y ) , 
-		weights = weight , 
-		data = x
-	)
-	
-
-# for the third alternative, keep reading.
-	
-	
 # # end of step 6 # #
 # # # # # # # # # # #
 
