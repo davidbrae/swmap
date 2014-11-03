@@ -16,7 +16,7 @@
 # # different from other maps because # #
 # # # # # # # # # # # # # # # # # # # # #
 
-# multi-national
+# country shapes bound together
 # approximate (unweighted) centroid calculations
 
 
@@ -24,7 +24,7 @@
 # # smallest level of geography # #
 # # # # # # # # # # # # # # # # # #
 
-# many regions across many countries
+# varying regions across multiple countries
 
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -80,6 +80,11 @@ load( "./2012/integrated.rda" )
 # skip israel because it's too far away from the others to map
 integrated <- subset( x , cntry != 'IL' )
 # and also because it does not currently include a `SDDF`
+
+# skip iceland because it's also on the border and because
+integrated <- subset( integrated , cntry != 'IS' )
+# its results in the final map are boring.  it majorly decreases
+# the map's resolution while not adding much of a story on its own
 
 # initiate an empty object
 sddf <- NULL
@@ -150,6 +155,7 @@ sas$NUTS_ID <- str_trim( sas$region )
 # # # # # # # # # # # # # # # #
 # # step 3: choose outlines # #
 
+library(raster)
 library(rgdal)
 library(maptools)
 library(downloader)
@@ -434,7 +440,7 @@ ess.shp <- rbind( ess.shp , ukr.ll )
 # now you could plot it on its own..
 plot( ess.shp )
 # ..but the purpose of this was to determine
-( bb <- bbox( ess.shp ) )
+( bb <- bbox( as( 1.05 * extent( ess.shp ), "SpatialPolygons" ) ) )
 # the latitude and longitude limits that make sense.
 
 # initiate the plot using that new ukranian-extended bounding box
@@ -638,7 +644,7 @@ eu.map
 # print the map with an albers projection.
 eu.map + coord_map( project = "albers" , lat0 = min( x$y ) , lat1 = max( x$y ) )
 # see ?mapproject for a zillion alternatives
-
+	
 # if you like that projection, store it in the map object.
 eu.map <- 
 	eu.map + coord_map( project = "albers" , lat0 = min( x$y ) , lat1 = max( x$y ) )
@@ -722,7 +728,7 @@ y.range[ 1 ] <- y.range[ 1 ] - y.diff
 y.range[ 2 ] <- y.range[ 2 ] + y.diff
 
 # choose the number of ticks (in each direction) on your grid
-grid.length <- 450
+grid.length <- 400
 
 # create some grid data.frame objects, one for each interpolation type
 grd <- gam.grd <- krig.grd <-
@@ -737,38 +743,10 @@ grd <- gam.grd <- krig.grd <-
 # television viewership hours?
 krig.grd$kout <- predict( krig.fit , krig.grd )
 
-# alternate grid using gam.fit
-gam.grd$gamout <- predict( gam.fit , gam.grd )
 
-# interpolation option three #
-library(spatstat)
+# note: alternative prediction methods fare poorly on such a large surface,
+# at least for me.  but i'd love to be proven wrong.  thanx
 
-# the spatstat Smooth function
-# cannot easily handle points outside of the specified window
-# so delete the siberian points
-x.sub <- subset( x , x > bb[ 1 , 1 ] & x < bb[ 1 , 2 ] & y > bb[ 2 , 1 ] & y < bb[ 2 , 2 ] )
-
-smoout <- 
-	Smooth(
-		ppp( 
-			x.sub$x , 
-			x.sub$y , 
-			x.range ,
-			y.range ,
-			marks = x.sub$tvtot
-		) ,
-		# here's a good starting point for sigma, but screw around with this value.
-		sigma = ( max( x.sub$tvtot ) - min( x.sub$tvtot ) ) / 2 ,
-		weights = x.sub$weight
-	)
-
-smoo.grd <-	
-	expand.grid(
-		x = seq( from = smoout$xrange[1] , to = smoout$xrange[2] , length = smoout$dim[1] ) , 
-        y = seq( from = smoout$yrange[1] , to = smoout$yrange[2] , length = smoout$dim[2] )
-	)
-
-smoo.grd$smoout <- as.numeric( t( smoout$v ) )
 
 # # end of step 7 # #
 # # # # # # # # # # #
@@ -778,72 +756,22 @@ smoo.grd$smoout <- as.numeric( t( smoout$v ) )
 # # step 8: ggplot and choose options # #
 
 library(ggplot2)
-library(mapproj)
-
-
-# # # psa # # # 
-# capping your outliers might drastically change your map.
-# if you find the 25th percentile and 75th percentile with
-# summary( krig.grd$kout )
-# and then replace all `kout` values below the 25th or above the 75th
-# with those capped percentile endpoints, i promise promise promise
-# your maps will appear quite different.  you could cap at the 25th and 75th with..
-# grd.sum <- summary( krig.grd$kout )
-# krig.grd[ krig.grd$kout > grd.sum[ 5 ] , 'kout' ] <- grd.sum[ 5 ]
-# krig.grd[ krig.grd$kout < grd.sum[ 2 ] , 'kout' ] <- grd.sum[ 2 ]
-# # # end # # # 
-
-# you don't want to cap at the 25th and 75th?
-# well consider one other idea: at least cap at the 5th and 95th
-# this will also increase the visible gradient ultimately plotted.
-
-# if a numeric vector has values below the 5th percentile or above the 95th percentile, cap 'em
-minnmax.at.0595 <- 
-	function( z ){ 
-		q0595 <- quantile( z , c( 0.05 , 0.95 ) )
-		z[ z < q0595[ 1 ] ] <- q0595[ 1 ]
-		z[ z > q0595[ 2 ] ] <- q0595[ 2 ]
-		z
-	}
-
-# min and max all numeric values.  this makes the gradient much more visible.
-krig.grd$kout <- minnmax.at.0595( krig.grd$kout )
-gam.grd$gamout <- minnmax.at.0595( gam.grd$gamout )
-smoo.grd$smoout <- minnmax.at.0595( smoo.grd$smoout )
 
 
 # initiate the krige-based plot
 krg.plot <- 
 	ggplot( data = krig.grd , aes( x = x , y = y ) ) +
-	geom_tile( data = krig.grd , aes( fill = kout ) )
+	geom_point( data = krig.grd , aes( color = kout ) )
 	
-# initiate the gam-based plot
-gam.plot <- 
-	ggplot( data = gam.grd , aes( x = x , y = y ) ) +
-	geom_tile( data = gam.grd , aes( fill = gamout ) )
 
-# initiate the smooth-based plot
-smooth.plot <- 
-	ggplot( data = smoo.grd , aes( x = x , y = y ) ) +
-	geom_tile( data = smoo.grd , aes( fill = smoout ) )
-
-# view all three grids!
+# view the grid
 krg.plot
-gam.plot
-smooth.plot
 
-# choose a projection.  here's one using albers on current bounding box's borders
-co <- coord_map( project = "albers" , lat0 = bb[ 2 , 1 ] , lat1 = bb[ 2 , 2 ] )
-# but save this puppy for laytur
-# because printing the projected plot takes much more time than printing the unprojected one
 
 # initiate the entire plot
 the.plot <-
 
-	# choose only one of the three interpolation grids
 	krg.plot +
-	# gam.plot +
-	# smooth.plot +
 	
 	# blank out the legend and axis labels
 	theme(
@@ -853,8 +781,8 @@ the.plot <-
 	) + 
 	
 	# blank out other plot elements
-	scale_x_continuous( limits = bb[ 1 , ] , breaks = NULL ) +
-    scale_y_continuous( limits = bb[ 2 , ] , breaks = NULL ) +
+	scale_x_continuous( limits = bb[ 1 , ] , breaks = NULL , oob = squish ) +
+    scale_y_continuous( limits = bb[ 2 , ] , breaks = NULL , oob = squish ) +
 	theme(
 		panel.grid.major = element_blank(),
 		panel.grid.minor = element_blank(),
@@ -869,3 +797,247 @@ the.plot
 # # end of step 8 # #
 # # # # # # # # # # #
 
+
+# # # # # # # # # # #
+# # step 9: blank # #
+
+library(SpatialTools)
+library(plyr)
+
+# you have the krigged grid
+# you have the map of world country borders
+# you have a few maps of regions that you actually have data for
+
+# everything outside country borders is water.
+# everything inside country borders but outside of regions with data should be "missing"
+
+
+# we had previously constructed the bounding box
+# with `matnci.shp` plus ukraine.  but we now need
+# albania, kosovo, and russia added to that shape.
+
+# standardize the projections of all shapes
+# but for russia, we only need RU11 - RU15
+rusub <- subset( rusnc , NUTS_ID %in% c( 'RU11' , 'RU12' , 'RU13' , 'RU14' , 'RU15' ) )
+rus.ll <- spTransform( rusub , CRS( "+proj=longlat" ) )
+alb.ll <- spTransform( alb , CRS( "+proj=longlat" ) )
+kos.ll <- spTransform( kos , CRS( "+proj=longlat" ) )
+
+# keep only the NUTS identifier
+rus.ll@data <- rus.ll@data[ "NUTS_ID" ]
+alb.ll@data <- alb.ll@data[ "NUTS_ID" ]
+kos.ll@data <- kos.ll@data[ "NUTS_ID" ]
+
+# avoid conflicting identifiers
+rus.ll <- spChFIDs( rus.ll , paste0( 'rus_' , sapply( slot( rus.ll , "polygons" ) , slot , "ID" ) ) )
+alb.ll <- spChFIDs( alb.ll , paste0( 'alb_' , sapply( slot( alb.ll , "polygons" ) , slot , "ID" ) ) )
+kos.ll <- spChFIDs( kos.ll , paste0( 'kos_' , sapply( slot( kos.ll , "polygons" ) , slot , "ID" ) ) )
+
+# stack 'em alongside what's already in `ess.shp`
+data.shp <- rbind( ess.shp , rus.ll )
+data.shp <- rbind( data.shp , alb.ll )
+data.shp <- rbind( data.shp , kos.ll )
+
+# here are the landmasses where
+# ess provides some data
+plot( data.shp )
+
+# note that some of these regional geographies self-intersect.
+# quickly fix this with gBuffer if you don't care too much about perfect coastlines
+data.shp <- gBuffer( data.shp , width = 0 )
+
+# draw a huge rectangle to make sure you encircle russia's european side
+ess.shp.blank <- as( 2 * extent( ess.shp ), "SpatialPolygons" )
+
+# compute the difference between regions with data and
+# the huge rectangle beyond our bounding box borders
+ess.shp.diff <- gDifference( ess.shp.blank , data.shp )
+
+# here's where you have data
+plot( ess.shp , col = 'red' )
+plot( data.shp , col = 'red' , add = TRUE )
+# here's where you have no data
+plot( ess.shp.diff , add = TRUE , col = 'gray' )
+
+
+# beyond that, you need a water layer.
+
+# find the centroid of germany
+germany.centroid <- data.frame( gCentroid( subset( world.shp , CNTR_ID == 'DE' ) ) )
+
+# find every centroid of every country worldwide
+all.centroids <- data.frame( gCentroid( world.shp , byid = TRUE ) )
+
+# find each distance to the centroid of germany
+all.distances <- as.numeric( dist2( as.matrix( germany.centroid ) , as.matrix( all.centroids ) ) )
+
+# subset the world shape to only *countries near germany*
+cng <- world.shp[ ( all.distances < 60 ) , ]
+
+# save and transform this result
+cng@data <- cng@data[ "CNTR_ID" ]
+cng <- spTransform( cng , CRS( "+proj=longlat" ) )
+
+# manually tack on russia, since its centroid isn't close to germany
+# only use the western regions
+rus <- rusub
+
+# align the russian shapefile with the `cng` one
+rus@data$CNTR_ID <- 'RU'
+rus@data <- rus@data[ "CNTR_ID" ]
+rus <- spTransform( rus , CRS( "+proj=longlat" ) )
+
+# prevent unique ids from conflicting
+rus <- spChFIDs( rus , paste0( 'rus_' , sapply( slot( rus , "polygons" ) , slot , "ID" ) ) )
+
+# bind these two shapefiles together
+cngpr <- rbind( cng , rus )
+
+# combine the country lines
+cngpr <- gBuffer( cngpr , width = 0 )
+
+# construct a shape of all water near the european continent
+water.shp <- gDifference( ess.shp.blank , cngpr )
+
+
+# here's where you have data
+plot( ess.shp , col = 'red' , 	xlim = bb[ 1 , ] , ylim = bb[ 2 , ] )
+plot( data.shp , col = 'red' , add = TRUE )
+# here's where you have no data
+plot( ess.shp.diff , add = TRUE , col = 'gray' )
+# here's where there's water
+plot( water.shp , add = TRUE , col = 'blue' )
+
+# prepare the difference layer for ggplot2
+water <- fortify( water.shp )
+
+# fix the islands
+water2 <- ddply( water , .(piece) , function(x) rbind( x , water[ 1 , ] ) )
+
+# blank out coastal areas
+water.layer <- 
+	geom_polygon( 
+		data = water2 , 
+		aes( x = long , y = lat , group = id ) , 
+		fill = 'white' 
+	)
+
+# closer, eh?
+the.plot + water.layer
+
+# prepare the missing data layer for ggplot2
+nodata <- fortify( ess.shp.diff )
+
+# fix the islands
+nodata2 <- ddply( nodata , .(piece) , function(x) rbind( x , nodata[ 1 , ] ) )
+
+nodata.layer <- 
+	geom_polygon( 
+		data = nodata2 , 
+		aes( x = long , y = lat , group = id ) , 
+		fill = 'grey50' 
+	)
+
+# eeeeven closer.
+the.plot + nodata.layer + water.layer
+
+# prepare the world shapefile for ggplot2
+borders <- fortify( world.shp )
+
+# create a international border line around each nation
+border.layer <- 
+	geom_path( 
+		data = borders , 
+		aes( x = long , y = lat , group = group ) 
+	)
+
+# lookin' good.
+the.plot + nodata.layer + water.layer + border.layer
+
+# save our progress so far
+the.plot <- the.plot + nodata.layer + water.layer + border.layer
+
+# # end of step 9 # #
+# # # # # # # # # # #
+
+
+# # # # # # # # # # # # # # # # # # # # #
+# # step 10: color, project, and save # #
+
+library(ggplot2)
+library(scales)
+library(raster)
+library(plyr)
+library(rgeos)
+library(RColorBrewer)
+library(mapproj)
+
+# check out some purty colors.
+
+# from http://colorbrewer2.org/
+
+# three sequential color schemes
+Oranges.3.p <- colorRampPalette( brewer.pal( 3 , "Oranges" ) )
+Oranges.9.p <- colorRampPalette( brewer.pal( 9 , "Oranges" ) )
+
+
+the.plot + scale_color_gradientn( colours = Oranges.9.p( 100 ) )
+the.plot + scale_color_gradient( low = "#56B1F7" , high = "#132B43" )
+
+# ooh i like that one mom, can we keep it can we keep it?
+final.plot <- the.plot + scale_color_gradient( low = "#56B1F7" , high = "#132B43" )
+
+# here's the final plot
+final.plot
+
+# use cairo-png as your bitmap type
+options( bitmapType = "cairo" )
+
+# save the file to your current working directory
+ggsave( 
+	"2012 average hours of television - unprojected.png" ,
+	plot = final.plot ,
+	scale = 2 ,
+	type = "cairo-png" 
+)
+# but that's unprojected.  you might prefer a projected map.
+
+# # # pick your projection # # #
+
+# this is as good of a time as any to do it.
+matnci.gg <- fortify( matnci.shp )
+
+qp <- qplot( long , lat , data = matnci.gg , geom = 'path' , group = group )
+
+# unprojected
+qp
+
+# here are lots of choices.  choose wisely.
+qp + coord_map( project = "albers" , lat0 = bb[ 2 , 1 ] , lat1 = bb[ 2 , 2 ] )
+qp + coord_map( "gilbert" )
+qp + coord_map( "lagrange" )
+qp + coord_map( "orthographic" )
+qp + coord_map( "stereographic" )
+qp + coord_map( "cylindrical" )
+qp + coord_map( "azequalarea" )
+
+# choose a projection.  i prefer lagrange, but any work just fine.
+co <- coord_map( "lagrange" )
+# printing the projected plot takes much more time than printing the unprojected one
+
+
+# project this pup
+projected.plot <- final.plot + co
+
+# would you like to save this game?
+
+# save the projected plot, which takes longer doesn't it.
+ggsave( 
+	"2012 average hours of television - projected.png" ,
+	plot = projected.plot ,
+	scale = 2 ,
+	type = "cairo-png" 
+)
+
+# # end of step ten # #
+# # # # # # # # # # # #
