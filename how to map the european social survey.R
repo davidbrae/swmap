@@ -972,6 +972,14 @@ the.plot + nodata.layer + water.layer + border.layer
 # save our progress so far
 the.plot <- the.plot + nodata.layer + water.layer + border.layer
 
+# last shape.  add a white rectangle around the outside border
+the.plot + geom_rect( xmin = bb[ 1 , 1 ] , xmax = bb[ 1 , 2 ] , ymin = bb[ 2 , 1 ] , ymax = bb[ 2 , 2 ] , color = 'white' , fill = NA , size = 4 )
+# see that?  the weird edge of the grid has been blanked out.
+
+# hold on to that layer too.
+the.plot <- the.plot + geom_rect( xmin = bb[ 1 , 1 ] , xmax = bb[ 1 , 2 ] , ymin = bb[ 2 , 1 ] , ymax = bb[ 2 , 2 ] , color = 'white' , fill = NA , size = 4 )
+
+
 # # end of step 9 # #
 # # # # # # # # # # #
 
@@ -1005,15 +1013,11 @@ final.plot <- the.plot + scale_color_gradient( low = "#56B1F7" , high = "#132B43
 # here's the final plot
 final.plot
 
-# use cairo-png as your bitmap type
-options( bitmapType = "cairo" )
-
 # save the file to your current working directory
 ggsave( 
 	"2012 average hours of television - unprojected.png" ,
 	plot = final.plot ,
-	scale = 2 ,
-	type = "cairo-png" 
+	scale = 3
 )
 # but that's unprojected.  you might prefer a projected map.
 
@@ -1036,7 +1040,7 @@ qp + coord_map( "stereographic" )
 qp + coord_map( "cylindrical" )
 qp + coord_map( "azequalarea" )
 
-# choose a projection.  i prefer lagrange, but any work just fine.
+# choose a projection.  i prefer lagrange for europe, but any work just fine.
 co <- coord_map( "lagrange" )
 # printing the projected plot takes much more time than printing the unprojected one
 
@@ -1050,8 +1054,7 @@ projected.plot <- final.plot + co
 ggsave( 
 	"2012 average hours of television - projected.png" ,
 	plot = projected.plot ,
-	scale = 2 ,
-	type = "cairo-png" 
+	scale = 3
 )
 
 # # end of step ten # #
