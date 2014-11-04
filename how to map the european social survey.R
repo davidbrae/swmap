@@ -16,8 +16,8 @@
 # # different from other maps because # #
 # # # # # # # # # # # # # # # # # # # # #
 
-# country shapes bound together
-# approximate (unweighted) centroid calculations
+# displays an ordinal categorical variable
+# approximates (unweighted) centroid calculations
 
 
 # # # # # # # # # # # # # # # # # #
@@ -132,14 +132,41 @@ options( survey.lonely.psu = "adjust" )
 # this setting matches the MISSUNIT option in SUDAAN
 
 
-# and now, in the blink of an eye, calculate the average hours of television consumed
+# and now, in the blink of an eye, calculate the median category of
+# hours of television watched per weekday.  `tvtot` is an ordinal variable:
+# average television viewing in half-hour intervals.  computing its median
 # across almost every region available in the european social survey
-smallest.area.statistics <- svyby( ~ tvtot , ~ region , integrated.design , svymean , na.rm = TRUE )
+# does throw out some information, but it's probably a reasonable
+# proxy for cross-continental high versus low television viewership areas
+smallest.area.statistics <- 
+	svyby( 
+		~ tvtot , 
+		~ region , 
+		integrated.design , 
+		svyquantile ,
+		0.5 , 
+		ties = "rounded" ,
+		interval.type = "betaWald" ,
+		na.rm = TRUE , 
+		ci = TRUE
+	)
 
 # these are the statistics to be mapped
 print( smallest.area.statistics )
 # the standard errors are a measure of precision,
 # their inverse will serve as the mapping weights
+
+# but wait, problem problem awooooogah
+summary( smallest.area.statistics )
+# some of the standard errors are missing.
+# that will lead to missing weights, a no-no.
+
+# replace all missing standard errors with the non-zero minimum
+smallest.area.statistics[ is.na( smallest.area.statistics$se ) , 'se' ] <-
+	min( subset( smallest.area.statistics , !is.na( se ) )$se )
+
+# excellent, now everybody has a weight
+summary( smallest.area.statistics )
 
 # make this object easier to type
 sas <- smallest.area.statistics
@@ -575,7 +602,9 @@ x$weight <- x$invse / x$nc
 
 # note that this distributed weight sums to
 # the `invse` on the original analysis file
-stopifnot( all.equal( sum( x$weight ) , sum( 1 / sas$se ) ) )
+stopifnot( all.equal( sum( x$weight ) , sum( 1 / subset( sas , NUTS_ID != 'ES70' )$se ) ) )
+# don't forget to pull out the weight of the canary islands as well!
+# once you do that, the sums of the inverted, divided standard errors match up
 
 # scale all weights so that they average to one
 x$weight <- x$weight / mean( x$weight )
