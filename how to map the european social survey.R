@@ -1061,6 +1061,11 @@ projected.plot <- final.plot + co
 
 # would you like to save this game?
 
+# # # fair warning # # #
+# the projected map takes hours to render.
+# choose carefully from the shapes above,
+# then leave this save command running overnight.
+
 # save the projected plot, which takes longer doesn't it.
 ggsave( 
 	"2012 average hours of television - projected.png" ,
