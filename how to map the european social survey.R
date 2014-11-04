@@ -994,21 +994,32 @@ library(plyr)
 library(rgeos)
 library(RColorBrewer)
 library(mapproj)
+library(colorRamps)
 
 # check out some purty colors.
 
 # from http://colorbrewer2.org/
 
-# three sequential color schemes
+# two color schemes
 Oranges.3.p <- colorRampPalette( brewer.pal( 3 , "Oranges" ) )
 Oranges.9.p <- colorRampPalette( brewer.pal( 9 , "Oranges" ) )
 
-
+the.plot + scale_color_gradientn( colours = Oranges.3.p( 100 ) )
 the.plot + scale_color_gradientn( colours = Oranges.9.p( 100 ) )
 the.plot + scale_color_gradient( low = "#56B1F7" , high = "#132B43" )
 
+# alternatively, here's a color scheme from blue to red.
+plot( 1:70 , rep( 1 , 70 ) , col = rainbow( 100 )[ 70:1 ] , pch = 16 , cex=3 )
+
+# or a color scheme from dark blue to dark red
+plot( 1:100 , rep( 1 , 100 ) , col = matlab.like2( 100 ) , pch = 16 , cex=3 )
+
+# want to see both of these gradients plotted?
+the.plot + scale_color_gradientn( colours = rainbow( 100 )[ 70:1 ] )
+the.plot + scale_color_gradientn( colours = matlab.like2( 100 ) )
+
 # ooh i like that one mom, can we keep it can we keep it?
-final.plot <- the.plot + scale_color_gradient( low = "#56B1F7" , high = "#132B43" )
+final.plot <- the.plot + scale_color_gradientn( colours = matlab.like2( 100 ) )
 
 # here's the final plot
 final.plot
@@ -1017,7 +1028,7 @@ final.plot
 ggsave( 
 	"2012 average hours of television - unprojected.png" ,
 	plot = final.plot ,
-	scale = 3
+	scale = 1.5
 )
 # but that's unprojected.  you might prefer a projected map.
 
@@ -1033,12 +1044,12 @@ qp
 
 # here are lots of choices.  choose wisely.
 qp + coord_map( project = "albers" , lat0 = bb[ 2 , 1 ] , lat1 = bb[ 2 , 2 ] )
+qp + coord_fixed()
+qp + coord_cartesian()
 qp + coord_map( "gilbert" )
 qp + coord_map( "lagrange" )
-qp + coord_map( "orthographic" )
 qp + coord_map( "stereographic" )
-qp + coord_map( "cylindrical" )
-qp + coord_map( "azequalarea" )
+
 
 # choose a projection.  i prefer lagrange for europe, but any work just fine.
 co <- coord_map( "lagrange" )
@@ -1054,7 +1065,7 @@ projected.plot <- final.plot + co
 ggsave( 
 	"2012 average hours of television - projected.png" ,
 	plot = projected.plot ,
-	scale = 3
+	scale = 1.5
 )
 
 # # end of step ten # #
