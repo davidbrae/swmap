@@ -16,7 +16,7 @@
 # # different from other maps because # #
 # # # # # # # # # # # # # # # # # # # # #
 
-# displays a categorical variable
+# displays a non-ordinal categorical variable
 # crosses the international date line
 
 

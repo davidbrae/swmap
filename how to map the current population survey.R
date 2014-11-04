@@ -16,7 +16,7 @@
 # # different from other maps because # #
 # # # # # # # # # # # # # # # # # # # # #
 
-# values outside of the displayed geography influence the coloring
+# allows values outside of the displayed geography to influence the coloring
 # overlays multiple water layers (no longer shapefiles) to blank out water areas
 
 
