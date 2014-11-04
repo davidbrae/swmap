@@ -1051,8 +1051,8 @@ qp + coord_map( "lagrange" )
 qp + coord_map( "stereographic" )
 
 
-# choose a projection.  i prefer lagrange for europe, but any work just fine.
-co <- coord_map( "lagrange" )
+# choose a projection.  i prefer stereographic for europe, but any work just fine.
+co <- coord_map( "stereographic" )
 # printing the projected plot takes much more time than printing the unprojected one
 
 
