@@ -774,9 +774,9 @@ y.range[ 1 ] <- y.range[ 1 ] - y.diff
 y.range[ 2 ] <- y.range[ 2 ] + y.diff
 
 # choose the number of ticks (in each direction) on your grid
-grid.length <- 2500
+grid.length <- 1500
 # grid.length <- 500
-# # note: smaller grids will render faster
+# # note: smaller grids will render much much faster
 # # (so they're better if you're just playing around)
 # # but larger grids will prevent your final plot from
 # # being too pixelated, even when zooming in
