@@ -48,6 +48,13 @@
 # transportation expenditure as a share of total expenditure
 
 
+# # # # # # #
+# # flaws # #
+# # # # # # #
+
+# might be too perfect.
+
+
 # # # # # # # # # # # # # # # # # # # # #
 # # step 1: load the survey microdata # #
 
@@ -757,9 +764,9 @@ library(raster)
 x.range <- bbox( us.shp.out )[ 1 , ]
 y.range <- bbox( us.shp.out )[ 2 , ]
 
-# add five percent on each side
-x.diff <- abs( x.range[ 2 ] - x.range[ 1 ] ) * 0.05
-y.diff <- abs( y.range[ 2 ] - y.range[ 1 ] ) * 0.05
+# add one percent on each side
+x.diff <- abs( x.range[ 2 ] - x.range[ 1 ] ) * 0.01
+y.diff <- abs( y.range[ 2 ] - y.range[ 1 ] ) * 0.01
 
 x.range[ 1 ] <- x.range[ 1 ] - x.diff
 x.range[ 2 ] <- x.range[ 2 ] + x.diff
@@ -767,7 +774,13 @@ y.range[ 1 ] <- y.range[ 1 ] - y.diff
 y.range[ 2 ] <- y.range[ 2 ] + y.diff
 
 # choose the number of ticks (in each direction) on your grid
-grid.length <- 600
+grid.length <- 2500
+# grid.length <- 500
+# # note: smaller grids will render faster
+# # (so they're better if you're just playing around)
+# # but larger grids will prevent your final plot from
+# # being too pixelated, even when zooming in
+
 
 # create some grid data.frame objects, one for each interpolation type
 grd <- gam.grd <- krig.grd <-
@@ -780,10 +793,16 @@ grd <- gam.grd <- krig.grd <-
 # along your rectangular grid,
 # what are the predicted values of
 # the transportation spending share?
-krig.grd$kout <- predict( krig.fit , krig.grd )
+for ( i in split( seq( nrow( grd ) ) , ceiling( seq( nrow( grd ) ) / 100 ) ) ){
+	krig.grd[ i , 'kout' ] <- as.numeric( predict( krig.fit , krig.grd[ i , c( 'intptlon' , 'intptlat' ) ] ) )
+	gc()
+}
 
 # alternate grid using gam.fit
-gam.grd$gamout <- predict( gam.fit , gam.grd )
+for ( i in split( seq( nrow( grd ) ) , ceiling( seq( nrow( grd ) ) / 100 ) ) ){
+	gam.grd[ i , 'gamout' ] <- as.numeric( predict( gam.fit , gam.grd[ i , c( 'intptlon' , 'intptlat' ) ] ) )
+	gc()
+}
 
 # interpolation option three #
 library(spatstat)
@@ -897,8 +916,11 @@ the.plot <-
 	) + 
 	
 	# blank out other plot elements
-	scale_x_continuous(breaks = NULL) +
-    scale_y_continuous(breaks = NULL) +
+
+	scale_x_continuous( limits = x.range , breaks = NULL , oob = squish ) +
+
+    scale_y_continuous( limits = y.range , breaks = NULL , oob = squish ) +
+
 	theme(
 		panel.grid.major = element_blank(),
 		panel.grid.minor = element_blank(),

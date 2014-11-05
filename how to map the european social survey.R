@@ -45,7 +45,15 @@
 # # value of interest # #
 # # # # # # # # # # # # #
 
-# average hours of television watched daily
+# average hours of television watched every weekday
+
+
+# # # # # # #
+# # flaws # #
+# # # # # # #
+
+# map implies huge fluctuation in television viewing time
+# when really, almost everybody watches about two hours of tv.
 
 
 # # # # # # # # # # # # # # # # # # # # #
@@ -743,10 +751,16 @@ y.range[ 1 ] <- y.range[ 1 ] - y.diff
 y.range[ 2 ] <- y.range[ 2 ] + y.diff
 
 # choose the number of ticks (in each direction) on your grid
-grid.length <- 400
+grid.length <- 2500
+# grid.length <- 500
+# # note: smaller grids will render faster
+# # (so they're better if you're just playing around)
+# # but larger grids will prevent your final plot from
+# # being too pixelated, even when zooming in
+
 
 # create some grid data.frame objects, one for each interpolation type
-grd <- gam.grd <- krig.grd <-
+grd <- krig.grd <-
 	expand.grid(
 		x = seq( from = x.range[1] , to = x.range[2] , length = grid.length ) , 
 		y = seq( from = y.range[1] , to = y.range[2] , length = grid.length )
@@ -756,8 +770,12 @@ grd <- gam.grd <- krig.grd <-
 # along your rectangular grid,
 # what are the predicted values of
 # television viewership hours?
-krig.grd$kout <- predict( krig.fit , krig.grd )
 
+# loop through this prediction to conserve RAM
+for ( i in split( seq( nrow( grd ) ) , ceiling( seq( nrow( grd ) ) / 100 ) ) ){
+	krig.grd[ i , 'kout' ] <- predict( krig.fit , krig.grd[ i , c( 'x' , 'y' ) ] )
+	gc()
+}
 
 # note: alternative prediction methods fare poorly on such a large surface,
 # at least for me.  but i'd love to be proven wrong.  thanx
