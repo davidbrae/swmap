@@ -592,6 +592,11 @@ gam.other <-
 
 # use as fine of a grid as your computer can handle
 grid.length <- 750
+# # note: smaller grids will render faster
+# # (so they're better if you're just playing around)
+# # but larger grids will prevent your final plot from
+# # being too pixelated, even when zooming in
+
 
 x.range <- c( min( x$intptlon ) , max( x$intptlon ) )
 y.range <- c( min( x$intptlat ) , max( x$intptlat ) )

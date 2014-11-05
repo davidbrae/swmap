@@ -662,6 +662,11 @@ y.range[ 2 ] <- y.range[ 2 ] + y.diff
 
 # choose the number of ticks (in each direction) on your grid
 grid.length <- 500
+# # note: smaller grids will render faster
+# # (so they're better if you're just playing around)
+# # but larger grids will prevent your final plot from
+# # being too pixelated, even when zooming in
+
 
 # create some grid data.frame objects, one for each interpolation type
 grd <- gam.grd <- krig.grd <-
