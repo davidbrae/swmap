@@ -772,7 +772,7 @@ grd <- krig.grd <-
 # television viewership hours?
 
 # loop through this prediction to conserve RAM
-for ( i in split( seq( nrow( grd ) ) , ceiling( seq( nrow( grd ) ) / 100 ) ) ){
+for ( i in split( seq( nrow( grd ) ) , ceiling( seq( nrow( grd ) ) / 20000 ) ) ){
 	krig.grd[ i , 'kout' ] <- predict( krig.fit , krig.grd[ i , c( 'x' , 'y' ) ] )
 	gc()
 }

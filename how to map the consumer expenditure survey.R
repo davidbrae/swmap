@@ -793,13 +793,13 @@ grd <- gam.grd <- krig.grd <-
 # along your rectangular grid,
 # what are the predicted values of
 # the transportation spending share?
-for ( i in split( seq( nrow( grd ) ) , ceiling( seq( nrow( grd ) ) / 100 ) ) ){
+for ( i in split( seq( nrow( grd ) ) , ceiling( seq( nrow( grd ) ) / 20000 ) ) ){
 	krig.grd[ i , 'kout' ] <- as.numeric( predict( krig.fit , krig.grd[ i , c( 'intptlon' , 'intptlat' ) ] ) )
 	gc()
 }
 
 # alternate grid using gam.fit
-for ( i in split( seq( nrow( grd ) ) , ceiling( seq( nrow( grd ) ) / 100 ) ) ){
+for ( i in split( seq( nrow( grd ) ) , ceiling( seq( nrow( grd ) ) / 20000 ) ) ){
 	gam.grd[ i , 'gamout' ] <- as.numeric( predict( gam.fit , gam.grd[ i , c( 'intptlon' , 'intptlat' ) ] ) )
 	gc()
 }
