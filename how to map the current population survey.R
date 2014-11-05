@@ -49,6 +49,14 @@
 # poverty rate
 
 
+# # # # # # #
+# # flaws # #
+# # # # # # #
+
+# presented map stretches what's possible from the data.
+# new haven (south-central) is probably poorer than southeastern connecticut
+
+
 # # # # # # # # # # # # # # # # # # # # #
 # # step 1: load the survey microdata # #
 
@@ -795,8 +803,8 @@ the.plot <-
 	) + 
 	
 	# blank out other plot elements
-	scale_x_continuous(breaks = NULL) +
-    scale_y_continuous(breaks = NULL) +
+	scale_x_continuous( limits = x.range , breaks = NULL , oob = squish ) +
+    scale_y_continuous( limits = y.range , breaks = NULL , oob = squish ) +
 	theme(
 		panel.grid.major = element_blank(),
 		panel.grid.minor = element_blank(),
