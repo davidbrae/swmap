@@ -45,7 +45,15 @@
 # # value of interest # #
 # # # # # # # # # # # # #
 
-# veterans of foreign wars shares (categorical)
+# disproportionate shares of veterans of foreign wars (categorical)
+
+
+# # # # # # #
+# # flaws # #
+# # # # # # #
+
+# map presents shares that are *disproportionately* higher than the statewide average.
+# in absolute numbers, gulf war veterans outnumber other veteran categories in four of the five pumas.
 
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
