@@ -817,7 +817,7 @@ smoout <-
 			marks = x$share
 		) ,
 		# here's a good starting point for sigma, but screw around with this value.
-		sigma = 1 ,
+		sigma = 2 ,
 		weights = x$weight
 	)
 
