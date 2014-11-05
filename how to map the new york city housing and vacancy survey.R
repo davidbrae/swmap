@@ -49,6 +49,14 @@
 # ratio of persons per room
 
 
+# # # # # # #
+# # flaws # #
+# # # # # # #
+
+# the standard errors calculated from this data set are incorrect, so
+# the weights used here are even less scientific than in the other maps.
+
+
 # # # # # # # # # # # # # # # # # # # # #
 # # step 1: load the survey microdata # #
 
