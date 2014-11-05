@@ -52,7 +52,7 @@
 # # flaws # #
 # # # # # # #
 
-# might be too perfect.
+# the high-resolution version (grid.length > 500) takes a long time to render
 
 
 # # # # # # # # # # # # # # # # # # # # #

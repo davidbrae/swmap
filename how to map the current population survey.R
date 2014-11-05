@@ -27,7 +27,6 @@
 # state, core-based statistical areas
 # (for connecticut, massachusetts, and rhode island: new england city and town areas)
 
-
 # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # # asdfree.com blog post for this survey microdata # #
 # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -53,8 +52,8 @@
 # # flaws # #
 # # # # # # #
 
-# presented map stretches what's possible from the data.
-# new haven (south-central) is probably poorer than southeastern connecticut
+# the map pushes what's possible from the survey data too far.
+# new haven (south-central) is probably poorer than the southeast
 
 
 # # # # # # # # # # # # # # # # # # # # #

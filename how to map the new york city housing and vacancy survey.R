@@ -27,7 +27,6 @@
 # city boro and subboro areas
 # (subboro areas are neighborhoods that map to collections of census tracts)
 
-
 # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # # asdfree.com blog post for this survey microdata # #
 # # # # # # # # # # # # # # # # # # # # # # # # # # # #
