@@ -1076,8 +1076,7 @@ final.plot
 # save the file to your current working directory
 ggsave( 
 	"2012 average hours of television - unprojected.png" ,
-	plot = final.plot ,
-	scale = 1.5
+	plot = final.plot
 )
 # but that's unprojected.  you might prefer a projected map.
 
@@ -1118,8 +1117,7 @@ projected.plot <- final.plot + co
 # save the projected plot, which takes longer doesn't it.
 ggsave( 
 	"2012 average hours of television - projected.png" ,
-	plot = projected.plot ,
-	scale = 1.5
+	plot = projected.plot
 )
 
 # # end of step ten # #
