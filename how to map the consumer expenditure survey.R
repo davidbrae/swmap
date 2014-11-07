@@ -774,8 +774,8 @@ y.range[ 1 ] <- y.range[ 1 ] - y.diff
 y.range[ 2 ] <- y.range[ 2 ] + y.diff
 
 # choose the number of ticks (in each direction) on your grid
-grid.length <- 1500
-# grid.length <- 500
+grid.length <- 500
+# grid.length <- 700
 # # note: smaller grids will render much much faster
 # # (so they're better if you're just playing around)
 # # but larger grids will prevent your final plot from
@@ -1008,8 +1008,7 @@ options( bitmapType = "cairo" )
 ggsave( 
 	"2013 transportation spending as a share of total spending - unprojected.png" ,
 	plot = final.plot ,
-	type = "cairo-png" ,
-	scale = 3
+	type = "cairo-png"
 )
 
 # add the projection
@@ -1028,8 +1027,7 @@ projected.plot <- final.plot + co
 ggsave( 
 	"2013 transportation spending as a share of total spending - projected.png" ,
 	plot = projected.plot ,
-	type = "cairo-png" ,
-	scale = 3
+	type = "cairo-png"
 )
 
 # # end of step ten # #
