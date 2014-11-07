@@ -751,12 +751,14 @@ y.range[ 1 ] <- y.range[ 1 ] - y.diff
 y.range[ 2 ] <- y.range[ 2 ] + y.diff
 
 # choose the number of ticks (in each direction) on your grid
-grid.length <- 1500
-# grid.length <- 500
+grid.length <- 400
+# grid.length <- 600
 # # note: smaller grids will render much much faster
 # # (so they're better if you're just playing around)
 # # but larger grids will prevent your final plot from
-# # being too pixelated, even when zooming in
+# # being too pixelated, even when zooming in.
+# # anything beyond a 400 x 400 grid might
+# # overload the RAM capacity of small computers.
 
 
 # create some grid data.frame objects, one for each interpolation type
