@@ -143,18 +143,18 @@ y <-
 			# 02 Outras atividades industriais
 			# 03 Indústria de transformação
 			# 04 Construção
-			# 07 Transporte, armazenagem e comunicação
-			ifelse( v4809 %in% c( '2' , '3' , '4' , '7') , 2 , 
+			ifelse( v4809 %in% c( '2' , '3' , '4' ) , 2 , 
 			
 			# 05 Comércio e reparação
 			# 06 Alojamento e alimentação
-			# 10 Serviços domésticos
-			ifelse( v4809 %in% c( '5', '6' , '10' ) , 3 ,
+			# 07 Transporte, armazenagem e comunicação
+			ifelse( v4809 %in% c( '5', '6' , '7' ) , 3 ,
 			
 			# 08 Administração pública
 			# 09 Educação, saúde e serviços sociais
+			# 10 Serviços domésticos
 			# 11 Outros serviços coletivos, sociais e pessoais
-			ifelse( v4809 %in% c( '8' , '9' , '11' ) , 4 , 
+			ifelse( v4809 %in% c( '8' , '9' , '10' , '11' ) , 4 , 
 			
 				# 12 Outras atividades
 				# 13 Atividades maldefinidas 
@@ -182,8 +182,8 @@ print( small.area.statistics )
 # therefore any category that's never a maximum will *never* be displayed
 # making it sort of a pointless category, don't you think?
 
-# it might take you a more than one definition attempt before
-# you figure out which categories you can make so that every category
+# it might take you more than one definition attempt before
+# you figure out which categorizations you can make so that every category
 # is the most-frequent/maximum in at least *one* geographic region.
 
 # confirm that all four categories are the maximum at least somewhere
@@ -194,6 +194,9 @@ table( apply( small.area.statistics[ , paste0( "occcat" , 1:4 ) ] , 1 , which.ma
 
 # make this object easier to type
 sas <- small.area.statistics
+
+# clear up RAM
+rm( y , sample.pnad ) ; gc()
 
 # # end of step 2 # #
 # # # # # # # # # # #
@@ -218,7 +221,8 @@ source_url(
 )
 
 
-# get the directory listing
+# get the directory listing of ibge's smallest area shapefile
+# that matches some field on the publicly-available census microdata
 u <- 'ftp://geoftp.ibge.gov.br/malhas_digitais/censo_2010/setores_censitarios/'
 f <- paste0(u, strsplit(getURL(u, ftp.use.epsv = FALSE, ftplistonly = TRUE), 
                         '\\s+')[[1]])
@@ -233,39 +237,41 @@ invisible(sapply(f, function(x) {
   unzip(path, exdir=file.path(tempdir(), 'shps'))
 }))
 
+# find all `see250` shapes within the temporary directory
 see250.shp <- grep( "\\SEE250GC_SIR.shp$" , list.files( file.path( tempdir() , 'shps' ) , recursive = TRUE ) , value = TRUE )
 
 # read in all shps, and prepend shapefile name to IDs
 shps <- lapply(see250.shp, function(x) {
 	shp <- readOGR(file.path(tempdir(), 'shps',dirname(x)), gsub( "\\.shp$" , "" , basename(x)) )
-	# shp <- gBuffer( shp , width = 0 , byid = TRUE )
-	# shp <- gUnaryUnion( shp , as.character( shp$CD_GEOCODM ) )
 	shp <- spChFIDs(shp, paste0(x, '_', sapply(slot(shp, "polygons"), slot, "ID")))
-	# if( is.na( proj4string( shp ) ) ) proj4string( shp ) <- "+proj=longlat"
-	# shp <- spTransform( shp , CRS( "+proj=longlat" ) )
-	# names( shp@data ) <- tolower( names( shp@data ) )
-	# if( !( "cd_aponde" %in% names( shp@data ) ) ) names( shp@data )[ grepl( "pond" , names( shp@data ) ) ] <- "cd_aponde"
-	# shp@data <- shp@data[ "cd_aponde" ]
+	shp <- spTransform( shp , CRS( "+proj=longlat" ) )
 	shp
 })
 
 # rbind to a single object
 shp <- do.call(rbind, as.list(shps))
 
+# extract the unweighted centroid of each very small-area shape
 centroids <- gCentroid( shp , byid = TRUE )
-ur_codm <- cbind( shp@data[ , c( 'TIPO' , 'CD_GEOCODM' , 'NM_MESO' ) ] , centroids )
+
+# merge those centroids with the urban/rural, census geocodm, mesocode, and microcode
+ur_codm <- cbind( shp@data[ , c( 'TIPO' , 'CD_GEOCODM' , 'NM_MESO' , 'NM_MICRO' ) ] , centroids )
+
+# count the number of records per urban/rural x geocodm combination
 ur_codm_cts <- sqldf( "select TIPO , CD_GEOCODM , count(*) as count from ur_codm group by TIPO , CD_GEOCODM" ) 
+
+# merge those counts back on
 ur_codm_wcts <- merge( ur_codm , ur_codm_cts )
+
+# convert all column names to lowercase
 names( ur_codm_wcts ) <- tolower( names( ur_codm_wcts ) )
-ur_codm_wcts$cd_geocodm <- as.character( ur_codm_wcts$cd_geocodm )
-ur_codm_wcts$nm_meso <- as.character( ur_codm_wcts$nm_meso )
 
-# plot (note: clipping to contiguous states for display purposes)
-# plot(shp, axes=T, las=1)
-
-
-
-
+# coerce a few fields to character
+ur_codm_wcts[ c( 'cd_geocodm' , 'nm_meso' , 'nm_micro' ) ] <- 
+	sapply( 
+		ur_codm_wcts[ c( 'cd_geocodm' , 'nm_meso' , 'nm_micro' ) ] , 
+		as.character 
+	)
 
 
 ##################################################################################
@@ -286,7 +292,8 @@ dbport <- 50011
 monet.url <- paste0( "monetdb://localhost:" , dbport , "/" , dbname )
 db <- dbConnect( MonetDB.R() , monet.url , wait = TRUE )
 
-# one record per state per geocodm per urban/rural, with the 2010 censo demografico populations in tow
+# extract one record per state per geocodm per urban/rural,
+# with the 2010 censo demografico populations in tow
 adp <- 
 	dbGetQuery( 
 		db , 
@@ -320,60 +327,696 @@ ucca <- merge( ur_codm_wcts , adp )
 # distribute the population equally across cd_geocodm regions with multiple records
 # note: this isn't as perfect as it could be.  but the map doesn't zoom in that far anyway.
 ucca$pop10 <- ucca$pop10_pre / ucca$count
+ucca$count <- ucca$pop10_pre <- NULL
 
+# convert `tipo` to a linear variable that matches `sas`
+ucca$urban <- as.numeric( ucca$tipo == 'URBANO' )
+ucca$tipo <- NULL
 
-# and now, you have to do the unfortunate task of aggregating the population-weighted centroids
-# up to the state x urban/rural-level.  all of the censo demografico 2010 work was just to find
-# the correct latitude & longitude so your state x urban/rural points are positioned well.
-x <- 
+# aggregate this `ucca` object to both the micro- and meso-area levels
+# this provides two options for kriging later, in case you have a weak computer.
+
+# both of these commands are equivalent to tying knots (below)
+# and are population-weighted, which is most excellente.
+ucca.micro <- 
 	sqldf( 
 		"select 
-			uf , ( tipo='URBANO' )*1 AS urban,
+			uf , urban , nm_micro ,
+			sum( pop10 ) as pop10 ,
 			sum( pop10 * x ) / sum( pop10 ) as x ,
 			sum( pop10 * y ) / sum( pop10 ) as y
 		from ucca
 		group by
-			uf , tipo"
+			uf , urban , nm_micro"
+	)
+	
+ucca.meso <- 
+	sqldf( 
+		"select 
+			uf , urban , nm_meso ,
+			sum( pop10 ) as pop10 ,
+			sum( pop10 * x ) / sum( pop10 ) as x ,
+			sum( pop10 * y ) / sum( pop10 ) as y
+		from ucca
+		group by
+			uf , urban , nm_meso"
 	)
 
-# these had better be the same.
-stopifnot( nrow( x ) == nrow( sas ) )
 
-x <- merge( x , sas )
+# and guess what?
+# we've now got the rough censo demografico 2010 weighted populations (field pop100)
+# and a very small area estimate of each area's centroid latitude & longitude (fields x + y)
 
-# these had better still be the same.
-stopifnot( nrow( x ) == nrow( sas ) )
+# clear up RAM
+rm( shps , shp , centroids , ur_codm , ur_codm_cts , ur_codm_wcts , adp , ucca ) ; gc()
 
-
-
-
-
-
-
+# # end of step 3 # #
+# # # # # # # # # # #
 
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # # step 4: merge the results of your survey analysis with the small-area geography # #
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-# # step 4: merge the results of your survey analysis with the small-area geography # #
+
+# confirm that we've created all possible geographies correctly.
+
+# the number of records in our small area statistics..
+sas.row <- nrow( sas )
+
+# ..should equal the number of unique-match-merged records..
+mrow <- nrow( merge( unique( ucca.micro[ c( "uf" , "urban" ) ] ) , sas ) )
+
+# ..and it does/they do.
+stopifnot( sas.row == mrow )
+
+# now the geocodm x urban/rural-level censo data *could* merge if you wanted it to.
+
+
+# but you don't.  yet.
+
+
+# the standard error (the `se.` fields) are measures of precision.
+print( sas )
+# the smaller the standard error, the more confident you should be
+# that the estimate at a particular geography is correct.
+
+
+# so invert them.  you heard me.  invert them.
+sas[ paste0( 'invse.occcat' , 1:4 ) ] <- sapply( sas[ paste0( 'se.occcat' , 1:4 ) ] , function( z ) 1 / z )
+# a smaller standard error indicates more precision.
+
+# for our purposes, precision can be considered weight! #
+
+# now we've got the weight that we should give each of our estimates #
+
+# distribute that weight across all census blocks #
+
+
+# aggregate the 2010 census block populations to the geographies that you have.
+popsum <- aggregate( ucca.micro$pop10 , by = ( ucca.micro[ c( 'uf' , 'urban' ) ] ) , sum )
+
+# make the column name meaningful
+names( popsum )[ names( popsum ) == 'x' ] <- 'popsum'
+
+# merge the popsum onto the sasfile
+sas <- merge( sas , popsum )
+
+# now.  merge
+	# the occupational category in each state x urban/rural (the variable of interest)
+	# the inverted standard errors (the total weight of the broad geography)
+	# the population sum (the total population of all census blocks that are part of that geography)
+
+x <- merge( ucca.micro , sas )
+
+# confirm no record loss
+stopifnot( nrow( x ) == nrow( ucca.micro ) )
+
+# (this is the fun part)
+for ( i in 1:4 ){
+
+	# calculate the weight at each small census area
+	x[ , paste0( "weight" , i ) ] <- x[ , paste0( "invse.occcat" , i ) ] * ( x$pop10 / x$popsum )
+	
+	# note that weight of all census areas put together
+	# sums to the `invse` on the original analysis file
+	stopifnot( all.equal( sum( x[ , paste0( "weight" , i ) ] ) , sum( sas[ , paste0( "invse.occcat" , i ) ] ) ) )
+}
+
+# you're done preparing your data.
+# keep only the columns you need.
+x <- x[ , c( paste0( "occcat" , 1:4 ) , paste0( "weight" , 1:4 ) , "x" , "y" ) ]
+
+# # end of step 4 # #
+# # # # # # # # # # #
+
 
 # # # # # # # # # # # #
 # # step 5: outline # #
 
+library(raster)
+library(rgdal)
+library(ggplot2)
+
+# # note on outline geography selection
+# # i am intentionally using sites that host
+# # data from many/most/every country worldwide
+# # so that this script can be easily extended
+# # to whatever country you're working on ;)
+
+# # # map of the world # # #
+
+# initiate a temporary file
+tf <- tempfile()
+
+# use eurostat's map of the world
+world.fn <- "http://epp.eurostat.ec.europa.eu/cache/GISCO/geodatafiles/CNTR_2014_03M_SH.zip"
+
+# store it to the local disk
+download.cache( world.fn , tf )
+
+# unzip it
+world.uz <- unzip( tf , exdir = tempdir() )
+
+# identify the shapefile
+world.sfn <- grep( 'CNTR_RG(.*)shp$' , world.uz , value = TRUE )
+
+# read it in
+world.shp <- readOGR( world.sfn  , layer = gsub( "\\.shp" , "" , basename( world.sfn ) ) )
+world.shp <- spTransform( world.shp , CRS( "+proj=longlat" ) )
+
+# here's the outline of every country in the world
+plot( world.shp , fill = 'gray' )
+
+# # # map of the amazon # # #
+
+# use geofabrik's map of brazilian waterways
+geofabrik.fn <- "http://download.geofabrik.de/south-america/brazil-latest.shp.zip"
+
+# store it to the local disk
+download.cache( geofabrik.fn , tf )
+
+# unzip it
+geofabrik.uz <- unzip( tf , exdir = tempdir() )
+
+# this file contains lots of information.
+geofabrik.uz
+
+# identify the waterways shapefile
+# waterways.sfn <- grep( "water(.*)shp$" , geofabrik.uz , value = TRUE )
+
+# read it in
+# waterways.shp <- readOGR( waterways.sfn  , layer = gsub( "\\.shp" , "" , basename( waterways.sfn ) ) )
+# waterways.shp <- spTransform( waterways.shp , CRS( "+proj=longlat" ) )
+
+# look at which geographic features this file has
+# table( waterways.shp@data$type )
+
+# here's the outline of brazilian rivers
+# plot( subset( waterways.shp , type == 'river' ) )
+
+# # separately # #
+
+# identify the natural objects shapefile
+natural.sfn <- grep( "natural(.*)shp$" , geofabrik.uz , value = TRUE )
+
+# read it in
+natural.shp <- readOGR( natural.sfn  , layer = gsub( "\\.shp" , "" , basename( natural.sfn ) ) )
+natural.shp <- spTransform( natural.shp , CRS( "+proj=longlat" ) )
+
+
+# look at which geographic features this file has
+table( natural.shp@data$type )
+
+# here's the outline of brazilian rivers
+plot( subset( natural.shp , type %in% c( 'riverbank' , 'water' ) ) )
+
+# # # map of brazilian states # # #
+
+# use uc davis's administrative regions
+admin.fn <- "http://biogeo.ucdavis.edu/data/diva/adm/BRA_adm.zip"
+
+# store it to the local disk
+download.cache( admin.fn , tf )
+
+# unzip it
+admin.uz <- unzip( tf , exdir = tempdir() )
+
+# this file contains a few different levels
+# of administrative borders.
+admin.uz
+
+# identify the national, state border, and smaller-area shapefiles
+nation.sfn <- grep( "adm0(.*)shp$" , admin.uz , value = TRUE )
+states.sfn <- grep( "adm1(.*)shp$" , admin.uz , value = TRUE )
+small.sfn <- grep( "adm2(.*)shp$" , admin.uz , value = TRUE )
+
+# read all three in
+nation.shp <- readOGR( nation.sfn  , layer = gsub( "\\.shp" , "" , basename( nation.sfn ) ) )
+states.shp <- readOGR( states.sfn  , layer = gsub( "\\.shp" , "" , basename( states.sfn ) ) )
+small.shp <- readOGR( small.sfn  , layer = gsub( "\\.shp" , "" , basename( small.sfn ) ) )
+
+nation.shp <- spTransform( nation.shp , CRS( "+proj=longlat" ) )
+states.shp <- spTransform( states.shp , CRS( "+proj=longlat" ) )
+small.shp <- spTransform( small.shp , CRS( "+proj=longlat" ) )
+
+# # ready to stack all four maps?
+
+# calculate the bounding box of brazil
+bb <- bbox( states.shp )
+# *but* this bounding box includes
+# mostly-uninhabited islands out in the
+# atlantic ocean that should probably be tossed.
+
+# the easternmost point in continental brazil
+# (and actually all of continental south america)
+# is in pariaba state at ponta do seixas
+
+# therefore, replace the xmax value with pariaba state's city where the sun rises first.
+bb[ 1 , 2 ] <- bbox( subset( small.shp , NAME_2 == "JoÃ£o Pessoa" & NAME_1 == "ParaÃ­ba" ) )[ 1 , 2 ]
+
+# initiate the lowest layer (the world)
+plot( world.shp , xlim = bb[ 1 , ] , ylim = bb[ 2 , ] , col = 'gray' , fill = TRUE , border = 'white' )
+
+# turn gray off for brazil only, then add state boundaries in gray
+plot( states.shp , add = TRUE , col = 'white' , fill = TRUE , border = 'gray'  )
+
+# add the amazon
+plot( subset( natural.shp , type %in% c( 'riverbank' , 'water' ) ) , add = TRUE , col = 'lightblue' , fill = TRUE , border = 'lightblue' )
+
+# you can add the national border in black if you want
+# plot( nation.shp , add = TRUE , border = 'black' )
+# but i don't think it's necessary
+
+# # not bad for a start, huh?
+
+# draw a rectangle 30% bigger than the original state
+br.shp.blank <- as( 1.15 * extent( bb ) , "SpatialPolygons" )
+
+# calculate the difference between the rectangle and the actual shape
+br.shp.diff <- gDifference( br.shp.blank , nation.shp )
+# this will be used to cover up points outside of the national borders
+
+# this box will later blank out the surrounding area
+plot( br.shp.diff )
+# starting to make sense?
+
+
+# # worldwide coastlines # #
+
+coast.fn <- "http://www.naturalearthdata.com/http//www.naturalearthdata.com/download/10m/physical/ne_10m_ocean.zip"
+
+# store it to the local disk
+download.cache( coast.fn , tf )
+
+# unzip it
+coast.uz <- unzip( tf , exdir = tempdir() )
+
+# this file contains every coastline everywhere
+coast.uz
+
+# identify the worldwide ocean
+coast.sfn <- grep( "ocean(.*)shp$" , coast.uz , value = TRUE )
+
+# read in the ocean
+coast.shp <- readOGR( coast.sfn  , layer = gsub( "\\.shp" , "" , basename( coast.sfn ) ) )
+
+# put the ocean in longlat format
+coast.shp <- spTransform( coast.shp , CRS( "+proj=longlat" ) )
+
+# limit the brazilian coast shapefile
+# to only points within the larger bounding box
+br.coast <- gIntersection( br.shp.blank , coast.shp )
+# so you're not carrying around the whole world's ocean
+
+# these are huge objects, so in order to conserve ram
+# fortify what you need for ggplot2 and toss all other objects.
+fcoast <- fortify( br.coast ) ; rm( br.coast )
+wshape <- fortify( subset( world.shp , CNTR_ID != 'BR' ) ) ; rm( world.shp )
+fstate <- fortify( states.shp ) ; rm( states.shp )
+fwater <- fortify( subset( natural.shp , type %in% c( 'riverbank' , 'water' ) )  ) ; rm( natural.shp )
+outside <- fortify( br.shp.diff ) ; rm( br.shp.diff )
+rm( small.shp )
+# got 'em all, i think.  clear up RAM
+gc()
+
+# # end of step 5 # #
+# # # # # # # # # # #
+
+
 # # # # # # # # # # # # # # # # # #
 # # step 6: tie knots and krige # #
+
+library(fields)
+
+for ( i in 1:4 ){
+
+	this.krig.fit <-
+		Krig(
+			cbind( x$x , x$y ) ,
+			x[ , paste0( 'occcat' , i ) ] ,
+			weights = x[ , paste0( 'weight' , i ) ] 
+		)
+		
+	assign( paste0( 'krig.fit' , i ) , this.krig.fit )
+	
+	rm( this.krig.fit ) ; gc()
+	
+}
+# what is the (weighted) relationship between
+# your variable of interest (occupational category)
+# and the x/y points on a grid?
+
+# check this out!
+surface( krig.fit1 )	# agricultural occupations
+surface( krig.fit2 )	# industrial occupations
+surface( krig.fit3 )	# commercial occupations
+surface( krig.fit4 )	# government and service occupations
+# you're almost there!
+
+# # end of step 6 # #
+# # # # # # # # # # #
+
 
 # # # # # # # # # # # # # # # # # # # #
 # # step 7: make a grid and predict # #
 
+# use as fine of a grid as your computer can handle
+grid.length <- 750
+# # note: smaller grids will render faster
+# # (so they're better if you're just playing around)
+# # but larger grids will prevent your final plot from
+# # being too pixelated, even when zooming in
+
+# create a bounding box ten percent bigger than the nation
+bb10 <- bbox( as( 1.05 * extent( bb ) , "SpatialPolygons" ) )
+
+krig.grd <- 
+	expand.grid(
+		intptlon = seq( bb10[ 1 , 1 ] , bb10[ 1 , 2 ] , length = grid.length ) , 
+		intptlat = seq( bb10[ 2 , 1 ] , bb10[ 2 , 2 ] , length = grid.length )
+	)
+
+	
+# along your rectangular grid, what are
+# the predicted values of each category?
+for ( i in 1:4 ){
+	for ( j in split( seq( nrow( krig.grd ) ) , ceiling( seq( nrow( krig.grd ) ) / 5000 ) ) ){
+		krig.grd[ j , paste0( 'occcat' , i ) ] <- as.numeric( predict( get( paste0( 'krig.fit' , i ) ) , krig.grd[ j  , 1:2 ] ) )
+	}
+	gc()
+}
+
+# clear up RAM
+rm( list = paste0( 'krig.fit' , 1:4 ) ) ; gc()
+
+# remember that these values have been re-scaled
+# as how disproportionate they are from the state-wide averages.
+# therefore, negative values are possible.
+sapply( krig.grd , summary )
+
+# in general, these predictions at each point should approximately sum to one
+summary( rowSums( krig.grd[ , 3:6 ] ) )
+# the fact that they don't is an indication that we're using too many categories.
+
+# we will re-scale these values, but the fewer categories, the better.
+# linear variables are always superior to categories,
+# they throw out less informatin
+
+# alright, here's the major test.  we have four categories.
+# the final map will only display the most frequent
+# occupational category in each geographic region
+# any category that's never a maximum will *never* be displayed
+
+# confirm that all four of our categories are the maximum
+# at least somewhere on the grid.  are they?
+table( apply( krig.grd[ , 3:6 ] , 1 , which.max ) )
+# they are!  we're in business.
+
+# alright, let's re-scale every row so it sums to one.
+krig.grd[ , 3:6 ] <- krig.grd[ , 3:6 ] * ( 1 / rowSums( krig.grd[ , 3:6 ] ) )
+# double-check we did that right?
+summary( rowSums( krig.grd[ , 3:6 ] ) )
+# that was easy.
+
+# # end of step 7 # #
+# # # # # # # # # # #
+
+
 # # # # # # # # # # # # # # # # # # # # # #
 # # step 8: limit information and color # #
+
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# # # warning # # # warning # # # # # # warning # # # # # # warning # # # # # # warning # #
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# if your data is are not binomial, then by mapping with a single image, you lose clarity #
+# if you have three levels of information and you generate two maps, you can get an idea  #
+# about the entire distribution of the variable.  if you attempt encoding three levels or #
+# more into a single map, you will explode. just kidding rofl lmao but you will lose info #
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# # # warning # # # warning # # # # # # warning # # # # # # warning # # # # # # warning # #
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+
+library(scales)
+
+# from among the four categories, find the maximum occupation category
+krig.grd$occcat <- c( 'agriculture' , 'industry' , 'commercial' , 'service' )[ apply( krig.grd[ , 3:6 ] , 1 , which.max ) ]
+
+# save only that max
+krig.grd$statistic <- apply( krig.grd[ , 3:6 ] , 1 , max )
+
+# it's important to note that i've thrown out a lot of information here
+krig.grd <- krig.grd[ , c( 'intptlon' , 'intptlat' , 'statistic' , 'occcat' ) ]
+
+# do any points not make sense?
+summary( krig.grd$statistic )
+
+# yup, the minimum is below zero.
+krig.grd$statistic <- pmax( 0 , krig.grd$statistic )
+
+# you have to simplify it.
+# simplifying it means throwing out information.
+
+library(RColorBrewer)
+
+# draw five gradients
+tg <-
+	lapply( 
+		brewer.pal( 5 , 'Set1' ) , 
+		function( z ) colorRampPalette( c( 'white' , z ) )( 101 )
+		# start at ~25% ( that is: 25 / 125 ) with this function instead
+		# function( z ) colorRampPalette( c( 'white' , z ) )( 125 )[ 25:125 ]
+	)
+
+# check out each of these five colors, mapped from opaque to intense.
+plot( rep( 0:100 , 5 ) , rep( 1:5 , each = 101 ) , col = unlist( tg ) , pch = 16 , cex = 3 )
+
+# if you use this one, i'd recommend tossing the blue
+# so that your audience doesn't confuse it with river
+
+
+# draw an alternate four gradients
+# and also use a different palette from colorbrewer2.org
+tag <-
+	lapply( 
+		# flip the colors,
+		# because the lowest is harder to see
+		brewer.pal( 4 , 'Set3' ) , 
+		# the lines demarcate very strongly in the krig.grd below
+		# using only the upper half of the six colors in this gradient
+		# lowers the demarcation but might have sharper borders
+		function( z ) colorRampPalette( c( 'white' , z ) )( 6 )[ 4:6 ]
+	)
+
+# check out each of these four colors, mapped from opaque to intense.
+plot( rep( 0:2 , 4 ) , rep( 1:4 , each = 3 ) , col = unlist( tag ) , pch = 16 , cex = 3 )
+
+
+# # rescale the interpolated grids
+krig.grd$statistic <- round( rescale( krig.grd$statistic , c( 0.5 , 3.499 ) ) )
+# note that the re-scaling gets done across all categories,
+# and not individually within each category.
+
+# add the hex color identifier
+krig.grd$color.value <- 
+		ifelse( krig.grd$occcat == 'agriculture' , tg[[1]][ round( krig.grd$statistic * 100 ) ] ,
+		# notice that i've skipped two here, because that's blue.
+		ifelse( krig.grd$occcat == 'industry' , tg[[3]][ round( krig.grd$statistic * 100) ] ,
+		ifelse( krig.grd$occcat == 'commercial' , tg[[4]][ round( krig.grd$statistic * 100 ) ] , 
+		ifelse( krig.grd$occcat == 'service' , tg[[5]][ round( krig.grd$statistic * 100 ) ] , 
+			NA ) ) ) )
+
+# awwwwwwww yeah, something's happening now.
+plot( krig.grd$intptlon , krig.grd$intptlat , col = krig.grd$color.value , pch = 16 , cex = 3 )
+
+# add the alternate hex color identifier
+krig.grd$alt.color <- 
+		ifelse( krig.grd$occcat == 'agriculture' , tag[[4]][ round( krig.grd$statistic * 100 ) ] ,
+		ifelse( krig.grd$occcat == 'industry' , tag[[3]][ round( krig.grd$statistic * 100) ] ,
+		ifelse( krig.grd$occcat == 'commercial' , tag[[2]][ round( krig.grd$statistic * 100 ) ] , 
+		ifelse( krig.grd$occcat == 'service' , tag[[1]][ round( krig.grd$statistic * 100 ) ] , 
+			NA ) ) ) )
+
+# that looks a bit better to me
+plot( krig.grd$intptlon , krig.grd$intptlat , col = krig.grd$alt.color , pch = 16 , cex = 3 )
+
+# clear up RAM
+krig.grd$occcat <- NULL ; gc()
+
+# # end of step 8 # #
+# # # # # # # # # # #
+
 
 # # # # # # # # # # # # # # # # # # # # #
 # # step 9: ggplot and choose options # #
 
+library(ggplot2)
+library(mapproj)
+library(scales)
+
+# initiate the krige-based plot
+
+# krig.grd$color.column <- as.factor( krig.grd$color.value )
+krig.grd$color.column <- as.factor( krig.grd$alt.color )
+
+krg.plot <- 
+	ggplot( data = krig.grd , aes( x = intptlon , y = intptlat ) ) +
+	geom_point( shape = 15 , color = krig.grd$color.column ) +
+	scale_fill_manual( values = unique( krig.grd$color.value ) )
+
+krg.plot
+
+# initiate the entire plot
+the.plot <-
+
+	krg.plot +
+	
+	# blank out the legend and axis labels
+	theme(
+		legend.position = "lowerright" ,
+		axis.title.x = element_blank() ,
+		axis.title.y = element_blank()		
+	) + 
+	
+	xlab( "" ) + ylab( "" ) +
+
+	# force the x and y axis limits at the shape of the city and don't do anything special for off-map values
+	scale_x_continuous( limits = bb10[ 1 , ] , breaks = NULL , oob = squish ) +
+	# since we're going to add lots of surrounding-area detail!
+    scale_y_continuous( limits = bb10[ 2 , ] , breaks = NULL , oob = squish ) +
+
+	theme(
+		panel.grid.major = element_blank(),
+		panel.grid.minor = element_blank(),
+		panel.background = element_blank(),
+		panel.border = element_blank(),
+		axis.ticks = element_blank()
+	)
+
+# print the plot to the screen
+the.plot
+# this is the bottom layer.
+
+# # state borders # #
+
+# store this information in a layer
+state.border.layer <- geom_path( data = fstate , aes( x = long , y = lat , group = group ) , colour = 'lightgray' )
+
+# plot the result
+the.plot + state.border.layer
+
+# # international borders # #
+
+# store this information in a layer
+international.border.layer <- geom_polygon( data = wshape , aes( x = long , y = lat , group = group ) , fill = 'lightgray' , color = 'white' )
+
+# plot the result
+the.plot + international.border.layer + state.border.layer
+
+
+
+
+library(plyr)
+
+orect <- geom_rect( xmin = bb10[ 1 , 1 ] , xmax = bb10[ 1 , 2 ] , ymin = bb10[ 2 , 1 ] , ymax = bb10[ 2 , 2 ] , color = 'white' , fill = NA , size = 4 )
+
+
+# fix islands piecing together
+fcoast2 <- ddply( fcoast , .( piece ) , function( x ) rbind( x , fcoast[ 1 , ] ) )
+
+# convert this fortified object to a ggplot layer
+ocean.layer <- geom_polygon( data = fcoast2 , aes( x = long , y = lat , group = id ) , fill = 'white' , border = 'white' )
+
+
+# fix islands piecing together
+outside2 <- ddply( outside , .( piece ) , function( x ) rbind( x , outside[ 1 , ] ) )
+
+# convert this fortified object to a ggplot layer
+outside.layer <- geom_polygon( data = outside2 , aes( x = long , y = lat , group = id ) , fill = 'white' )
+
+# plot this. 
+the.plot + outside.layer
+# that's not so bad, i guess.
+
+the.plot + outside.layer + international.border.layer + state.border.layer + orect + ocean.layer
+
+
+
+# # end of step 9 # #
+# # # # # # # # # # #
+
+
 # # # # # # # # # # # # # # # # # # # # #
 # # step 10: project, blank, and save # #
+
+library(ggplot2)
+library(scales)
+library(raster)
+library(plyr)
+library(rgeos)
+
+
+# distort the map with simple latitude/longitude scaling
+the.plot + state.border.layer + coord_fixed( 2.5 )
+
+# this looks crappy, who knows what it is
+the.plot + state.border.layer + coord_equal()
+
+# check out a bunch of other options #
+the.plot + state.border.layer + coord_map( project = "cylequalarea" , mean( x$intptlat ) )
+
+# here's the one that makes the most sense for alaska
+the.plot + state.border.layer + coord_map( project = "conic" , mean( x$intptlat ) , orientation = c( 90 , 0 , -141 ) )
+
+# see ?mapproject and the ?coord_* functions for a zillion alternatives
+
+# store this projection, but not the state border
+the.plot <- the.plot + coord_map( project = "conic" , mean( x$intptlat ) , orientation = c( 90 , 0 , -141 ) )
+# into `the.plot`
+
+# initiate the outside blanking layer
+# outside <- fortify( spTransform( br.shp.diff , CRS( "+proj=longlat" ) ) )
+
+# i don't care for the state border layer,
+# but if you want the state border layer,
+# use this save line:
+final.plot <- the.plot + outside.layer + state.border.layer
+# otherwise use this save line:
+# final.plot <- the.plot + outside.layer
+# you can airbrush the outside blue border
+# in microsoft paint or something
+# if you want, right? like a boss.
+
+
+# save the file to your current working directory
+ggsave( 
+	"2013 alaskan veteran service eras.png" ,
+	plot = final.plot ,
+	scale = 3
+)
+# happy?
+
+# # end of step ten # #
+# # # # # # # # # # # #
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
