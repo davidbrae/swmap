@@ -287,7 +287,29 @@ monet.url <- paste0( "monetdb://localhost:" , dbport , "/" , dbname )
 db <- dbConnect( MonetDB.R() , monet.url , wait = TRUE )
 
 # one record per state per geocodm per urban/rural, with the 2010 censo demografico populations in tow
-adp <- dbGetQuery( db , 'select v0001 as UF , SUBSTRING( v0011 , 1 , 7 ) as CD_GEOCODM , v1006 as TIPO , sum( pes_wgt ) as pop10_pre from c10 group by UF , CD_GEOCODM , TIPO' )
+adp <- 
+	dbGetQuery( 
+		db , 
+		'select 
+			v0001 as UF , 
+			SUBSTRING( v0011 , 1 , 7 ) as CD_GEOCODM , 
+			v1006 as TIPO , 
+			sum( pes_wgt ) as pop10_pre 
+		from c10 
+		group by 
+			UF , 
+			CD_GEOCODM , 
+			TIPO' 
+	)
+
+# disconnect from the current monet database
+dbDisconnect( db )
+
+# and close it using the `pid`
+monetdb.server.stop( pid )
+
+# end of lines of code to hold on to for all other `censo_demografico` monetdb analyses #
+#########################################################################################
 
 # recode the one/two variable to urban/rural
 adp$tipo <- c( 'URBANO' , 'RURAL' )[ as.numeric( adp$tipo ) ]
@@ -361,8 +383,9 @@ stopifnot( nrow( x ) == nrow( sas ) )
 # # # include surrounding countries so it doesn't appear alone on the continent!
 
 
+# you can also use the world/europe shapefile to draw surrounding countries.
 
-
+# from geofabrik.. natural shapefile..
 plot(subset(a,type=='water')) # # gets only the water
 
 
