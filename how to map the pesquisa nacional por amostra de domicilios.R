@@ -771,10 +771,7 @@ krig.grd <- krig.grd[ , c( 'intptlon' , 'intptlat' , 'statistic' , 'occcat' ) ]
 # do any points not make sense?
 summary( krig.grd$statistic )
 
-# yup, the minimum is below zero.
-krig.grd$statistic <- pmax( 0 , krig.grd$statistic )
-
-# you have to simplify it.
+# you have to simplify this.
 # simplifying it means throwing out information.
 
 library(RColorBrewer)
@@ -803,38 +800,26 @@ tag <-
 		# because the lowest is harder to see
 		brewer.pal( 4 , 'Set3' ) , 
 		# the lines demarcate very strongly in the krig.grd below
-		# using only the upper half of the six colors in this gradient
+		# skipping the first values of this gradient
 		# lowers the demarcation but might have sharper borders
-		function( z ) colorRampPalette( c( 'white' , z ) )( 6 )[ 4:6 ]
+		function( z ) colorRampPalette( c( 'white' , z ) )( 130 )[ 31:130 ]
 	)
 
 # check out each of these four colors, mapped from opaque to intense.
-plot( rep( 0:2 , 4 ) , rep( 1:4 , each = 3 ) , col = unlist( tag ) , pch = 16 , cex = 3 )
+plot( rep( 0:99 , 4 ) , rep( 1:4 , each = 100 ) , col = unlist( tag ) , pch = 16 , cex = 3 )
 
 
 # # rescale the interpolated grids
-krig.grd$statistic <- round( rescale( krig.grd$statistic , c( 0.5 , 3.499 ) ) )
+krig.grd$statistic <- round( rescale( krig.grd$statistic , c( 0.501 , 100.499 ) ) )
 # note that the re-scaling gets done across all categories,
 # and not individually within each category.
 
-# add the hex color identifier
-krig.grd$color.value <- 
-		ifelse( krig.grd$occcat == 'agriculture' , tg[[1]][ round( krig.grd$statistic * 100 ) ] ,
-		# notice that i've skipped two here, because that's blue.
-		ifelse( krig.grd$occcat == 'industry' , tg[[3]][ round( krig.grd$statistic * 100) ] ,
-		ifelse( krig.grd$occcat == 'commercial' , tg[[4]][ round( krig.grd$statistic * 100 ) ] , 
-		ifelse( krig.grd$occcat == 'service' , tg[[5]][ round( krig.grd$statistic * 100 ) ] , 
-			NA ) ) ) )
-
-# awwwwwwww yeah, something's happening now.
-plot( krig.grd$intptlon , krig.grd$intptlat , col = krig.grd$color.value , pch = 16 , cex = 3 )
-
 # add the alternate hex color identifier
 krig.grd$alt.color <- 
-		ifelse( krig.grd$occcat == 'agriculture' , tag[[4]][ round( krig.grd$statistic * 100 ) ] ,
-		ifelse( krig.grd$occcat == 'industry' , tag[[3]][ round( krig.grd$statistic * 100) ] ,
-		ifelse( krig.grd$occcat == 'commercial' , tag[[2]][ round( krig.grd$statistic * 100 ) ] , 
-		ifelse( krig.grd$occcat == 'service' , tag[[1]][ round( krig.grd$statistic * 100 ) ] , 
+		ifelse( krig.grd$occcat == 'agriculture' , tag[[1]][ krig.grd$statistic ] ,
+		ifelse( krig.grd$occcat == 'industry' , tag[[4]][ krig.grd$statistic ] ,
+		ifelse( krig.grd$occcat == 'commercial' , tag[[3]][ krig.grd$statistic ] , 
+		ifelse( krig.grd$occcat == 'service' , tag[[2]][ krig.grd$statistic ] , 
 			NA ) ) ) )
 
 # that looks a bit better to me
@@ -862,7 +847,7 @@ krig.grd$color.column <- as.factor( krig.grd$alt.color )
 krg.plot <- 
 	ggplot( data = krig.grd , aes( x = intptlon , y = intptlat ) ) +
 	geom_point( shape = 15 , color = krig.grd$color.column ) +
-	scale_fill_manual( values = unique( krig.grd$color.value ) )
+	scale_fill_manual( values = unique( krig.grd$alt.color ) )
 
 krg.plot
 
@@ -873,7 +858,7 @@ the.plot <-
 	
 	# blank out the legend and axis labels
 	theme(
-		legend.position = "lowerright" ,
+		legend.position = "none" ,
 		axis.title.x = element_blank() ,
 		axis.title.y = element_blank()		
 	) + 
@@ -903,7 +888,7 @@ the.plot
 state.border.layer <- geom_path( data = fstate , aes( x = long , y = lat , group = group ) , colour = 'lightgray' )
 
 # plot the result
-the.plot + state.border.layer
+# the.plot + state.border.layer
 
 # # international borders # #
 
@@ -911,7 +896,7 @@ the.plot + state.border.layer
 international.border.layer <- geom_polygon( data = wshape , aes( x = long , y = lat , group = group ) , fill = 'lightgray' , color = 'white' )
 
 # plot the result
-the.plot + international.border.layer + state.border.layer
+# the.plot + international.border.layer + state.border.layer
 
 
 
@@ -925,7 +910,7 @@ orect <- geom_rect( xmin = bb10[ 1 , 1 ] , xmax = bb10[ 1 , 2 ] , ymin = bb10[ 2
 fcoast2 <- ddply( fcoast , .( piece ) , function( x ) rbind( x , fcoast[ 1 , ] ) )
 
 # convert this fortified object to a ggplot layer
-ocean.layer <- geom_polygon( data = fcoast2 , aes( x = long , y = lat , group = id ) , fill = 'white' , border = 'white' )
+ocean.layer <- geom_polygon( data = fcoast2 , aes( x = long , y = lat , group = group ) , fill = 'white' )
 
 
 # fix islands piecing together
@@ -935,10 +920,13 @@ outside2 <- ddply( outside , .( piece ) , function( x ) rbind( x , outside[ 1 , 
 outside.layer <- geom_polygon( data = outside2 , aes( x = long , y = lat , group = id ) , fill = 'white' )
 
 # plot this. 
-the.plot + outside.layer
+# the.plot + outside.layer
 # that's not so bad, i guess.
 
 the.plot + outside.layer + international.border.layer + state.border.layer + orect + ocean.layer
+
+
+the.plot + outside.layer + international.border.layer + state.border.layer + orect + ocean.layer + coord_map( "albers" , bb10[ 2 , 1 ] , bb10[ 2 , 2 ] )
 
 
 
@@ -1014,7 +1002,16 @@ ggsave(
 
 
 
-
+guides(
+	colour = 
+		guide_legend(
+			override.aes = 
+				list( 
+					linetype = c( 1 , 0 ) , 
+					shape = c( NA , 16 ) 
+				)
+		)
+)
 
 
 
