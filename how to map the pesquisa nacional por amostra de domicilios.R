@@ -54,8 +54,8 @@
 # # flaws # #
 # # # # # # #
 
-# 
-# 
+# more than three categories and suddenly choosing a palette becomes a nightmare
+# the original thirteen occupational groups are useful.  these four broad categories are not.
 
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
