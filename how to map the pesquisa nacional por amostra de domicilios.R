@@ -680,7 +680,7 @@ surface( krig.fit4 )	# government and service occupations
 # # step 7: make a grid and predict # #
 
 # use as fine of a grid as your computer can handle
-grid.length <- 750
+grid.length <- 400
 # # note: smaller grids will render faster
 # # (so they're better if you're just playing around)
 # # but larger grids will prevent your final plot from
@@ -845,7 +845,7 @@ krig.grd$color.column <- as.factor( krig.grd$alt.color )
 
 krg.plot <- 
 	ggplot( data = krig.grd , aes( x = intptlon , y = intptlat ) ) +
-	geom_point( shape = 15 , color = krig.grd$color.column ) +
+	geom_point( shape = 15 , color = krig.grd$color.column , size = 3 ) +
 	scale_fill_manual( values = unique( krig.grd$alt.color ) )
 
 krg.plot
@@ -993,7 +993,8 @@ final.plot <-
 # save the file to your current working directory
 ggsave( 
 	"2013 common occupations - unprojected.png" ,
-	plot = final.plot
+	plot = final.plot ,
+	scale = 1.25
 )
 # but that's unprojected.  you might prefer a projected map.
 
@@ -1020,7 +1021,8 @@ projected.plot <- final.plot + coord_map( "albers" , bb10[ 2 , 1 ] , bb10[ 2 , 2
 # save the projected plot, which takes longer doesn't it.
 ggsave( 
 	"2013 common occupations - projected.png" ,
-	plot = projected.plot
+	plot = projected.plot ,
+	scale = 1.25
 )
 
 # # end of step ten # #
