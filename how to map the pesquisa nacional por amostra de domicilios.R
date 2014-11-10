@@ -836,7 +836,6 @@ krig.grd$occcat <- NULL ; gc()
 # # step 9: ggplot and choose options # #
 
 library(ggplot2)
-library(mapproj)
 library(scales)
 
 # initiate the krige-based plot
@@ -882,59 +881,46 @@ the.plot <-
 the.plot
 # this is the bottom layer.
 
-# # manual label # #
+# # manual labels # #
 four.colors <- brewer.pal( 4 , 'Set3' )
 
-topleft <- c( -45 , -29 )
+# where should the top-left of the legend block go?
+topleft <- c( -45 , -27 )
 
+# manually print four blocks of text
 legend.text <- 
 	annotate( 
 		'text' , 
 		size = rep( 5 , 4 ) , 
 		color = 'black' ,
 		label = c( "agricultural occupations" , "government and service" , "commercial occupations" , "industrial and construction" ) ,
+		family = "sans" ,
 		x = rep( topleft[ 1 ] , 4 ) ,
 		y = c( topleft[ 2 ] , topleft[ 2 ] - 2 , topleft[ 2 ] - 4 , topleft[ 2 ] - 6 ) ,
 		hjust = 0 , vjust = 0.25
 	)
 
+# manually print four shaded squares
 legend.colors <- 
 	annotate( 
 		'point' , 
 		size = rep( 6 , 4 ) , 
-		color = four.colors ,
-		label = c( "agricultural occupations" , "government and service" , "commercial occupations" , "industry and construction" ) ,
-		x = rep( topleft[ 1 ] - 0.75 , 4 ) ,
+		shape = rep( 22 , 4 ) ,
+		color = 'grey50' ,
+		fill = four.colors ,
+		x = rep( topleft[ 1 ] - 1 , 4 ) ,
 		y = c( topleft[ 2 ] , topleft[ 2 ] - 2 , topleft[ 2 ] - 4 , topleft[ 2 ] - 6 )
 	)
 
-the.plot + legend.text + legend.colors
+# plot the result if you like
+# the.plot + legend.text + legend.colors
 	
-	
-	
-this.legend <-
-	annotate( geom = "point" , size = 4 , color = four.colors[ 1:4 ] , x = -40 , y = -25:-22 ) +
-	annotate( "text" , x = -39 , y = -25:-22 , label = 1:4 )
-	
-	
-	annotate( "text" , x = -39 , y = -26 , label = "occupation 1" ) +
-	annotate( "text" , x = -39 , y = -27 , label = "occupation 1" ) +
-	annotate( "text" , x = -39 , y = -28 , label = "occupation 1" )
-
-	
-> bb10
-        min        max
-x -74.96963 -33.812995
-y -34.72238   6.240177
-
-
-
 # # state borders # #
 
 # store this information in a layer
 state.border.layer <- geom_path( data = fstate , aes( x = long , y = lat , group = group ) , colour = 'lightgray' )
 
-# plot the result
+# plot the result if you like
 # the.plot + state.border.layer
 
 # # international borders # #
@@ -942,15 +928,38 @@ state.border.layer <- geom_path( data = fstate , aes( x = long , y = lat , group
 # store this information in a layer
 international.border.layer <- geom_polygon( data = wshape , aes( x = long , y = lat , group = group ) , fill = 'lightgray' , color = 'white' )
 
-# plot the result
-# the.plot + international.border.layer + state.border.layer
+# plot the result if you like
+# the.plot + international.border.layer
+
+# # end of step 9 # #
+# # # # # # # # # # #
 
 
+# # # # # # # # # # # # # # # # # # # # #
+# # step 10: project, blank, and save # #
 
-
+library(ggplot2)
 library(plyr)
+library(mapproj)
 
-orect <- geom_rect( xmin = bb10[ 1 , 1 ] , xmax = bb10[ 1 , 2 ] , ymin = bb10[ 2 , 1 ] , ymax = bb10[ 2 , 2 ] , color = 'white' , fill = NA , size = 4 )
+
+# # external rectangle to blank # #
+
+# initiate an external rectangle at the edges of the bounding box
+# to blank out the furthest extent of the krigged grid
+orect <- 
+	geom_rect( 
+		xmin = bb10[ 1 , 1 ] , 
+		xmax = bb10[ 1 , 2 ] , 
+		ymin = bb10[ 2 , 1 ] , 
+		ymax = bb10[ 2 , 2 ] , 
+		color = 'white' , 
+		fill = NA , 
+		size = 4 
+	)
+
+
+# # coastal areas to blank # #
 
 # fix islands piecing together
 fcoast2 <- ddply( fcoast , .( piece ) , function( x ) rbind( x , fcoast[ 1 , ] ) )
@@ -958,47 +967,61 @@ fcoast2 <- ddply( fcoast , .( piece ) , function( x ) rbind( x , fcoast[ 1 , ] )
 # convert this fortified object to a ggplot layer
 ocean.layer <- geom_polygon( data = fcoast2 , aes( x = long , y = lat , group = id ) , fill = 'white' )
 
+
+# # non-brazil areas to blank # #
+
 # fix islands piecing together
 outside2 <- ddply( outside , .( piece ) , function( x ) rbind( x , outside[ 1 , ] ) )
 
 # convert this fortified object to a ggplot layer
 outside.layer <- geom_polygon( data = outside2 , aes( x = long , y = lat , group = id ) , fill = 'white' )
 
-# plot this. 
-# the.plot + outside.layer
-# that's not so bad, i guess.
+# plot the result if you like
+# the.plot + outside.layer + international.border.layer + state.border.layer + orect + ocean.layer + legend.text + legend.colors
 
-the.plot + outside.layer + international.border.layer + state.border.layer + orect + ocean.layer
+final.plot <- 
+	the.plot + 
+	outside.layer + 
+	international.border.layer + 
+	state.border.layer + 
+	orect + 
+	ocean.layer + 
+	legend.text + 
+	legend.colors
 
-
-final.project <- the.plot + outside.layer + international.border.layer + state.border.layer + orect + ocean.layer + coord_map( "albers" , bb10[ 2 , 1 ] , bb10[ 2 , 2 ] )
-
-
-
-
-ggsave( 
-	"2013 occupations of brazil no cairo scale3.png" ,
-	plot = final.project ,
-	scale = 3
-)
-
-
-# use cairo-png as your bitmap type
-options( bitmapType = "cairo" )
 
 # save the file to your current working directory
 ggsave( 
-	"2013 occupations of brazil with cairo scale3.png" ,
-	plot = final.project ,
-	type = "cairo-png",
-	scale = 3
+	"2013 common occupations - unprojected.png" ,
+	plot = final.plot
+)
+# but that's unprojected.  you might prefer a projected map.
+
+# # # pick your projection # # #
+
+# if you would like to play with projections, edit the parameters
+# of this coord_map() function and check out the other scripts
+# and also `library(mapproj) ; ?mapproject` for ideas.
+the.plot + coord_map( "albers" , bb10[ 2 , 1 ] , bb10[ 2 , 2 ] )
+# running the final projection on all layers at once is very slow
+# so only do that when you're ready to ggsave()
+
+
+projected.plot <- final.plot + coord_map( "albers" , bb10[ 2 , 1 ] , bb10[ 2 , 2 ] )
+
+
+# would you like to save this game?
+
+# # # fair warning # # #
+# the projected map takes hours to render.
+# choose carefully from the shapes above,
+# then leave this save command running overnight.
+
+# save the projected plot, which takes longer doesn't it.
+ggsave( 
+	"2013 common occupations - projected.png" ,
+	plot = projected.plot
 )
 
-
-
-
-
-
-
-
-
+# # end of step ten # #
+# # # # # # # # # # # #
