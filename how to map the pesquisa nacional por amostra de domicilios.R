@@ -882,6 +882,53 @@ the.plot <-
 the.plot
 # this is the bottom layer.
 
+# # manual label # #
+four.colors <- brewer.pal( 4 , 'Set3' )
+
+topleft <- c( -45 , -29 )
+
+legend.text <- 
+	annotate( 
+		'text' , 
+		size = rep( 5 , 4 ) , 
+		color = 'black' ,
+		label = c( "agricultural occupations" , "government and service" , "commercial occupations" , "industrial and construction" ) ,
+		x = rep( topleft[ 1 ] , 4 ) ,
+		y = c( topleft[ 2 ] , topleft[ 2 ] - 2 , topleft[ 2 ] - 4 , topleft[ 2 ] - 6 ) ,
+		hjust = 0 , vjust = 0.25
+	)
+
+legend.colors <- 
+	annotate( 
+		'point' , 
+		size = rep( 6 , 4 ) , 
+		color = four.colors ,
+		label = c( "agricultural occupations" , "government and service" , "commercial occupations" , "industry and construction" ) ,
+		x = rep( topleft[ 1 ] - 0.75 , 4 ) ,
+		y = c( topleft[ 2 ] , topleft[ 2 ] - 2 , topleft[ 2 ] - 4 , topleft[ 2 ] - 6 )
+	)
+
+the.plot + legend.text + legend.colors
+	
+	
+	
+this.legend <-
+	annotate( geom = "point" , size = 4 , color = four.colors[ 1:4 ] , x = -40 , y = -25:-22 ) +
+	annotate( "text" , x = -39 , y = -25:-22 , label = 1:4 )
+	
+	
+	annotate( "text" , x = -39 , y = -26 , label = "occupation 1" ) +
+	annotate( "text" , x = -39 , y = -27 , label = "occupation 1" ) +
+	annotate( "text" , x = -39 , y = -28 , label = "occupation 1" )
+
+	
+> bb10
+        min        max
+x -74.96963 -33.812995
+y -34.72238   6.240177
+
+
+
 # # state borders # #
 
 # store this information in a layer
@@ -905,13 +952,11 @@ library(plyr)
 
 orect <- geom_rect( xmin = bb10[ 1 , 1 ] , xmax = bb10[ 1 , 2 ] , ymin = bb10[ 2 , 1 ] , ymax = bb10[ 2 , 2 ] , color = 'white' , fill = NA , size = 4 )
 
-
 # fix islands piecing together
 fcoast2 <- ddply( fcoast , .( piece ) , function( x ) rbind( x , fcoast[ 1 , ] ) )
 
 # convert this fortified object to a ggplot layer
-ocean.layer <- geom_polygon( data = fcoast2 , aes( x = long , y = lat , group = group ) , fill = 'white' )
-
+ocean.layer <- geom_polygon( data = fcoast2 , aes( x = long , y = lat , group = id ) , fill = 'white' )
 
 # fix islands piecing together
 outside2 <- ddply( outside , .( piece ) , function( x ) rbind( x , outside[ 1 , ] ) )
@@ -926,66 +971,28 @@ outside.layer <- geom_polygon( data = outside2 , aes( x = long , y = lat , group
 the.plot + outside.layer + international.border.layer + state.border.layer + orect + ocean.layer
 
 
-the.plot + outside.layer + international.border.layer + state.border.layer + orect + ocean.layer + coord_map( "albers" , bb10[ 2 , 1 ] , bb10[ 2 , 2 ] )
+final.project <- the.plot + outside.layer + international.border.layer + state.border.layer + orect + ocean.layer + coord_map( "albers" , bb10[ 2 , 1 ] , bb10[ 2 , 2 ] )
 
 
 
-# # end of step 9 # #
-# # # # # # # # # # #
+
+ggsave( 
+	"2013 occupations of brazil no cairo scale3.png" ,
+	plot = final.project ,
+	scale = 3
+)
 
 
-# # # # # # # # # # # # # # # # # # # # #
-# # step 10: project, blank, and save # #
-
-library(ggplot2)
-library(scales)
-library(raster)
-library(plyr)
-library(rgeos)
-
-
-# distort the map with simple latitude/longitude scaling
-the.plot + state.border.layer + coord_fixed( 2.5 )
-
-# this looks crappy, who knows what it is
-the.plot + state.border.layer + coord_equal()
-
-# check out a bunch of other options #
-the.plot + state.border.layer + coord_map( project = "cylequalarea" , mean( x$intptlat ) )
-
-# here's the one that makes the most sense for alaska
-the.plot + state.border.layer + coord_map( project = "conic" , mean( x$intptlat ) , orientation = c( 90 , 0 , -141 ) )
-
-# see ?mapproject and the ?coord_* functions for a zillion alternatives
-
-# store this projection, but not the state border
-the.plot <- the.plot + coord_map( project = "conic" , mean( x$intptlat ) , orientation = c( 90 , 0 , -141 ) )
-# into `the.plot`
-
-# initiate the outside blanking layer
-# outside <- fortify( spTransform( br.shp.diff , CRS( "+proj=longlat" ) ) )
-
-# i don't care for the state border layer,
-# but if you want the state border layer,
-# use this save line:
-final.plot <- the.plot + outside.layer + state.border.layer
-# otherwise use this save line:
-# final.plot <- the.plot + outside.layer
-# you can airbrush the outside blue border
-# in microsoft paint or something
-# if you want, right? like a boss.
-
+# use cairo-png as your bitmap type
+options( bitmapType = "cairo" )
 
 # save the file to your current working directory
 ggsave( 
-	"2013 alaskan veteran service eras.png" ,
-	plot = final.plot ,
+	"2013 occupations of brazil with cairo scale3.png" ,
+	plot = final.project ,
+	type = "cairo-png",
 	scale = 3
 )
-# happy?
-
-# # end of step ten # #
-# # # # # # # # # # # #
 
 
 
@@ -995,44 +1002,3 @@ ggsave(
 
 
 
-
-
-
-
-
-
-
-guides(
-	colour = 
-		guide_legend(
-			override.aes = 
-				list( 
-					linetype = c( 1 , 0 ) , 
-					shape = c( NA , 16 ) 
-				)
-		)
-)
-
-
-
-
-
-# # ultra-high resolution??
-
-
-# # # include surrounding countries so it doesn't appear alone on the continent!
-
-
-# you can also use the world/europe shapefile to draw surrounding countries.
-
-# from geofabrik.. natural shapefile..
-plot(subset(a,type=='water')) # # gets only the water
-
-
-# for knots?  you might not need knots.
-> nrow(unique(shp@data[,c('TIPO','NM_MESO')]))
-[1] 274
-> nrow(unique(shp@data[,c('NM_MESO')]))
-NULL
-> nrow(unique(shp@data[c('NM_MESO')]))
-[1] 137
