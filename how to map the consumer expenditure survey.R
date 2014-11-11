@@ -761,8 +761,8 @@ gam.fit <-
 
 library(raster)
 
-x.range <- bbox( us.shp.out )[ 1 , ]
-y.range <- bbox( us.shp.out )[ 2 , ]
+x.range <- bbox( us.shp )[ 1 , ]
+y.range <- bbox( us.shp )[ 2 , ]
 
 # add one percent on each side
 x.diff <- abs( x.range[ 2 ] - x.range[ 1 ] ) * 0.01
@@ -977,7 +977,7 @@ the.plot <- the.plot + blank.layer
 sbo <- fortify( us.shp )
 
 # here's a layer with the continental united states borders
-sbo.layer <- geom_path( data = sbo , aes( x = long , y = lat , group = group ) )
+sbo.layer <- geom_path( data = sbo , aes( x = long , y = lat , group = group ) , colour = 'lightgray' )
 
 # print that result to the screen.
 the.plot + sbo.layer
