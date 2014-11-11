@@ -798,7 +798,7 @@ tag <-
 	lapply( 
 		# flip the colors,
 		# because the lowest is harder to see
-		brewer.pal( 4 , 'Set3' ) , 
+		brewer.pal( 4 , 'Set2' ) , 
 		# the lines demarcate very strongly in the krig.grd below
 		# skipping the first values of this gradient
 		# lowers the demarcation but might have sharper borders
@@ -810,9 +810,18 @@ plot( rep( 0:99 , 4 ) , rep( 1:4 , each = 100 ) , col = unlist( tag ) , pch = 16
 
 
 # # rescale the interpolated grids
-krig.grd$statistic <- round( rescale( krig.grd$statistic , c( 0.501 , 100.499 ) ) )
-# note that the re-scaling gets done across all categories,
-# and not individually within each category.
+
+# either across all categories together..
+krig.grd[ , 'statistic' ] <- round( rescale( krig.grd[ , 'statistic' ] , c( 0.501 , 100.499 ) ) )
+
+# ..or within each category individually.
+# for ( i in unique( krig.grd$occcat ) ){
+	# krig.grd[ krig.grd$occcat == i , 'statistic' ] <- 
+		# round( rescale( krig.grd[ krig.grd$occcat == i , 'statistic' ] , c( 0.501 , 100.499 ) ) )
+# }
+# note that when the re-scaling happens within each category,
+# the coloring scale is only consistent within each of the categories, not across them.
+
 
 # add the alternate hex color identifier
 krig.grd$alt.color <- 
@@ -882,7 +891,7 @@ the.plot
 # this is the bottom layer.
 
 # # manual labels # #
-four.colors <- brewer.pal( 4 , 'Set3' )
+four.colors <- brewer.pal( 4 , 'Set2' )
 
 # where should the top-left of the legend block go?
 topleft <- c( -45 , -27 )
