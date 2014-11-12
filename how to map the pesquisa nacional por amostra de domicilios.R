@@ -24,7 +24,7 @@
 # # smallest level of geography # #
 # # # # # # # # # # # # # # # # # #
 
-# urban/rural within each state
+# urban/rural plus some large capitals within each state
 
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -54,7 +54,7 @@
 # # flaws # #
 # # # # # # #
 
-# more than three categories and suddenly choosing a palette becomes a nightmare
+# if you display more than three categories, choosing the palette becomes a nightmare
 # the original thirteen occupational groups are useful.  these four broad categories are not.
 
 
@@ -168,9 +168,34 @@ y <- update( y , occcat = factor( occcat ) )
 # make the urban/rural variable easier to read.
 y <- update( y , urban = as.numeric( v4105 < 4 ) )
 
-# within each brazilian state x urban/rural category,
+# # recoding note # #
+# after lots of censo - to - pnad comparisons
+# and a long conversation with the wonderful folks
+# at the brazilian institute of geography & statistics,
+# i figured out the necessary crosswalk for
+# censo 2010 and pnad 2013--
+
+# make a capital-area region variable
+y <- update( y , capital = as.numeric( v4107 == 1 ) )
+# note: this is not available for every state!
+# cross capital by `uf` to see what i mean.
+
+# it looks like six of our identifiable ten states
+# have populations in the capital designated as rural
+# in the pnad *but not* the censo.  they are all
+# very small shares of each capital's pnad population,
+# so it's probably smart to align them with the censo.
+
+# if the person lives in the capital *and* in one of the six states,
+# then recode `urban` to 1 no matter what.  otherwise, leave `urban` alone
+y <- update( y , urban = ifelse( ( capital %in% 1 ) & ( uf %in% c( 23 , 26 , 31 , 33 , 41 , 43 ) ) , 1 , urban ) )
+
+# # end of recoding note # #
+
+
+# within each brazilian state x urban/rural x capital category,
 # calculate the four-category distribution of occupational groups
-small.area.statistics <- svyby( ~ occcat , ~ uf + urban , y , svymean , na.rm = TRUE )
+small.area.statistics <- svyby( ~ occcat , ~ uf + urban + capital , y , svymean , na.rm = TRUE )
 
 # these are the statistics to be mapped
 print( small.area.statistics )
@@ -299,6 +324,7 @@ adp <-
 		db , 
 		'select 
 			v0001 as UF , 
+			v0002 as MESOR ,
 			SUBSTRING( v0011 , 1 , 7 ) as CD_GEOCODM , 
 			v1006 as TIPO , 
 			sum( pes_wgt ) as pop10_pre 
@@ -306,7 +332,8 @@ adp <-
 		group by 
 			UF , 
 			CD_GEOCODM , 
-			TIPO' 
+			TIPO , 
+			MESOR' 
 	)
 
 # disconnect from the current monet database
@@ -317,6 +344,22 @@ monetdb.server.stop( pid )
 
 # end of lines of code to hold on to for all other `censo_demografico` monetdb analyses #
 #########################################################################################
+
+# available mesoregion capitals
+capitals <- c( 1100205 , 1200401 , 1302603 , 1400100 , 1501402 , 1600303 , 1721000 , 2111300 , 2211001 , 2304400 , 2408102 , 2507507 , 2611606 , 2704302 , 2800308 , 2927408 , 3106200 , 3205309 , 3304557 , 3550308 , 4106902 , 4205407 , 4314902 , 5002704 , 5103403 , 5208707 , 5300108 )
+
+# states with available mesoregion capitals in pnad
+ac <- c( 15 , 23 , 26 , 29 , 31 , 33 , 35 , 41 , 43 , 53 )
+
+# in addition to state + urban/rural, 
+# ten capital mesoregions are available in the 2013 pnad.
+
+# you need to check your year / microdata carefully
+# to figure out the smallest avaiable areas with
+# reasonable sample sizes, and calculate your statistics to that level.
+
+# there are ten capitals to use (some have both urban & rural areas)
+adp$capital <- as.numeric( adp$cd_geocodm %in% capitals & adp$uf %in% ac )
 
 # recode the one/two variable to urban/rural
 adp$tipo <- c( 'URBANO' , 'RURAL' )[ as.numeric( adp$tipo ) ]
@@ -341,25 +384,25 @@ ucca$tipo <- NULL
 ucca.micro <- 
 	sqldf( 
 		"select 
-			uf , urban , nm_micro ,
+			uf , urban , nm_micro , capital ,
 			sum( pop10 ) as pop10 ,
 			sum( pop10 * x ) / sum( pop10 ) as x ,
 			sum( pop10 * y ) / sum( pop10 ) as y
 		from ucca
 		group by
-			uf , urban , nm_micro"
+			uf , urban , nm_micro , capital"
 	)
 	
 ucca.meso <- 
 	sqldf( 
 		"select 
-			uf , urban , nm_meso ,
+			uf , urban , nm_meso , capital ,
 			sum( pop10 ) as pop10 ,
 			sum( pop10 * x ) / sum( pop10 ) as x ,
 			sum( pop10 * y ) / sum( pop10 ) as y
 		from ucca
 		group by
-			uf , urban , nm_meso"
+			uf , urban , nm_meso , capital"
 	)
 
 
@@ -383,7 +426,7 @@ rm( shps , shp , centroids , ur_codm , ur_codm_cts , ur_codm_wcts , adp , ucca )
 sas.row <- nrow( sas )
 
 # ..should equal the number of unique-match-merged records..
-mrow <- nrow( merge( unique( ucca.micro[ c( "uf" , "urban" ) ] ) , sas ) )
+mrow <- nrow( merge( unique( ucca.micro[ c( "uf" , "urban" , "capital" ) ] ) , sas ) )
 
 # ..and it does/they do.
 stopifnot( sas.row == mrow )
@@ -412,7 +455,7 @@ sas[ paste0( 'invse.occcat' , 1:4 ) ] <- sapply( sas[ paste0( 'se.occcat' , 1:4 
 
 
 # aggregate the 2010 census block populations to the geographies that you have.
-popsum <- aggregate( ucca.micro$pop10 , by = ( ucca.micro[ c( 'uf' , 'urban' ) ] ) , sum )
+popsum <- aggregate( ucca.micro$pop10 , by = ( ucca.micro[ c( 'uf' , 'urban' , 'capital' ) ] ) , sum )
 
 # make the column name meaningful
 names( popsum )[ names( popsum ) == 'x' ] <- 'popsum'
