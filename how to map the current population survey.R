@@ -45,15 +45,15 @@
 # # value of interest # #
 # # # # # # # # # # # # #
 
-# poverty rate
+# poverty rate (warning: the final map created by this script is of no value)
 
 
 # # # # # # #
 # # flaws # #
 # # # # # # #
 
-# the map pushes what's possible from the survey data too far.
-# new haven (south-central) is probably poorer than the southeast
+# this map displays nothing but survey noise. the geographies are too small for this microdata.
+# run it on a different year, you'll see completely different results.  perhaps try pooling years?
 
 
 # # # # # # # # # # # # # # # # # # # # #
