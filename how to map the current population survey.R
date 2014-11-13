@@ -45,15 +45,15 @@
 # # value of interest # #
 # # # # # # # # # # # # #
 
-# poverty rate (warning: the final map created by this script is of no value)
+# poverty rate (warning: the final map created by this script is of no value.  fix it by pooling years or choosing larger geographies in step #2)
 
 
 # # # # # # #
 # # flaws # #
 # # # # # # #
 
-# this map displays nothing but survey noise. the geographies are too small for this microdata.
-# run it on a different year, you'll see completely different results.  perhaps try pooling years?
+# this map displays nothing but survey noise.  run it on a different year, you'll see completely different results.  not enough sample size.
+# for a legitimate map with the cps, pool years or aggregate small areas into larger ones.  when possible, compare findings to other estimates.
 
 
 # # # # # # # # # # # # # # # # # # # # #
