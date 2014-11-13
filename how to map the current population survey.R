@@ -53,7 +53,8 @@
 # # # # # # #
 
 # this map displays nothing but survey noise.  run it on a different year, you'll see completely different results.  not enough sample size.
-# for a legitimate map with the cps, pool years or aggregate small areas into larger ones.  when possible, compare findings to other estimates.
+# a legitimate map with the cps would pool years or aggregate small areas into larger ones.  when possible, compare findings to other estimates.
+# for this particular statistic (poverty rate), compare your results to the county-level maps you can create on http://www.census.gov/did/www/saipe/
 
 
 # # # # # # # # # # # # # # # # # # # # #
