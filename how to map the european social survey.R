@@ -176,12 +176,121 @@ smallest.area.statistics[ is.na( smallest.area.statistics$se ) , 'se' ] <-
 # excellent, now everybody has a weight
 summary( smallest.area.statistics )
 
-# make this object easier to type
-sas <- smallest.area.statistics
+# but wait, another problem problem awooooogah
 
-# trim the regions, and use the variable name
+# many of the relative standard errors (the se divided by the statistic)
+# are greater than 30%, which is often considered a threshold that's too uncertain.
+regions.with.high.rse <- 
+	smallest.area.statistics[ 
+		smallest.area.statistics$se / smallest.area.statistics$tvtot > 0.3 ,
+		'region' 
+	]
+
+# many of the regions also have very low unweighted counts
+unwtd.by.region <- 
+	svyby( 
+		~ tvtot , 
+		~ region , 
+		integrated.design , 
+		unwtd.count 
+	)
+
+# identify regions with less than 50 surveyed respondents
+regions.with.low.unwtd <- 
+	unwtd.by.region[ 
+		unwtd.by.region$count < 50 , 
+		'region' 
+	]
+	
+# combine both of these too-uncertain collections of regions
+# into a single vector identifying what areas are just too unstable to display
+unstable.regions <- 
+	unique( c( as.character( regions.with.high.rse ) , as.character( regions.with.low.unwtd ) ) )
+
+# # warning note warning of critical importance
+# # just because a geography is available in your microdata
+# # does not mean you can mindlessly throw it on a map.
+# # you need to trust your statistics at small-areas,
+# # otherwise you need to aggregate them until they become stable.
+	
+# # so aggregate them we shall.
+
+# within each country, figure out the number of
+# regions that need to be aggregated.
+table( substr( unstable.regions , 1 , 2 ) )
+
+# from this table, *most* countries that have
+# at least one unstable region has at least two.
+# but switzerland (CH) and the netherlands (NL) do not.
+# so we're going to enforce that the
+# second-smallest-sample-sizes in both regions also
+# be considered unstable
+subset( unwtd.by.region , substr( region , 1 , 2 ) %in% c( 'CH' , 'NL' ) )
+
+# looks like CH07 should be grouped with CH06
+# and NL23 should be grouped with NL34.
+# so let's manually add them to the unstable regions vector.
+unstable.regions <- c( unstable.regions , "NL34 " , "CH06 " )
+# note: this is not always ideal.  maybe you'd prefer
+# to just blank out one region and keep the other pure
+# rather than aggregate both and potentially dilute
+# any useful findings from the larger region.
+
+# now that we've identified which regions potentially provide
+# unstable estimates, we can aggregate those areas and re-calculate.
+integrated.design <-
+	update(
+		integrated.design ,
+		aggregion = 
+			ifelse( 
+				# if the region is one causing unstable estimates
+				region %in% unstable.regions ,
+				# aggregate it with other unstable estimates in the same country
+				substr( as.character( region ) , 1 , 2 ) ,
+				# otherwise let it be.
+				as.character( region )
+			)
+	)
+
+# re-compute the `tvtot` estimates,
+# but this time using the `aggregion`
+# variable that we hope will provide more reliable 
+smallest.safe.statistics <- 
+	svyby( 
+		~ tvtot , 
+		~ aggregion , 
+		integrated.design , 
+		svyquantile ,
+		0.5 , 
+		ties = "rounded" ,
+		interval.type = "betaWald" ,
+		na.rm = TRUE , 
+		ci = TRUE
+	)
+
+# suddenly the relative standard errors look a bit more stable.  nothing above 30%.
+sum( smallest.safe.statistics$se / smallest.safe.statistics$tvtot > 0.3 , na.rm = TRUE )
+
+# extract the region x aggregated region columns from the survey design object
+reg.aggreg.xwalk <- unique( integrated.design$variables[ , c( 'region' , 'aggregion' ) ] )
+# keeping one record per crosswalked value.
+
+# merge our final computations with the region-aggregion crosswalk
+sas <- merge( smallest.safe.statistics , reg.aggreg.xwalk )
+
+# confirm that `sas` contains the same number of records
+# (one record per region) as the object with unstable estimates
+stopifnot( nrow( smallest.area.statistics ) == nrow( sas ) )
+
+# trim the regions, use the variable name
 # that eurostat uses on its shapefiles
 sas$NUTS_ID <- str_trim( sas$region )
+# and remove the aggregated region variable
+sas$aggregion <- NULL
+
+# whoops don't forget to replace all missing standard errors with the non-zero minimum
+sas[ is.na( sas$se ) , 'se' ] <-
+	min( subset( sas , !is.na( se ) )$se )
 
 # # end of step 2 # #
 # # # # # # # # # # #

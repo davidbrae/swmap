@@ -52,7 +52,7 @@
 # # flaws # #
 # # # # # # #
 
-# the high-resolution version (grid.length > 500) takes a long time to render
+# major downloads required.  let this run overnight.
 
 
 # # # # # # # # # # # # # # # # # # # # #
@@ -60,8 +60,8 @@
 
 library(downloader)
 
-# download the 2013 consumer expenditure survey microdata onto the local disk
-years.to.download <- 2013
+# download the 2012 and 2013 consumer expenditure survey microdata onto the local disk
+years.to.download <- 2012:2013
 source_url( "https://raw.github.com/ajdamico/usgsd/master/Consumer%20Expenditure%20Survey/download%20all%20microdata.R" , prompt = FALSE , echo = TRUE )
 
 # # end of step 1 # #
@@ -287,15 +287,22 @@ library(stringr)
 # # https://github.com/ajdamico/usgsd/blob/master/Consumer%20Expenditure%20Survey/2011%20fmly%20intrvw%20-%20analysis%20examples.R
 # -- calculate the transportation share of total expenditure at the smallest available geographic area
 
-# load all five quarters
+# load all five quarters of 2013 microdata
 load( "./2013/intrvw/fmli131x.rda" )
 load( "./2013/intrvw/fmli132.rda" )
 load( "./2013/intrvw/fmli133.rda" )
 load( "./2013/intrvw/fmli134.rda" )
 load( "./2013/intrvw/fmli141.rda" )
 
-# stack all five quarters
-fmly <- rbind.fill( fmli131x , fmli132 , fmli133 , fmli134 , fmli141 )
+# load all five quarters of 2012 microdata
+load( "./2012/intrvw/fmli121x.rda" )
+load( "./2012/intrvw/fmli122.rda" )
+load( "./2012/intrvw/fmli123.rda" )
+load( "./2012/intrvw/fmli124.rda" )
+load( "./2012/intrvw/fmli131.rda" )
+
+# stack all ten quarters
+fmly <- rbind.fill( fmli121x , fmli122 , fmli123 , fmli124 , fmli131 , fmli131x , fmli132 , fmli133 , fmli134 , fmli141 )
 
 # before anything else, the los angeles suburban split isn't possible on the census side
 fmly <-
@@ -337,8 +344,13 @@ fmly$keep <- NULL
 wtrep <- c( paste0( "wtrep" , str_pad( 1:44 , 2 , pad = "0" ) ) , "finlwt21" )
 
 # immediately loop through each weight column (stored in the wtrep vector)
-# and overwrite all missing values (NA) with zeroes
-for ( i in wtrep ) fmly[ is.na( fmly[ , i ] ) , i ] <- 0
+for ( i in wtrep ){
+	# overwrite all missing values (NA) with zeroes
+	fmly[ is.na( fmly[ , i ] ) , i ] <- 0
+
+	# since we've pooled two years, divide all weights by two
+	fmly[ , i ] <- fmly[ , i ] / 2
+}
 
 # create a new variable in the fmly data table called 'totalexp'
 # that contains the sum of the total expenditure from the current and previous quarters
@@ -366,11 +378,11 @@ fmly.design <-
 
 	
 # the family tables are no longer necessary
-rm( fmly , fmli131x , fmli132 , fmli133 , fmli134 , fmli141 ) ; gc()
+rm( fmly , fmli121x , fmli122 , fmli123 , fmli124 , fmli131 , fmli131x , fmli132 , fmli133 , fmli134 , fmli141 ) ; gc()
 # remove them and clear up RAM
 
 
-# calculate the 2013 nationwide ratio of transportation spending as a share of total spending
+# calculate the 2012-2013 nationwide ratio of transportation spending as a share of total spending
 svyratio( ~ transexp , ~ totalexp , fmly.design )
 
 # note: this is almost the same number as the bls-published 2011 share:
@@ -1006,7 +1018,7 @@ options( bitmapType = "cairo" )
 
 # save the file to your current working directory
 ggsave( 
-	"2013 transportation spending as a share of total spending - unprojected.png" ,
+	"2012-2013 transportation spending as a share of total spending - unprojected.png" ,
 	plot = final.plot ,
 	type = "cairo-png"
 )
@@ -1025,7 +1037,7 @@ projected.plot <- final.plot + co
 
 # save the file to your current working directory
 ggsave( 
-	"2013 transportation spending as a share of total spending - projected.png" ,
+	"2012-2013 transportation spending as a share of total spending - projected.png" ,
 	plot = projected.plot ,
 	type = "cairo-png"
 )
