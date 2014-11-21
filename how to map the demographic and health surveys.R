@@ -396,8 +396,8 @@ gc()
 # # # # # # # # # # #
 
 
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-# # step 6: re-create the prevR object with better boundaries # #
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# # step 6: re-create the prevR object on a rectangle # #
 
 library(prevR)
 
