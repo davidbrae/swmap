@@ -268,6 +268,34 @@ plot( waterways.shp )
 # here's the outline of only the nile + lakes + suez canal
 plot( subset( waterways.shp , grepl( "LAKE|CANAL|NILE" , NAME ) ) )
 
+# # # keep going into sudan # # #
+
+# use ucdavis's map of sudan's waterways
+sucd.fn <- "http://biogeo.ucdavis.edu/data/diva/wat/SDN_wat.zip"
+
+# store it to the local disk
+download.cache( sucd.fn , tf )
+
+# unzip it
+sucd.uz <- unzip( tf , exdir = tempdir() )
+
+# this file contains lots of information.
+sucd.uz
+
+# identify the waterways shapefile
+sudanwater.sfn <- grep( "water_areas(.*)shp$" , sucd.uz , value = TRUE )
+
+# read it in
+sudanwater.shp <- readOGR( sudanwater.sfn  , layer = gsub( "\\.shp" , "" , basename( sudanwater.sfn ) ) )
+sudanwater.shp <- spTransform( sudanwater.shp , CRS( "+proj=longlat" ) )
+
+# here's the outline of all water in sudan
+plot( sudanwater.shp )
+
+# here's the outline of the nile into sudan
+plot( subset( sudanwater.shp , grepl( "NILE|LAKE" , NAME ) ) )
+
+
 # # # map of egyptian states # # #
 
 # use uc davis's administrative regions
@@ -360,6 +388,7 @@ wshape <- fortify( subset( world.shp , !( CNTR_ID %in% c( 'EG' , 'XK' ) ) ) ) ; 
 fnation <- fortify( nation.shp )
 fstate <- fortify( states.shp ) ; rm( states.shp )
 fnile <- fortify( subset( waterways.shp , grepl( "NILE|LAKE|CANAL" , NAME ) ) ) ; rm( waterways.shp )
+snile <- fortify( subset( sudanwater.shp , grepl( "NILE|LAKE" , NAME ) ) ) ; rm( sudanwater.shp )
 # got 'em all, i think.  clear up RAM
 gc()
 
@@ -385,16 +414,16 @@ bbpro <-
 # the create.boundary function
 
 # re-compute bandwidths
-bbpro <- rings( bbpro , N = 300 )
+bbpro <- rings( bbpro , N = 1000 )
 
 # re-compute surfaces
-bbpro.map <- kde( bbpro , N = 300 , nb.cells = 100 )
+bbpro.map <- kde( bbpro , N = 1000 , nb.cells = 500 )
 
 # coerce this result to a data.frame object
 map.df <- na.omit( as.data.frame( bbpro.map ) )
 
 # name your variable something less mathy
-map.df$im <- map.df$k.wprev.N300.RInf
+map.df$im <- map.df$k.wprev.N1000.RInf
 
 # sort and move on.
 map.df <- map.df[ order( map.df$x , map.df$y ) , ]
@@ -528,9 +557,20 @@ nile.layer <-
 		aes( x = long , y = lat , group = group ) , 
 		color = 'lightblue' , fill = 'lightblue'
 	)
+	
+# everything you do with the egyptian nile,
+# also do with the sudanese nile..
+# to keep the river flowing off of the map
+snile.layer <-
+	geom_polygon( 
+		data = snile , 
+		aes( x = long , y = lat , group = group ) , 
+		color = 'lightblue' , fill = 'lightblue'
+	)
+
 
 # closer, eh?
-eg.map + nile.layer
+eg.map + nile.layer + snile.layer
 
 # # end of step 9 # #
 # # # # # # # # # # #
@@ -547,7 +587,7 @@ library(mapproj)
 final.map <-
 	eg.map +
 	international.border.layer +
-	nile.layer +
+	nile.layer + snile.layer +
 	ocean.layer
 
 # here's the final plot
