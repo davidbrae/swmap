@@ -563,21 +563,16 @@ ggsave(
 # # # pick your projection # # #
 
 # here are lots of choices.  choose wisely.
-final.map + coord_map( project = "albers" , lat0 = bb[ 2 , 1 ] , lat1 = bb[ 2 , 2 ] )
-final.map + coord_fixed()
-final.map + coord_cartesian()
-final.map + coord_map( "gilbert" )
-final.map + coord_map( "lagrange" )
-final.map + coord_map( "stereographic" )
+# final.map + coord_map( project = "albers" , lat0 = bb[ 2 , 1 ] , lat1 = bb[ 2 , 2 ] )
+# final.map + coord_fixed()
+# final.map + coord_cartesian()
+# final.map + coord_map( "gilbert" )
+# final.map + coord_map( "lagrange" )
+# final.map + coord_map( "stereographic" )
 
 
-# choose a projection.  i prefer stereographic for europe, but any work just fine.
-co <- coord_map( "stereographic" )
-# printing the projected plot takes much more time than printing the unprojected one
-
-
-# project this pup
-projected.plot <- final.plot + co
+# project this pup.  i prefer albers for egypt.
+projected.map <- final.map + coord_map( project = "albers" , lat0 = bb[ 2 , 1 ] , lat1 = bb[ 2 , 2 ] )
 
 # would you like to save this game?
 
@@ -589,7 +584,7 @@ projected.plot <- final.plot + co
 # save the projected plot, which takes longer doesn't it.
 ggsave( 
 	"2004-2008 infant mortality rate - projected.png" ,
-	plot = projected.plot
+	plot = projected.map
 )
 
 # # end of step ten # #
