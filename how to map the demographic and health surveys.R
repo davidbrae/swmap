@@ -174,7 +174,7 @@ plot( pro )
 pro <- rings( pro , N = 1000 )
 
 # compute surfaces
-pro.map <- kde( pro , N = 1000 , nb.cells = 500)
+pro.map <- kde( pro , N = 1000 , nb.cells = 250 )
 
 # plot a simple map comparing
 # weighted and unweighted surfaces
@@ -413,17 +413,19 @@ bbpro <-
 # than the borders obtained from
 # the create.boundary function
 
+your.N <- 1000
+
 # re-compute bandwidths
-bbpro <- rings( bbpro , N = 1000 )
+bbpro <- rings( bbpro , N = your.N )
 
 # re-compute surfaces
-bbpro.map <- kde( bbpro , N = 1000 , nb.cells = 500 )
+bbpro.map <- kde( bbpro , N = your.N , nb.cells = 250 )
 
 # coerce this result to a data.frame object
 map.df <- na.omit( as.data.frame( bbpro.map ) )
 
 # name your variable something less mathy
-map.df$im <- map.df$k.wprev.N1000.RInf
+map.df$im <- map.df[ , paste0( "k.wprev.N" , your.N , ".RInf" ) ]
 
 # sort and move on.
 map.df <- map.df[ order( map.df$x , map.df$y ) , ]
