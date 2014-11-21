@@ -572,6 +572,24 @@ snile.layer <-
 # closer, eh?
 eg.map + nile.layer + snile.layer
 
+
+# # external rectangle to blank # #
+
+# initiate an external rectangle at the edges of the bounding box
+# to blank out the furthest extent of the grid
+orect <- 
+	geom_rect( 
+		xmin = bb[ 1 , 1 ] , 
+		xmax = bb[ 1 , 2 ] , 
+		ymin = bb[ 2 , 1 ] , 
+		ymax = bb[ 2 , 2 ] , 
+		color = 'white' , 
+		fill = NA , 
+		size = 4 
+	)
+
+eg.map + orect
+
 # # end of step 9 # #
 # # # # # # # # # # #
 
@@ -588,7 +606,8 @@ final.map <-
 	eg.map +
 	international.border.layer +
 	nile.layer + snile.layer +
-	ocean.layer
+	ocean.layer +
+	orect
 
 # here's the final plot
 final.map
