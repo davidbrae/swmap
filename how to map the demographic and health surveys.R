@@ -99,16 +99,19 @@ ch <- subset( ch , b2 %in% 2004:2008 & !( b6 %in% 997:999 ) )
 # create a binary infant mortality variable
 ch$im <- as.numeric( ch$b5 %in% 'no' & ch$b6 %in% 100:301 )
 
+# create weigth variable
+ch$w <- ch$v005/1000000
+
 # note that this is very close to (but not exactly the same as)
 # the nationwide egyptian infant mortality rate given on their report
 # table 10.1 http://dhsprogram.com/pubs/pdf/FR220/FR220.pdf#page=148
-weighted.mean( ch$im , ch$v005 ) * 1000
+weighted.mean( ch$im , ch$w ) * 1000
 # their report says 24.5 per 1,000.
 # the current microdata shows 24.2 per 1,000.  big whoop.
 
 # calculate four statistics, grouped by survey cluster
 # count, weighted count, infant deaths, weighted infant deaths
-cl <- sqldf( "select v001 as dhsclust , count(*) as denom , sum( im ) as numer , sum( v005 ) as wdenom , sum( im * v005 ) as wnumer from ch group by v001" )
+cl <- sqldf( "select v001 as dhsclust , count(*) as denom , sum( im ) as numer , sum( w ) as wdenom , sum( im * w ) as wnumer from ch group by v001" )
 
 # that was easy, huh?  want to look at your resultant cluster-level information?
 head( cl )
