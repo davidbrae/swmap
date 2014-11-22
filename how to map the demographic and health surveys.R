@@ -147,6 +147,15 @@ x <- merge( cl , longlat[ , c( 'dhsclust' , 'longnum' , 'latnum' ) ] )
 # also has a longitude & latitude variable now
 stopifnot( nrow( x ) == nrow( cl ) )
 
+# check how many clusters are missing coordinates
+miss.coord <- nrow( subset( x , longnum == 0 & latnum == 0 ) )
+
+# discard records with missing longitudes & latitudes
+x <- subset( x , longnum != 0 & latnum != 0 )
+
+# confirm you've tossed the correct number of records
+stopifnot( nrow( x ) + miss.coord == nrow( cl ) )
+
 # identify which columns are integer types
 ic <- sapply( x , is.integer )
 
