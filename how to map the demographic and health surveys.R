@@ -100,7 +100,7 @@ ch <- subset( ch , b2 %in% 2004:2008 & !( b6 %in% 997:999 ) )
 ch$im <- as.numeric( ch$b5 %in% 'no' & ch$b6 %in% 100:301 )
 
 # create weigth variable
-ch$w <- ch$v005/1000000
+ch$w <- ch$v005 / 1000000
 
 # note that this is very close to (but not exactly the same as)
 # the nationwide egyptian infant mortality rate given on their report
@@ -141,17 +141,17 @@ longlat <- read.dbf( "./Egypt/Standard DHS 2008/Supplemental/flat/EGGE5DFL.dbf" 
 names( longlat ) <- tolower( names( longlat ) )
 
 # merge this cluster information onto the cluster-level results data.frame
-x <- merge( cl , longlat[ , c( 'dhsclust' , 'longnum' , 'latnum' ) ] )
+x <- merge( cl , longlat[ , c( 'dhsclust' , 'longnum' , 'latnum' , 'source' ) ] )
 
 # confirm that every cluster that you have infant mortality information for
 # also has a longitude & latitude variable now
 stopifnot( nrow( x ) == nrow( cl ) )
 
 # check how many clusters are missing coordinates
-miss.coord <- nrow( subset( x , longnum == 0 & latnum == 0 ) )
+miss.coord <- nrow( subset( x , source == 'MIS' ) )
 
 # discard records with missing longitudes & latitudes
-x <- subset( x , longnum != 0 & latnum != 0 )
+x <- subset( x , source != 'MIS' )
 
 # confirm you've tossed the correct number of records
 stopifnot( nrow( x ) + miss.coord == nrow( cl ) )
