@@ -318,7 +318,7 @@ source_url(
 tf <- tempfile()
 
 # use eurostat's map of the world
-world.fn <- "http://epp.eurostat.ec.europa.eu/cache/GISCO/geodatafiles/CNTR_2014_03M_SH.zip"
+world.fn <- "http://ec.europa.eu/eurostat/cache/GISCO/geodatafiles/CNTR_2014_03M_SH.zip"
 
 # store it to the local disk
 download.cache( world.fn , tf )
@@ -339,7 +339,7 @@ plot(world.shp)
 # # # map of europe # # #
 
 # use eurostat's map of europe
-eu.fn <- "http://epp.eurostat.ec.europa.eu/cache/GISCO/geodatafiles/NUTS_2010_03M_SH.zip"
+eu.fn <- "http://ec.europa.eu/eurostat/cache/GISCO/geodatafiles/NUTS_2010_03M_SH.zip"
 
 # store it to the local disk
 download.cache( eu.fn , tf )
