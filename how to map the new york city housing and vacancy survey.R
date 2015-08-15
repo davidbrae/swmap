@@ -63,7 +63,7 @@ library(downloader)
 
 # download the 2011 new york city housing and vacancy survey microdata onto the local disk
 years.to.download <- 2011
-source_url( "https://raw.github.com/ajdamico/usgsd/master/New%20York%20City%20Housing%20and%20Vacancy%20Survey/2002%20-%202011%20-%20download%20all%20microdata.R" , prompt = FALSE , echo = TRUE )
+source_url( "https://raw.github.com/ajdamico/usgsd/master/New%20York%20City%20Housing%20and%20Vacancy%20Survey/download%20all%20microdata.R" , prompt = FALSE , echo = TRUE )
 
 # # end of step 1 # #
 # # # # # # # # # # #
