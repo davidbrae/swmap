@@ -38,7 +38,7 @@
 # # r code repository for setup and analysis examples # #
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-# https://github.com/ajdamico/usgsd/tree/master/Demographic%20and%20Health%20Surveys
+# https://github.com/ajdamico/asdfree/tree/master/Demographic%20and%20Health%20Surveys
 
 
 # # # # # # # # # # # # #
@@ -67,7 +67,7 @@ library(downloader)
 your.username <- "username"
 your.password <- "password"
 your.project <- "project"
-source_url( "https://raw.github.com/ajdamico/usgsd/master/Demographic%20and%20Health%20Surveys/download%20and%20import.R" , prompt = FALSE , echo = TRUE )
+source_url( "https://raw.github.com/ajdamico/asdfree/master/Demographic%20and%20Health%20Surveys/download%20and%20import.R" , prompt = FALSE , echo = TRUE )
 
 
 # # end of step 1 # #
@@ -218,7 +218,7 @@ library(downloader)
 # load the download_cached and related functions
 # to prevent re-downloading of files once they've been downloaded.
 source_url(
-	"https://raw.github.com/ajdamico/usgsd/master/Download%20Cache/download%20cache.R" ,
+	"https://raw.github.com/ajdamico/asdfree/master/Download%20Cache/download%20cache.R" ,
 	prompt = FALSE ,
 	echo = FALSE
 )

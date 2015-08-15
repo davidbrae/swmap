@@ -38,7 +38,7 @@
 # # r code repository for setup and analysis examples # #
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-# https://github.com/ajdamico/usgsd/tree/master/European%20Social%20Survey
+# https://github.com/ajdamico/asdfree/tree/master/European%20Social%20Survey
 
 
 # # # # # # # # # # # # #
@@ -65,7 +65,7 @@ library(downloader)
 # note that this requires (free) registration before the download will work
 # http://www.europeansocialsurvey.org/user/new
 your.email <- "email@address.com"
-source_url( "https://raw.github.com/ajdamico/usgsd/master/European%20Social%20Survey/download%20all%20microdata.R" , prompt = FALSE , echo = TRUE )
+source_url( "https://raw.github.com/ajdamico/asdfree/master/European%20Social%20Survey/download%20all%20microdata.R" , prompt = FALSE , echo = TRUE )
 
 # # end of step 1 # #
 # # # # # # # # # # #
@@ -78,7 +78,7 @@ library(survey)
 library(stringr)
 
 # following the analysis examples in the r code repository --
-# # https://github.com/ajdamico/usgsd/blob/master/European%20Social%20Survey/replication.R
+# # https://github.com/ajdamico/asdfree/blob/master/European%20Social%20Survey/replication.R
 # -- calculate the average number of hours of television watched
 # at the smallest available geographic area, across all available countrieswithin the state of connecticut
 
@@ -305,7 +305,7 @@ library(maptools)
 library(downloader)
 
 source_url(
-	"https://raw.github.com/ajdamico/usgsd/master/Download%20Cache/download%20cache.R" ,
+	"https://raw.github.com/ajdamico/asdfree/master/Download%20Cache/download%20cache.R" ,
 	prompt = FALSE ,
 	echo = FALSE
 )

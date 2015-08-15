@@ -38,7 +38,7 @@
 # # r code repository for setup and analysis examples # #
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-# https://github.com/ajdamico/usgsd/tree/master/Current%20Population%20Survey
+# https://github.com/ajdamico/asdfree/tree/master/Current%20Population%20Survey
 
 
 # # # # # # # # # # # # #
@@ -64,7 +64,7 @@ library(downloader)
 
 # download the 2013 current population survey microdata onto the local disk
 cps.years.to.download <- 2013
-source_url( "https://raw.github.com/ajdamico/usgsd/master/Current%20Population%20Survey/download%20all%20microdata.R" , prompt = FALSE , echo = TRUE )
+source_url( "https://raw.github.com/ajdamico/asdfree/master/Current%20Population%20Survey/download%20all%20microdata.R" , prompt = FALSE , echo = TRUE )
 
 # # end of step 1 # #
 # # # # # # # # # # #
@@ -77,7 +77,7 @@ library(survey)
 library(RSQLite)
 
 # following the analysis examples in the r code repository --
-# # https://github.com/ajdamico/usgsd/blob/master/Current%20Population%20Survey/2012%20asec%20-%20analysis%20examples.R
+# # https://github.com/ajdamico/asdfree/blob/master/Current%20Population%20Survey/2012%20asec%20-%20analysis%20examples.R
 # -- calculate the poverty rate at the smallest available geographic area
 # within the state of connecticut
 
@@ -179,7 +179,7 @@ library(downloader)
 # load the download_cached and related functions
 # to prevent re-downloading of files once they've been downloaded.
 source_url(
-	"https://raw.github.com/ajdamico/usgsd/master/Download%20Cache/download%20cache.R" ,
+	"https://raw.github.com/ajdamico/asdfree/master/Download%20Cache/download%20cache.R" ,
 	prompt = FALSE ,
 	echo = FALSE
 )

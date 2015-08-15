@@ -38,7 +38,7 @@
 # # r code repository for setup and analysis examples # #
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-# https://github.com/ajdamico/usgsd/tree/master/New%20York%20City%20Housing%20and%20Vacancy%20Survey
+# https://github.com/ajdamico/asdfree/tree/master/New%20York%20City%20Housing%20and%20Vacancy%20Survey
 
 
 # # # # # # # # # # # # #
@@ -63,7 +63,7 @@ library(downloader)
 
 # download the 2011 new york city housing and vacancy survey microdata onto the local disk
 years.to.download <- 2011
-source_url( "https://raw.github.com/ajdamico/usgsd/master/New%20York%20City%20Housing%20and%20Vacancy%20Survey/download%20all%20microdata.R" , prompt = FALSE , echo = TRUE )
+source_url( "https://raw.github.com/ajdamico/asdfree/master/New%20York%20City%20Housing%20and%20Vacancy%20Survey/download%20all%20microdata.R" , prompt = FALSE , echo = TRUE )
 
 # # end of step 1 # #
 # # # # # # # # # # #
@@ -75,7 +75,7 @@ source_url( "https://raw.github.com/ajdamico/usgsd/master/New%20York%20City%20Ho
 library(survey)
 
 # following the analysis examples in the r code repository --
-# https://github.com/ajdamico/usgsd/blob/master/New%20York%20City%20Housing%20and%20Vacancy%20Survey/2011%20analysis%20examples.R
+# https://github.com/ajdamico/asdfree/blob/master/New%20York%20City%20Housing%20and%20Vacancy%20Survey/2011%20analysis%20examples.R
 # -- calculate the persons per room rate at the smallest available geographic area
 
 
@@ -148,7 +148,7 @@ library(downloader)
 # load the download_cached and related functions
 # to prevent re-downloading of files once they've been downloaded.
 source_url(
-	"https://raw.github.com/ajdamico/usgsd/master/Download%20Cache/download%20cache.R" ,
+	"https://raw.github.com/ajdamico/asdfree/master/Download%20Cache/download%20cache.R" ,
 	prompt = FALSE ,
 	echo = FALSE
 )
@@ -200,7 +200,7 @@ sum( sf1ny.101$pop100 )
 # http://www.census.gov/housing/nychvs/data/2011/11subcom2.pdf
 nycsb.tf <- tempfile()
 
-download( "https://raw.githubusercontent.com/ajdamico/usgsd/master/New%20York%20City%20Housing%20and%20Vacancy%20Survey/boro%20and%20subboro%20to%20census%20tract%20crosswalk.csv" , nycsb.tf )
+download( "https://raw.githubusercontent.com/ajdamico/asdfree/master/New%20York%20City%20Housing%20and%20Vacancy%20Survey/boro%20and%20subboro%20to%20census%20tract%20crosswalk.csv" , nycsb.tf )
 
 nychvs.subboro <- read.csv( nycsb.tf )
 

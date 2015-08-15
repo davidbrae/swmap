@@ -39,8 +39,8 @@
 # # r code repository for setup and analysis examples # #
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-# https://github.com/ajdamico/usgsd/tree/master/Pesquisa%20Nacional%20por%20Amostra%20de%20Domicilios
-# https://github.com/ajdamico/usgsd/tree/master/Censo%20Demografico
+# https://github.com/ajdamico/asdfree/tree/master/Pesquisa%20Nacional%20por%20Amostra%20de%20Domicilios
+# https://github.com/ajdamico/asdfree/tree/master/Censo%20Demografico
 
 
 # # # # # # # # # # # # #
@@ -62,7 +62,7 @@
 ###################################################################################################################################
 # prior to running this analysis script, monetdb must be installed on the local machine.  follow each step outlined on this page: #
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-# https://github.com/ajdamico/usgsd/blob/master/MonetDB/monetdb%20installation%20instructions.R                                   #
+# https://github.com/ajdamico/asdfree/blob/master/MonetDB/monetdb%20installation%20instructions.R                                   #
 ###################################################################################################################################
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
@@ -74,12 +74,12 @@ library(downloader)
 
 # download brazil's 2010 census microdata onto the local disk
 options( "monetdb.sequential" = TRUE )
-source_url( "https://raw.github.com/ajdamico/usgsd/master/Censo%20Demografico/download%20and%20import.R" , prompt = FALSE , echo = TRUE )
+source_url( "https://raw.github.com/ajdamico/asdfree/master/Censo%20Demografico/download%20and%20import.R" , prompt = FALSE , echo = TRUE )
 # this will be used to calculate weights used in the interpolation model
 
 # download the 2013 pesquisa nacional por amostra de domicilios (national sample survey of households)
 years.to.download <- 2013
-source_url( "https://raw.github.com/ajdamico/usgsd/master/Pesquisa%20Nacional%20por%20Amostra%20de%20Domicilios/download%20all%20microdata.R" , prompt = FALSE , echo = TRUE )
+source_url( "https://raw.github.com/ajdamico/asdfree/master/Pesquisa%20Nacional%20por%20Amostra%20de%20Domicilios/download%20all%20microdata.R" , prompt = FALSE , echo = TRUE )
 # this is the actual survey to be analyzed and displayed
 
 # # end of step 1 # #
@@ -99,7 +99,7 @@ options( survey.lonely.psu = "adjust" )
 # this setting matches the MISSUNIT option in SUDAAN
 
 # load pnad-specific functions (to remove invalid SAS input script fields and postStratify a database-backed survey object)
-source_url( "https://raw.github.com/ajdamico/usgsd/master/Pesquisa Nacional por Amostra de Domicilios/pnad.survey.R" , prompt = FALSE )
+source_url( "https://raw.github.com/ajdamico/asdfree/master/Pesquisa Nacional por Amostra de Domicilios/pnad.survey.R" , prompt = FALSE )
 
 # create survey design object with PNAD design information
 # using existing table of PNAD data
@@ -240,7 +240,7 @@ library(sqldf)
 # load the download_cached and related functions
 # to prevent re-downloading of files once they've been downloaded.
 source_url(
-	"https://raw.github.com/ajdamico/usgsd/master/Download%20Cache/download%20cache.R" ,
+	"https://raw.github.com/ajdamico/asdfree/master/Download%20Cache/download%20cache.R" ,
 	prompt = FALSE ,
 	echo = FALSE
 )

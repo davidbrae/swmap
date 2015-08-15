@@ -38,7 +38,7 @@
 # # r code repository for setup and analysis examples # #
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-# https://github.com/ajdamico/usgsd/tree/master/Consumer%20Expenditure%20Survey
+# https://github.com/ajdamico/asdfree/tree/master/Consumer%20Expenditure%20Survey
 
 
 # # # # # # # # # # # # #
@@ -62,7 +62,7 @@ library(downloader)
 
 # download the 2012 and 2013 consumer expenditure survey microdata onto the local disk
 years.to.download <- 2012:2013
-source_url( "https://raw.github.com/ajdamico/usgsd/master/Consumer%20Expenditure%20Survey/download%20all%20microdata.R" , prompt = FALSE , echo = TRUE )
+source_url( "https://raw.github.com/ajdamico/asdfree/master/Consumer%20Expenditure%20Survey/download%20all%20microdata.R" , prompt = FALSE , echo = TRUE )
 
 # # end of step 1 # #
 # # # # # # # # # # #
@@ -77,7 +77,7 @@ library(sqldf)
 # load the download_cached and related functions
 # to prevent re-downloading of files once they've been downloaded.
 source_url(
-	"https://raw.github.com/ajdamico/usgsd/master/Download%20Cache/download%20cache.R" ,
+	"https://raw.github.com/ajdamico/asdfree/master/Download%20Cache/download%20cache.R" ,
 	prompt = FALSE ,
 	echo = FALSE
 )
@@ -284,7 +284,7 @@ library(plyr)
 library(stringr)
 
 # following the analysis examples in the r code repository --
-# # https://github.com/ajdamico/usgsd/blob/master/Consumer%20Expenditure%20Survey/2011%20fmly%20intrvw%20-%20analysis%20examples.R
+# # https://github.com/ajdamico/asdfree/blob/master/Consumer%20Expenditure%20Survey/2011%20fmly%20intrvw%20-%20analysis%20examples.R
 # -- calculate the transportation share of total expenditure at the smallest available geographic area
 
 # load all five quarters of 2013 microdata
