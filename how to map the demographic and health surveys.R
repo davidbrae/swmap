@@ -215,7 +215,7 @@ library(rgdal)
 library(ggplot2)
 library(downloader)
 
-# load the download.cache and related functions
+# load the download_cached and related functions
 # to prevent re-downloading of files once they've been downloaded.
 source_url(
 	"https://raw.github.com/ajdamico/usgsd/master/Download%20Cache/download%20cache.R" ,
@@ -238,7 +238,7 @@ tf <- tempfile()
 world.fn <- "http://epp.eurostat.ec.europa.eu/cache/GISCO/geodatafiles/CNTR_2014_03M_SH.zip"
 
 # store it to the local disk
-download.cache( world.fn , tf )
+download_cached( world.fn , tf )
 
 # unzip it
 world.uz <- unzip( tf , exdir = tempdir() )
@@ -259,7 +259,7 @@ plot( world.shp , fill = 'gray' )
 ucd.fn <- "http://biogeo.ucdavis.edu/data/diva/wat/EGY_wat.zip"
 
 # store it to the local disk
-download.cache( ucd.fn , tf )
+download_cached( ucd.fn , tf )
 
 # unzip it
 ucd.uz <- unzip( tf , exdir = tempdir() )
@@ -286,7 +286,7 @@ plot( subset( waterways.shp , grepl( "LAKE|CANAL|NILE" , NAME ) ) )
 sucd.fn <- "http://biogeo.ucdavis.edu/data/diva/wat/SDN_wat.zip"
 
 # store it to the local disk
-download.cache( sucd.fn , tf )
+download_cached( sucd.fn , tf )
 
 # unzip it
 sucd.uz <- unzip( tf , exdir = tempdir() )
@@ -314,7 +314,7 @@ plot( subset( sudanwater.shp , grepl( "NILE|LAKE" , NAME ) ) )
 admin.fn <- "http://biogeo.ucdavis.edu/data/diva/adm/EGY_adm.zip"
 
 # store it to the local disk
-download.cache( admin.fn , tf )
+download_cached( admin.fn , tf )
 
 # unzip it
 admin.uz <- unzip( tf , exdir = tempdir() )
@@ -366,7 +366,7 @@ eg.box <- as( extent( states.shp ) , "SpatialPolygons" )
 coast.fn <- "http://www.naturalearthdata.com/http//www.naturalearthdata.com/download/10m/physical/ne_10m_ocean.zip"
 
 # store it to the local disk
-download.cache( coast.fn , tf )
+download_cached( coast.fn , tf )
 
 # unzip it
 coast.uz <- unzip( tf , exdir = tempdir() )

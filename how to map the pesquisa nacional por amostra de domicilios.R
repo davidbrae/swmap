@@ -237,7 +237,7 @@ library(rgdal)
 library(rgeos)
 library(sqldf)
 
-# load the download.cache and related functions
+# load the download_cached and related functions
 # to prevent re-downloading of files once they've been downloaded.
 source_url(
 	"https://raw.github.com/ajdamico/usgsd/master/Download%20Cache/download%20cache.R" ,
@@ -258,7 +258,7 @@ f <- grep( "\\.zip$" , f , value = TRUE )
 # download and extract to tempdir/shps
 invisible(sapply(f, function(x) {
   path <- file.path(tempdir(), basename(x))
-  download.cache(x, destfile=path)
+  download_cached(x, destfile=path)
   unzip(path, exdir=file.path(tempdir(), 'shps'))
 }))
 
@@ -514,7 +514,7 @@ tf <- tempfile()
 world.fn <- "http://epp.eurostat.ec.europa.eu/cache/GISCO/geodatafiles/CNTR_2014_03M_SH.zip"
 
 # store it to the local disk
-download.cache( world.fn , tf )
+download_cached( world.fn , tf )
 
 # unzip it
 world.uz <- unzip( tf , exdir = tempdir() )
@@ -535,7 +535,7 @@ plot( world.shp , fill = 'gray' )
 geofabrik.fn <- "http://download.geofabrik.de/south-america/brazil-latest.shp.zip"
 
 # store it to the local disk
-download.cache( geofabrik.fn , tf )
+download_cached( geofabrik.fn , tf )
 
 # unzip it
 geofabrik.uz <- unzip( tf , exdir = tempdir() )
@@ -578,7 +578,7 @@ plot( subset( natural.shp , type %in% c( 'riverbank' , 'water' ) ) )
 admin.fn <- "http://biogeo.ucdavis.edu/data/diva/adm/BRA_adm.zip"
 
 # store it to the local disk
-download.cache( admin.fn , tf )
+download_cached( admin.fn , tf )
 
 # unzip it
 admin.uz <- unzip( tf , exdir = tempdir() )
@@ -648,7 +648,7 @@ plot( br.shp.diff )
 coast.fn <- "http://www.naturalearthdata.com/http//www.naturalearthdata.com/download/10m/physical/ne_10m_ocean.zip"
 
 # store it to the local disk
-download.cache( coast.fn , tf )
+download_cached( coast.fn , tf )
 
 # unzip it
 coast.uz <- unzip( tf , exdir = tempdir() )

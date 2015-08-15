@@ -199,7 +199,7 @@ sas <- alaska.pumas
 library(downloader)
 library(maptools)
 
-# load the download.cache and related functions
+# load the download_cached and related functions
 # to prevent re-downloading of files once they've been downloaded.
 source_url(
 	"https://raw.github.com/ajdamico/usgsd/master/Download%20Cache/download%20cache.R" ,
@@ -213,7 +213,7 @@ source_url(
 # then download the file.
 ctpxw.tf <- tempfile()
 
-download.cache(
+download_cached(
 	"http://www.census.gov/geo/maps-data/data/docs/rel/2010_Census_Tract_to_2010_PUMA.txt" ,
 	ctpxw.tf ,
 	mode = 'wb'
@@ -238,7 +238,7 @@ rm( ctpxw ) ; gc()
 # then download the file.
 sf1ak.tf <- tempfile()
 
-download.cache( 
+download_cached( 
 	"ftp://ftp2.census.gov/census_2010/04-Summary_File_1/Alaska/ak2010.sf1.zip" ,
 	sf1ak.tf ,
 	mode = 'wb'
@@ -416,7 +416,7 @@ daiacbsf <-
 		tf <- tempfile()
 
 		# # note: to re-download a file from scratch, add the parameter usecache = FALSE # #
-		download.cache( fn , tf , mode = 'wb' )
+		download_cached( fn , tf , mode = 'wb' )
 
 		# unzip the downloaded file to a temporary directory
 		shp.uz <- unzip( tf , exdir = tempdir() )

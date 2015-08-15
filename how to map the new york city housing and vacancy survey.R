@@ -145,7 +145,7 @@ sas <- smallest.area.statistics
 
 library(downloader)
 
-# load the download.cache and related functions
+# load the download_cached and related functions
 # to prevent re-downloading of files once they've been downloaded.
 source_url(
 	"https://raw.github.com/ajdamico/usgsd/master/Download%20Cache/download%20cache.R" ,
@@ -160,7 +160,7 @@ source_url(
 sf1ny.tf <- tempfile()
 
 
-download.cache( 
+download_cached( 
 	"ftp://ftp2.census.gov/census_2010/04-Summary_File_1/New_York/ny2010.sf1.zip" ,
 	sf1ny.tf ,
 	mode = 'wb'
@@ -395,7 +395,7 @@ nyc.map + scale_colour_gradientn( colours = Purples.9.p( 100 ) )
 # download and read-in the new york city parks shapefile
 tf <- tempfile()
 
-download.cache( "http://www.nyc.gov/html/dpr/nycbigapps/DPR_Parks_001.zip" , tf )
+download_cached( "http://www.nyc.gov/html/dpr/nycbigapps/DPR_Parks_001.zip" , tf )
 
 z <- unzip( tf , exdir = tempdir() )
 
@@ -434,7 +434,7 @@ nyc.map <- nyc.map + park.layer
 nyc.map + scale_colour_gradient( low = 'white' , high = 'black' )
 
 # download and read-in the new york city clipped-to-shoreline borough map
-download.cache( "http://www.nyc.gov/html/dcp/download/bytes/nybb_14c.zip" , tf )
+download_cached( "http://www.nyc.gov/html/dcp/download/bytes/nybb_14c.zip" , tf )
 # from http://www.nyc.gov/html/dcp/html/bytes/districts_download_metadata.shtml
 
 z <- unzip( tf , exdir = tempdir() )
@@ -528,7 +528,7 @@ nynjct.water <-
 # download and extract to a temporary directory
 invisible( sapply( nynjct.water , function( x ) {
 	path <- file.path( tempdir() , basename( x ) )
-	download.cache( x , destfile = path , mode = 'wb' )
+	download_cached( x , destfile = path , mode = 'wb' )
 	unzip( path , exdir = file.path( tempdir() , 'watershps' ) )
 } ) )
 
@@ -578,7 +578,7 @@ ccbf.tf <- tempfile()
 # so use the census bureau's cartographic boundary files
 # instead of the regular tiger shapefiles
 
-download.cache( 
+download_cached( 
 	"http://www2.census.gov/geo/tiger/GENZ2013/cb_2013_us_county_500k.zip" ,
 	ccbf.tf ,
 	mode = 'wb'

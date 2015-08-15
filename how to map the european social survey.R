@@ -321,7 +321,7 @@ tf <- tempfile()
 world.fn <- "http://ec.europa.eu/eurostat/cache/GISCO/geodatafiles/CNTR_2014_03M_SH.zip"
 
 # store it to the local disk
-download.cache( world.fn , tf )
+download_cached( world.fn , tf )
 
 # unzip it
 world.uz <- unzip( tf , exdir = tempdir() )
@@ -342,7 +342,7 @@ plot(world.shp)
 eu.fn <- "http://ec.europa.eu/eurostat/cache/GISCO/geodatafiles/NUTS_2010_03M_SH.zip"
 
 # store it to the local disk
-download.cache( eu.fn , tf )
+download_cached( eu.fn , tf )
 
 # unzip it
 eu.uz <- unzip( tf , exdir = tempdir() )
@@ -407,7 +407,7 @@ ru.fn <- 'http://biogeo.ucdavis.edu/data/diva/adm/RUS_adm.zip'
 
 # albania #
 
-download.cache( ab.fn , tf )
+download_cached( ab.fn , tf )
 alb.files <- unzip( tf , exdir = tempdir() )
 
 # there are four administrative files to choose from.
@@ -435,7 +435,7 @@ plot( alb , add = TRUE , col = 'red' )
 
 # kosovo #
 
-download.cache( ko.fn , tf )
+download_cached( ko.fn , tf )
 kos.files <- unzip( tf , exdir = tempdir() )
 
 # there are three administrative files to choose from.
@@ -461,7 +461,7 @@ plot( kos , add = TRUE , col = 'red' )
 
 # ukraine #
 
-download.cache( uk.fn , tf )
+download_cached( uk.fn , tf )
 ukr.files <- unzip( tf , exdir = tempdir() )
 
 # there are three administrative files to choose from.
@@ -495,7 +495,7 @@ plot( ukr , add = TRUE , col = 'red' )
 
 # http://www.europeansocialsurvey.org/docs/round6/fieldwork/russian_federation/ESS_region_variable_in_the_russian_federation.pdf
 
-download.cache( ru.fn , tf )
+download_cached( ru.fn , tf )
 rus.files <- unzip( tf , exdir = tempdir() )
 
 # there are three administrative files to choose from.

@@ -74,7 +74,7 @@ source_url( "https://raw.github.com/ajdamico/usgsd/master/Consumer%20Expenditure
 library(downloader)
 library(sqldf)
 
-# load the download.cache and related functions
+# load the download_cached and related functions
 # to prevent re-downloading of files once they've been downloaded.
 source_url(
 	"https://raw.github.com/ajdamico/usgsd/master/Download%20Cache/download%20cache.R" ,
@@ -124,7 +124,7 @@ for ( state.number in 1:51 ){
 		)
 
 	# download the current state's summary file
-	download.cache( ftp.loc , sf1.tf , mode = 'wb' )
+	download_cached( ftp.loc , sf1.tf , mode = 'wb' )
 	# note: to re-download a file from scratch, add the parameter usecache = FALSE
 
 	# unzip the summary file #1 files
@@ -651,7 +651,7 @@ shpus.tf <- tempfile()
 # instead of the regular tiger shapefiles
 # unless you want to display transportation shares in the ocean.
 
-download.cache( 
+download_cached( 
 	"http://www2.census.gov/geo/tiger/GENZ2013/cb_2013_us_state_500k.zip" ,
 	shpus.tf ,
 	mode = 'wb'
