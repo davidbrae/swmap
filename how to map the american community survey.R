@@ -56,26 +56,20 @@
 # in absolute numbers, gulf war veterans outnumber other veteran categories in four of the five pumas.
 
 
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-###################################################################################################################################
-# prior to running this analysis script, monetdb must be installed on the local machine.  follow each step outlined on this page: #
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-# https://github.com/ajdamico/asdfree/blob/master/MonetDB/monetdb%20installation%20instructions.R                                   #
-###################################################################################################################################
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-
-
 # # # # # # # # # # # # # # # # # # # # #
 # # step 1: load the survey microdata # #
+
+# remove the # in order to run this install.packages line only once
+# install.packages( c("MonetDB.R", "MonetDBLite" , "survey" , "SAScii" , "descr" , "downloader" , "digest" , "sas7bdat" , "R.utils" ) , repos=c("http://dev.monetdb.org/Assets/R/", "http://cran.rstudio.com/"))
 
 library(downloader)
 
 # download the 2013 american community survey microdata onto the local disk
-# options( "monetdb.sequential" = TRUE )
+# path.to.7z <- "7za"							# # only macintosh and *nix users need this line
 single.year.datasets.to.download <- 2013
 three.year.datasets.to.download <- NULL
 five.year.datasets.to.download <- NULL
-source_url( "https://raw.github.com/ajdamico/asdfree/master/American%20Community%20Survey/download%20all%20microdata.R" , prompt = FALSE , echo = TRUE )
+source_url( "https://raw.githubusercontent.com/ajdamico/asdfree/master/American%20Community%20Survey/download%20all%20microdata.R" , prompt = FALSE , echo = TRUE )
 
 # # end of step 1 # #
 # # # # # # # # # # #
@@ -86,6 +80,7 @@ source_url( "https://raw.github.com/ajdamico/asdfree/master/American%20Community
 
 library(survey)
 library(MonetDB.R)
+library(MonetDBLite)
 library(scales)
 
 ####################################################################

@@ -60,6 +60,9 @@
 # # # # # # # # # # # # # # # # # # # # #
 # # step 1: load the survey microdata # #
 
+# remove the # in order to run this install.packages line only once
+# install.packages( c( "MonetDB.R" , "MonetDBLite" , "devtools" , "survey" , "SAScii" , "descr" , "downloader" , "digest" , "haven" , "devtools" ) , repos=c("http://dev.monetdb.org/Assets/R/", "http://cran.rstudio.com/") )
+
 library(downloader)
 
 # download the 2013 current population survey microdata onto the local disk

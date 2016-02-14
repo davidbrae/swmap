@@ -58,11 +58,13 @@
 # # # # # # # # # # # # # # # # # # # # #
 # # step 1: load the survey microdata # #
 
+# remove the # in order to run this install.packages line only once
+# install.packages( c( "MonetDB.R" , "MonetDBLite" , "sqldf" , "survey" , "SAScii" , "descr" , "mitools" , "plyr" , "downloader" , "digest" , "readxl" , "stringr" , "reshape2" , "XML" , "R.utils" ) , repos=c("http://dev.monetdb.org/Assets/R/", "http://cran.rstudio.com/"))
+
 library(downloader)
 
-# download the 2012 and 2013 consumer expenditure survey microdata onto the local disk
-years.to.download <- 2012:2013
-source_url( "https://raw.github.com/ajdamico/asdfree/master/Consumer%20Expenditure%20Survey/download%20all%20microdata.R" , prompt = FALSE , echo = TRUE )
+# download the consumer expenditure survey microdata onto the local disk
+source_url( "https://raw.githubusercontent.com/ajdamico/asdfree/master/Consumer%20Expenditure%20Survey/download%20all%20microdata.R" , prompt = FALSE , echo = TRUE )
 
 # # end of step 1 # #
 # # # # # # # # # # #

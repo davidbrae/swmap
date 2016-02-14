@@ -58,28 +58,25 @@
 # the original thirteen occupational groups are useful.  these four broad categories are not.
 
 
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-###################################################################################################################################
-# prior to running this analysis script, monetdb must be installed on the local machine.  follow each step outlined on this page: #
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-# https://github.com/ajdamico/asdfree/blob/master/MonetDB/monetdb%20installation%20instructions.R                                   #
-###################################################################################################################################
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-
-
 # # # # # # # # # # # # # # # # # # # # #
 # # step 1: load the survey microdata # #
+
+# remove the # in order to run this install.packages line only once
+# install.packages( c( "MonetDB.R" , "MonetDBLite" , "survey" , "SAScii" , "descr" , "downloader" , "digest" , "RCurl" , "stringr" , "R.utils" ) , repos=c("http://dev.monetdb.org/Assets/R/", "http://cran.rstudio.com/"))
 
 library(downloader)
 
 # download brazil's 2010 census microdata onto the local disk
-options( "monetdb.sequential" = TRUE )
-source_url( "https://raw.github.com/ajdamico/asdfree/master/Censo%20Demografico/download%20and%20import.R" , prompt = FALSE , echo = TRUE )
+# setInternet2( FALSE )						# # only windows users need this line
+# options( encoding = "latin1" )			# # only macintosh and *nix users need this line
+source_url( "https://raw.githubusercontent.com/ajdamico/asdfree/master/Censo%20Demografico/download%20and%20import.R" , prompt = FALSE , echo = TRUE )
 # this will be used to calculate weights used in the interpolation model
 
 # download the 2013 pesquisa nacional por amostra de domicilios (national sample survey of households)
 years.to.download <- 2013
-source_url( "https://raw.github.com/ajdamico/asdfree/master/Pesquisa%20Nacional%20por%20Amostra%20de%20Domicilios/download%20all%20microdata.R" , prompt = FALSE , echo = TRUE )
+# options( encoding = "windows-1252" )		# # only macintosh and *nix users need this line
+source_url( "https://raw.githubusercontent.com/ajdamico/asdfree/master/Pesquisa%20Nacional%20por%20Amostra%20de%20Domicilios/download%20all%20microdata.R" , prompt = FALSE , echo = TRUE )
+
 # this is the actual survey to be analyzed and displayed
 
 # # end of step 1 # #
