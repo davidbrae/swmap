@@ -60,7 +60,7 @@
 # # step 1: load the survey microdata # #
 
 # remove the # in order to run this install.packages line only once
-# install.packages( c("MonetDB.R", "MonetDBLite" , "survey" , "SAScii" , "descr" , "downloader" , "digest" , "sas7bdat" , "R.utils" ) , repos=c("http://dev.monetdb.org/Assets/R/", "http://cran.rstudio.com/"))
+# install.packages( c( "MonetDB.R" , "MonetDBLite" ) , repos=c("http://dev.monetdb.org/Assets/R/", "http://cran.rstudio.com/"))
 
 library(downloader)
 
@@ -83,24 +83,10 @@ library(MonetDB.R)
 library(MonetDBLite)
 library(scales)
 
-####################################################################
-# lines of code to hold on to for all other `acs` monetdb analyses #
+# connect to the database
+dbfolder <- paste0( getwd() , "/MonetDB" )
 
-# first: specify your batfile.  again, mine looks like this:
-# uncomment this line by removing the `#` at the front..
-batfile <- paste0( getwd() , "/MonetDB/acs.bat" )
-
-# second: run the MonetDB server
-pid <- monetdb.server.start( batfile )
-
-# third: your five lines to make a monet database connection.
-# just like above, mine look like this:
-dbname <- "acs"
-dbport <- 50001
-
-monet.url <- paste0( "monetdb://localhost:" , dbport , "/" , dbname )
-db <- dbConnect( MonetDB.R() , monet.url , wait = TRUE )
-
+db <- dbConnect( MonetDBLite() , dbfolder )
 
 # # # # run your analysis commands # # # #
 
@@ -111,12 +97,7 @@ acs.alaska <- dbGetQuery( db , 'select * from acs2013_1yr_m where st = 2' )
 # disconnect from the current monet database
 dbDisconnect( db )
 
-# and close it using the `pid`
-monetdb.server.stop( pid )
-
-# end of lines of code to hold on to for all other `acs` monetdb analyses #
-###########################################################################
-
+# construct a svrepdesign object
 alaska.design <-
 	svrepdesign(
 		weight = ~pwgtp ,
@@ -209,7 +190,7 @@ source_url(
 ctpxw.tf <- tempfile()
 
 download_cached(
-	"http://www.census.gov/geo/maps-data/data/docs/rel/2010_Census_Tract_to_2010_PUMA.txt" ,
+	"http://www2.census.gov/geo/docs/maps-data/data/rel/2010_Census_Tract_to_2010_PUMA.txt" ,
 	ctpxw.tf ,
 	mode = 'wb'
 )
@@ -514,8 +495,8 @@ library(fields)
 krig.fit.gulf <-
 	Krig(
 		cbind( x$intptlon , x$intptlat ) ,
-		x$gulf ,
-		weights = x$weight ,
+		Y = x$gulf ,
+		weights = x$weight.gulf ,
 		knots = cbind( ct.knots$intptlon , ct.knots$intptlat )
 		# if you prefer to use cover.design, all you'd need is this knots= line instead:
 		# knots = xknots

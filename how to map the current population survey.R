@@ -61,7 +61,7 @@
 # # step 1: load the survey microdata # #
 
 # remove the # in order to run this install.packages line only once
-# install.packages( c( "MonetDB.R" , "MonetDBLite" , "devtools" , "survey" , "SAScii" , "descr" , "downloader" , "digest" , "haven" , "devtools" ) , repos=c("http://dev.monetdb.org/Assets/R/", "http://cran.rstudio.com/") )
+# install.packages( c( "MonetDB.R" , "MonetDBLite" ) , repos=c("http://dev.monetdb.org/Assets/R/", "http://cran.rstudio.com/"))
 
 library(downloader)
 
@@ -77,7 +77,8 @@ source_url( "https://raw.github.com/ajdamico/asdfree/master/Current%20Population
 # # step 2: conduct your analysis of interest at the smallest geography allowed # #
 
 library(survey)
-library(RSQLite)
+library(MonetDB.R)
+library(MonetDBLite)
 
 # following the analysis examples in the r code repository --
 # # https://github.com/ajdamico/asdfree/blob/master/Current%20Population%20Survey/2012%20asec%20-%20analysis%20examples.R
@@ -88,16 +89,20 @@ library(RSQLite)
 options( survey.replicates.mse = TRUE )
 # this matches the official census bureau published methods
 
+# name the database files in the "MonetDB" folder of the current working directory
+dbfolder <- paste0( getwd() , "/MonetDB" )
+
 # construct a replicate-weighted, database-backed survey design object
 cps.design <-
 	svrepdesign(
-		weights = ~marsupwt,
-		repweights = "pwwgt[1-9]",
-		type = "Fay",
-		rho = ( 1 - 1 / sqrt( 4 ) ) ,
+		weights = ~marsupwt, 
+		repweights = "pwwgt[1-9]", 
+		type = "Fay", 
+		rho = ( 1 - 1 / sqrt( 4 ) ),
 		data = "asec13" ,
-		dbtype = "SQLite" ,
-		dbname = "cps.asec.db"
+		combined.weights = TRUE ,
+		dbtype = "MonetDBLite" ,
+		dbname = dbfolder
 	)
 
 # restrict the survey object to connecticut *plus adjacent state* records only
