@@ -506,7 +506,7 @@ krig.fit.vietnam <-
 	Krig(
 		cbind( x$intptlon , x$intptlat ) ,
 		x$vietnam ,
-		weights = x$weight ,
+		weights = x$weight.vietnam ,
 		knots = cbind( ct.knots$intptlon , ct.knots$intptlat )
 		# if you prefer to use cover.design, all you'd need is this knots= line instead:
 		# knots = xknots
@@ -516,7 +516,7 @@ krig.fit.other <-
 	Krig(
 		cbind( x$intptlon , x$intptlat ) ,
 		x$other ,
-		weights = x$weight ,
+		weights = x$weight.other ,
 		knots = cbind( ct.knots$intptlon , ct.knots$intptlat )
 		# if you prefer to use cover.design, all you'd need is this knots= line instead:
 		# knots = xknots
