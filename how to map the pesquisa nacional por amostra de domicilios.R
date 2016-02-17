@@ -88,7 +88,8 @@ source_url( "https://raw.githubusercontent.com/ajdamico/asdfree/master/Pesquisa%
 
 library(downloader)
 library(survey)
-library(RSQLite)
+library(MonetDB.R)
+library(MonetDBLite)
 
 # set R to produce conservative standard errors instead of crashing
 # http://r-survey.r-forge.r-project.org/survey/exmample-lonely.html
@@ -96,7 +97,7 @@ options( survey.lonely.psu = "adjust" )
 # this setting matches the MISSUNIT option in SUDAAN
 
 # load pnad-specific functions (to remove invalid SAS input script fields and postStratify a database-backed survey object)
-source_url( "https://raw.github.com/ajdamico/asdfree/master/Pesquisa Nacional por Amostra de Domicilios/pnad.survey.R" , prompt = FALSE )
+source_url( "https://raw.github.com/ajdamico/asdfree/master/Pesquisa%20Nacional%20por%20Amostra%20de%20Domicilios/pnad.survey.R" , prompt = FALSE )
 
 # create survey design object with PNAD design information
 # using existing table of PNAD data
@@ -107,8 +108,8 @@ sample.pnad <-
 		data = "pnad2013" ,
 		weights = ~pre_wgt ,
 		nest = TRUE ,
-		dbtype = "SQLite" ,
-		dbname = "pnad.db"
+		dbtype = "MonetDBLite" ,
+		dbname = pnad.dbfolder
 	)
 # note that the above object has been given the unwieldy name of `sample.pnad`
 # so that it's not accidentally used in analysis commands.
@@ -227,6 +228,7 @@ rm( y , sample.pnad ) ; gc()
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # # step 3: calculate small-area geographic population-weighted centroids # #
 
+library(MonetDBLite)
 library(MonetDB.R)
 library(downloader)
 library(RCurl)
@@ -295,24 +297,10 @@ ur_codm_wcts[ c( 'cd_geocodm' , 'nm_meso' , 'nm_micro' ) ] <-
 		as.character 
 	)
 
+# connect to the database
+dbfolder <- paste0( getwd() , "/MonetDB" )
 
-##################################################################################
-# lines of code to hold on to for all other `censo_demografico` monetdb analyses #
-
-# first: specify your batfile.  again, mine looks like this:
-# uncomment this line by removing the `#` at the front..
-batfile <- file.path( getwd() , "MonetDB/censo_demografico.bat" )
-
-# second: run the MonetDB server
-pid <- monetdb.server.start( batfile )
-
-# third: your five lines to make a monet database connection.
-# just like above, mine look like this:
-dbname <- "censo_demografico"
-dbport <- 50011
-
-monet.url <- paste0( "monetdb://localhost:" , dbport , "/" , dbname )
-db <- dbConnect( MonetDB.R() , monet.url , wait = TRUE )
+db <- dbConnect( MonetDBLite() , dbfolder )
 
 # extract one record per state per geocodm per urban/rural,
 # with the 2010 censo demografico populations in tow
@@ -335,12 +323,6 @@ adp <-
 
 # disconnect from the current monet database
 dbDisconnect( db )
-
-# and close it using the `pid`
-monetdb.server.stop( pid )
-
-# end of lines of code to hold on to for all other `censo_demografico` monetdb analyses #
-#########################################################################################
 
 # available mesoregion capitals
 capitals <- c( 1100205 , 1200401 , 1302603 , 1400100 , 1501402 , 1600303 , 1721000 , 2111300 , 2211001 , 2304400 , 2408102 , 2507507 , 2611606 , 2704302 , 2800308 , 2927408 , 3106200 , 3205309 , 3304557 , 3550308 , 4106902 , 4205407 , 4314902 , 5002704 , 5103403 , 5208707 , 5300108 )
