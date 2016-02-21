@@ -69,6 +69,7 @@ library(downloader)
 # download brazil's 2010 census microdata onto the local disk
 # setInternet2( FALSE )						# # only windows users need this line
 # options( encoding = "latin1" )			# # only macintosh and *nix users need this line
+years.to.download <- 2010
 source_url( "https://raw.githubusercontent.com/ajdamico/asdfree/master/Censo%20Demografico/download%20and%20import.R" , prompt = FALSE , echo = TRUE )
 # this will be used to calculate weights used in the interpolation model
 
@@ -136,23 +137,23 @@ y <-
 		occcat = 
 
 			# 01 Agrícola
-			ifelse( v4809 %in% '1' , 1 ,
+			ifelse( v4809 %in% '01' , 1 ,
 
 			# 02 Outras atividades industriais
 			# 03 Indústria de transformação
 			# 04 Construção
-			ifelse( v4809 %in% c( '2' , '3' , '4' ) , 2 , 
+			ifelse( v4809 %in% c( '02' , '03' , '04' ) , 2 , 
 			
 			# 05 Comércio e reparação
 			# 06 Alojamento e alimentação
 			# 07 Transporte, armazenagem e comunicação
-			ifelse( v4809 %in% c( '5', '6' , '7' ) , 3 ,
+			ifelse( v4809 %in% c( '05' , '06' , '07' ) , 3 ,
 			
 			# 08 Administração pública
 			# 09 Educação, saúde e serviços sociais
 			# 10 Serviços domésticos
 			# 11 Outros serviços coletivos, sociais e pessoais
-			ifelse( v4809 %in% c( '8' , '9' , '10' , '11' ) , 4 , 
+			ifelse( v4809 %in% c( '08' , '09' , '10' , '11' ) , 4 , 
 			
 				# 12 Outras atividades
 				# 13 Atividades maldefinidas 
@@ -248,11 +249,12 @@ source_url(
 # get the directory listing of ibge's smallest area shapefile
 # that matches some field on the publicly-available census microdata
 u <- 'ftp://geoftp.ibge.gov.br/malhas_digitais/censo_2010/setores_censitarios/'
-f <- paste0(u, strsplit(getURL(u, ftp.use.epsv = FALSE, ftplistonly = TRUE), 
-                        '\\s+')[[1]])
+states <- strsplit(getURL(u, ftp.use.epsv = FALSE, ftplistonly = TRUE), '\\s+')[[1]]
+states <- states[ states != '1_leia_me' ]
+f <- paste0( u , states , '/' , states , '_setores_censitarios.zip' )
 
-# keep only the zipped files
-f <- grep( "\\.zip$" , f , value = TRUE )
+# correct ftp typo
+f <- gsub( "go_setores_censitarios" , "go_setores%20_censitarios" , f )
 
 # download and extract to tempdir/shps
 invisible(sapply(f, function(x) {
@@ -279,7 +281,7 @@ shp <- do.call(rbind, as.list(shps))
 centroids <- gCentroid( shp , byid = TRUE )
 
 # merge those centroids with the urban/rural, census geocodm, mesocode, and microcode
-ur_codm <- cbind( shp@data[ , c( 'TIPO' , 'CD_GEOCODM' , 'NM_MESO' , 'NM_MICRO' ) ] , centroids )
+ur_codm <- cbind( shp@data[ , c( 'TIPO' , 'CD_GEOCODM' , 'NM_MESO' , 'NM_MICRO' ) ] , data.frame( centroids ) )
 
 # count the number of records per urban/rural x geocodm combination
 ur_codm_cts <- sqldf( "select TIPO , CD_GEOCODM , count(*) as count from ur_codm group by TIPO , CD_GEOCODM" ) 
@@ -490,7 +492,7 @@ library(ggplot2)
 tf <- tempfile()
 
 # use eurostat's map of the world
-world.fn <- "http://epp.eurostat.ec.europa.eu/cache/GISCO/geodatafiles/CNTR_2014_03M_SH.zip"
+world.fn <- "http://ec.europa.eu/eurostat/cache/GISCO/geodatafiles/CNTR_2014_03M_SH.zip"
 
 # store it to the local disk
 download_cached( world.fn , tf )
