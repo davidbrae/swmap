@@ -984,6 +984,9 @@ final.plot <- the.plot + outside.layer + state.border.layer
 # if you want, right? like a boss.
 
 
+# use cairo-png as your bitmap type
+options( bitmapType = "cairo" )
+
 # save the file to your current working directory
 ggsave( 
 	"2013 alaskan veteran service eras.png" ,

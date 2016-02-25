@@ -1027,6 +1027,9 @@ final.plot <-
 	legend.colors
 
 
+# use cairo-png as your bitmap type
+options( bitmapType = "cairo" )
+
 # save the file to your current working directory
 ggsave( 
 	"2013 common occupations - unprojected.png" ,
