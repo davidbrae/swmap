@@ -71,6 +71,8 @@ three.year.datasets.to.download <- NULL
 five.year.datasets.to.download <- NULL
 source_url( "https://raw.githubusercontent.com/ajdamico/asdfree/master/American%20Community%20Survey/download%20all%20microdata.R" , prompt = FALSE , echo = TRUE )
 
+gc()
+
 # # end of step 1 # #
 # # # # # # # # # # #
 

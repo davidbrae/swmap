@@ -73,12 +73,16 @@ years.to.download <- 2010
 source_url( "https://raw.githubusercontent.com/ajdamico/asdfree/master/Censo%20Demografico/download%20and%20import.R" , prompt = FALSE , echo = TRUE )
 # this will be used to calculate weights used in the interpolation model
 
+gc()
+
 # download the 2013 pesquisa nacional por amostra de domicilios (national sample survey of households)
 years.to.download <- 2013
 # options( encoding = "windows-1252" )		# # only macintosh and *nix users need this line
 source_url( "https://raw.githubusercontent.com/ajdamico/asdfree/master/Pesquisa%20Nacional%20por%20Amostra%20de%20Domicilios/download%20all%20microdata.R" , prompt = FALSE , echo = TRUE )
 
 # this is the actual survey to be analyzed and displayed
+
+gc()
 
 # # end of step 1 # #
 # # # # # # # # # # #
