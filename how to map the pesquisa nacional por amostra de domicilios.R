@@ -258,7 +258,7 @@ states <- states[ states != '1_leia_me' ]
 f <- paste0( u , states , '/' , states , '_setores_censitarios.zip' )
 
 # correct ftp typo
-f <- gsub( "go_setores_censitarios" , "go_setores%20_censitarios" , f )
+f <- gsub( "go_setores_censitarios" , "go_setores _censitarios" , f )
 
 # download and extract to tempdir/shps
 invisible(sapply(f, function(x) {
