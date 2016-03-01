@@ -993,12 +993,14 @@ final.plot <- the.plot + outside.layer + state.border.layer
 # use cairo-png as your bitmap type
 options( bitmapType = "cairo" )
 
-# save the file to your current working directory
-ggsave( 
-	"2013 alaskan veteran service eras.png" ,
-	plot = final.plot ,
-	scale = 3
-)
+# uncomment this block to save the file to your current working directory
+
+# ggsave( 
+	# "2013 alaskan veteran service eras.png" ,
+	# plot = final.plot ,
+	# scale = 3
+# )
+
 # happy?
 
 # # end of step ten # #
