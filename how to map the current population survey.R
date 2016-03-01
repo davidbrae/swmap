@@ -926,15 +926,11 @@ final.plot
 
 # would you like to save this game?
 
-# use cairo-png as your bitmap type
-options( bitmapType = "cairo" )
-
 # save the file to your current working directory
 ggsave( 
-	"2012 connecticut poverty rate.png" ,
+	"2012 connecticut poverty rate.pdf" ,
 	plot = final.plot ,
-	scale = 2 ,
-	type = "cairo-png" 
+	scale = 2
 )
 
 # # end of step ten # #
