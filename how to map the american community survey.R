@@ -490,6 +490,7 @@ ct.knots <-
 # or the equator.  in the united states, only alaska's aleutian islands do this
 # and we're mapping alaska, aren't we?  good thing we fixed it, huh?
 
+gc()
 
 # interpolation option one #
 library(fields)
@@ -504,6 +505,8 @@ krig.fit.gulf <-
 		# knots = xknots
 	)
 
+gc()
+	
 krig.fit.vietnam <-
 	Krig(
 		cbind( x$intptlon , x$intptlat ) ,
@@ -513,6 +516,8 @@ krig.fit.vietnam <-
 		# if you prefer to use cover.design, all you'd need is this knots= line instead:
 		# knots = xknots
 	)
+
+gc()
 
 krig.fit.other <-
 	Krig(
@@ -524,6 +529,7 @@ krig.fit.other <-
 		# knots = xknots
 	)
 
+gc()
 
 # that is: what is the (weighted) relationship between
 # your variable of interest (veteran service eras) and
