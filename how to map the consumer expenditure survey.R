@@ -1018,12 +1018,13 @@ final.plot
 # use cairo-png as your bitmap type
 options( bitmapType = "cairo" )
 
-# save the file to your current working directory
-ggsave( 
-	"2012-2013 transportation spending as a share of total spending - unprojected.png" ,
-	plot = final.plot ,
-	type = "cairo-png"
-)
+# uncomment this block to save the file to your current working directory
+
+# ggsave( 
+	# "2012-2013 transportation spending as a share of total spending - unprojected.png" ,
+	# plot = final.plot ,
+	# type = "cairo-png"
+# )
 
 # add the projection
 projected.plot <- final.plot + co
@@ -1037,12 +1038,14 @@ projected.plot <- final.plot + co
 # warning warning warning #
 # # # # # # # # # # # # # #
 
-# save the file to your current working directory
-ggsave( 
-	"2012-2013 transportation spending as a share of total spending - projected.png" ,
-	plot = projected.plot ,
-	type = "cairo-png"
-)
+
+# uncomment this block to save the file to your current working directory
+
+# ggsave( 
+	# "2012-2013 transportation spending as a share of total spending - projected.png" ,
+	# plot = projected.plot ,
+	# type = "cairo-png"
+# )
 
 # # end of step ten # #
 # # # # # # # # # # # #
