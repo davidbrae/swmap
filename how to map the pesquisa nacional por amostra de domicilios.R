@@ -1030,12 +1030,14 @@ final.plot <-
 # use cairo-png as your bitmap type
 options( bitmapType = "cairo" )
 
-# save the file to your current working directory
-ggsave( 
-	"2013 common occupations - unprojected.png" ,
-	plot = final.plot ,
-	scale = 1.25
-)
+# uncomment this block to save the file to your current working directory
+
+# ggsave( 
+	# "2013 common occupations - unprojected.png" ,
+	# plot = final.plot ,
+	# scale = 1.25
+# )
+
 # but that's unprojected.  you might prefer a projected map.
 
 # # # pick your projection # # #
@@ -1059,11 +1061,12 @@ projected.plot <- final.plot + coord_map( "albers" , bb10[ 2 , 1 ] , bb10[ 2 , 2
 # then leave this save command running overnight.
 
 # save the projected plot, which takes longer doesn't it.
-ggsave( 
-	"2013 common occupations - projected.png" ,
-	plot = projected.plot ,
-	scale = 1.25
-)
+# uncomment this block to save the file to your current working directory
+# ggsave( 
+	# "2013 common occupations - projected.png" ,
+	# plot = projected.plot ,
+	# scale = 1.25
+# )
 
 # # end of step ten # #
 # # # # # # # # # # # #
