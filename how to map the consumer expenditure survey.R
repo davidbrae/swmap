@@ -73,6 +73,10 @@ source_url( "https://raw.githubusercontent.com/ajdamico/asdfree/master/Consumer%
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # # step 2: download and import necessary geographic crosswalks # #
 
+
+# options( encoding = "windows-1252" )		# # only macintosh and *nix users need this line
+
+
 library(downloader)
 library(sqldf)
 
