@@ -93,6 +93,7 @@ gc()
 
 library(downloader)
 library(survey)
+library(DBI)			# load the DBI package (implements the R-database coding)
 library(MonetDB.R)
 library(MonetDBLite)
 
@@ -234,6 +235,7 @@ rm( y , sample.pnad ) ; gc()
 # # step 3: calculate small-area geographic population-weighted centroids # #
 
 library(MonetDBLite)
+library(DBI)			# load the DBI package (implements the R-database coding)
 library(MonetDB.R)
 library(downloader)
 library(RCurl)

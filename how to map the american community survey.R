@@ -81,6 +81,7 @@ gc()
 # # step 2: conduct your analysis of interest at the smallest geography allowed # #
 
 library(survey)
+library(DBI)			# load the DBI package (implements the R-database coding)
 library(MonetDB.R)
 library(MonetDBLite)
 library(scales)

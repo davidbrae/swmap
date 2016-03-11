@@ -77,6 +77,7 @@ source_url( "https://raw.github.com/ajdamico/asdfree/master/Current%20Population
 # # step 2: conduct your analysis of interest at the smallest geography allowed # #
 
 library(survey)
+library(DBI)			# load the DBI package (implements the R-database coding)
 library(MonetDB.R)
 library(MonetDBLite)
 
