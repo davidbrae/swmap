@@ -58,9 +58,6 @@
 # # # # # # # # # # # # # # # # # # # # #
 # # step 1: load the survey microdata # #
 
-# remove the # in order to run this install.packages line only once
-# install.packages( c( "MonetDB.R" , "MonetDBLite" ) , repos=c("http://dev.monetdb.org/Assets/R/", "http://cran.rstudio.com/"))
-
 library(downloader)
 
 # download the consumer expenditure survey microdata onto the local disk
