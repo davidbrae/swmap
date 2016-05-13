@@ -67,7 +67,6 @@
 library(downloader)
 
 # download brazil's 2010 census microdata onto the local disk
-# setInternet2( FALSE )						# # only windows users need this line
 # options( encoding = "latin1" )			# # only macintosh and *nix users need this line
 years.to.download <- 2010
 source_url( "https://raw.githubusercontent.com/ajdamico/asdfree/master/Censo%20Demografico/download%20and%20import.R" , prompt = FALSE , echo = TRUE )
