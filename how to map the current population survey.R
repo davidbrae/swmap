@@ -61,7 +61,7 @@
 # # step 1: load the survey microdata # #
 
 # remove the # in order to run this install.packages line only once
-# install.packages( c( "MonetDB.R" , "MonetDBLite" ) )
+# install.packages( "MonetDBLite" )
 
 library(downloader)
 
@@ -78,7 +78,6 @@ source_url( "https://raw.github.com/ajdamico/asdfree/master/Current%20Population
 
 library(survey)
 library(DBI)			# load the DBI package (implements the R-database coding)
-library(MonetDB.R)
 library(MonetDBLite)
 
 # following the analysis examples in the r code repository --

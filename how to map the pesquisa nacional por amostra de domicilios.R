@@ -62,7 +62,7 @@
 # # step 1: load the survey microdata # #
 
 # remove the # in order to run this install.packages line only once
-# install.packages( c( "MonetDB.R" , "MonetDBLite" ) )
+# install.packages( "MonetDBLite" )
 
 library(downloader)
 
@@ -93,7 +93,6 @@ gc()
 library(downloader)
 library(survey)
 library(DBI)			# load the DBI package (implements the R-database coding)
-library(MonetDB.R)
 library(MonetDBLite)
 
 # set R to produce conservative standard errors instead of crashing
@@ -235,7 +234,6 @@ rm( y , sample.pnad ) ; gc()
 
 library(MonetDBLite)
 library(DBI)			# load the DBI package (implements the R-database coding)
-library(MonetDB.R)
 library(downloader)
 library(RCurl)
 library(rgdal)
