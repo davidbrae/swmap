@@ -251,7 +251,7 @@ source_url(
 
 # get the directory listing of ibge's smallest area shapefile
 # that matches some field on the publicly-available census microdata
-u <- 'ftp://geoftp.ibge.gov.br/organizacao_do_territorio/malhas_territoriais/malhas_de_setores_censitarios__divisoes_intramunicipais/censo_2010/setores_censitarios/'
+u <- 'ftp://geoftp.ibge.gov.br/organizacao_do_territorio/malhas_territoriais/malhas_de_setores_censitarios__divisoes_intramunicipais/censo_2010/setores_censitarios_shp/'
 states <- strsplit(getURL(u, ftp.use.epsv = FALSE, ftplistonly = TRUE), '\\s+')[[1]]
 states <- states[ states != '1_leia_me' ]
 f <- paste0( u , states , '/' , states , '_setores_censitarios.zip' )
